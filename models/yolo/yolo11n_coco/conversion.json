@@ -1,0 +1,50 @@
+{
+  "status": "converted",
+  "scope": "offline conversion; board inference not yet tested",
+  "onnx_sha256": "121662c804b9aa906563235ed2909815f2c23bc6e4052e651e01468817551826",
+  "onnx_ir_version": 8,
+  "opsets": {
+    "ai.onnx": 17
+  },
+  "inputs": {
+    "images": [
+      1,
+      3,
+      320,
+      320
+    ]
+  },
+  "outputs": {
+    "output0": [
+      1,
+      84,
+      2100
+    ]
+  },
+  "target_platform": "rk3588",
+  "do_quantization": false,
+  "mean_values": [
+    [
+      0,
+      0,
+      0
+    ]
+  ],
+  "std_values": [
+    [
+      255,
+      255,
+      255
+    ]
+  ],
+  "versions": {
+    "rknn-toolkit2": "2.3.2",
+    "onnx": "1.16.1",
+    "onnxruntime": "1.19.2",
+    "torch": "2.4.0+cpu",
+    "numpy": "1.26.4"
+  },
+  "python": "3.11.17",
+  "rknn_path": "/home/zyx/yolo11n-rknn-232/converted/20261009_042349_483895/yolo11n-rk3588-fp.rknn",
+  "rknn_sha256": "72b202f6b6cebb12f60bd1ae2dceffa706ba19cc66c93955e483645ef8c26a02"
+}

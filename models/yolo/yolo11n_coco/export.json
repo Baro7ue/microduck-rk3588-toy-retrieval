@@ -1,0 +1,59 @@
+{
+  "status": "exported_and_onnx_checker_passed",
+  "checkpoint_url": "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt",
+  "checkpoint_sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+  "onnx_sha256": "121662c804b9aa906563235ed2909815f2c23bc6e4052e651e01468817551826",
+  "python": "3.12.14 (main, Sep  1 2026, 14:09:38) [Clang 22.1.3 ]",
+  "arguments": {
+    "format": "onnx",
+    "imgsz": 320,
+    "batch": 1,
+    "device": "cpu",
+    "dynamic": false,
+    "half": false,
+    "simplify": false,
+    "opset": 17,
+    "nms": false
+  },
+  "torch_exporter": "legacy: explicit dynamo=False",
+  "versions": {
+    "ultralytics": "8.3.200",
+    "torch": "2.9.1",
+    "torchvision": "0.24.1",
+    "onnx": "1.22.0",
+    "numpy": "2.4.1"
+  },
+  "inputs": {
+    "images": [
+      1,
+      3,
+      320,
+      320
+    ]
+  },
+  "outputs": {
+    "output0": [
+      1,
+      84,
+      2100
+    ]
+  },
+  "opsets": {
+    "ai.onnx": 17
+  },
+  "metadata": {
+    "description": "Ultralytics YOLO11n model trained on /usr/src/ultralytics/ultralytics/cfg/datasets/coco.yaml",
+    "author": "Ultralytics",
+    "date": "2026-10-08T11:08:23.491739",
+    "version": "8.3.200",
+    "license": "AGPL-3.0 License (https://ultralytics.com/license)",
+    "docs": "https://docs.ultralytics.com",
+    "stride": "32",
+    "task": "detect",
+    "batch": "1",
+    "imgsz": "[320, 320]",
+    "names": "{0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light', 10: 'fire hydrant', 11: 'stop sign', 12: 'parking meter', 13: 'bench', 14: 'bird', 15: 'cat', 16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 20: 'elephant', 21: 'bear', 22: 'zebra', 23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag', 27: 'tie', 28: 'suitcase', 29: 'frisbee', 30: 'skis', 31: 'snowboard', 32: 'sports ball', 33: 'kite', 34: 'baseball bat', 35: 'baseball glove', 36: 'skateboard', 37: 'surfboard', 38: 'tennis racket', 39: 'bottle', 40: 'wine glass', 41: 'cup', 42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl', 46: 'banana', 47: 'apple', 48: 'sandwich', 49: 'orange', 50: 'broccoli', 51: 'carrot', 52: 'hot dog', 53: 'pizza', 54: 'donut', 55: 'cake', 56: 'chair', 57: 'couch', 58: 'potted plant', 59: 'bed', 60: 'dining table', 61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote', 66: 'keyboard', 67: 'cell phone', 68: 'microwave', 69: 'oven', 70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book', 74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear', 78: 'hair drier', 79: 'toothbrush'}",
+    "args": "{'batch': 1, 'half': False, 'dynamic': False, 'simplify': False, 'opset': 17, 'nms': False}",
+    "channels": "3"
+  }
+}

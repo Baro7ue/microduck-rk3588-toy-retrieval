@@ -1,0 +1,67 @@
+{
+  "run_id": "qktrrkg5",
+  "observed_steps": 17680,
+  "last_step": 17679,
+  "comparison_windows": [
+    "2000–2499",
+    "17000–17499"
+  ],
+  "rows_per_window": [
+    500,
+    500
+  ],
+  "comparison": [
+    {
+      "metric": "Train/mean_reward",
+      "label": "平均回报",
+      "early_window_mean": 113.0011597610724,
+      "late_window_mean": 124.86622097141326,
+      "percent_change": 10.499946403583937,
+      "preferred_direction": "higher"
+    },
+    {
+      "metric": "Train/mean_episode_length",
+      "label": "平均 episode 长度（控制步）",
+      "early_window_mean": 955.8386999999999,
+      "late_window_mean": 973.9113600000001,
+      "percent_change": 1.89076462378015,
+      "preferred_direction": "higher"
+    },
+    {
+      "metric": "Metrics/twist/error_vel_xy",
+      "label": "平面速度误差日志值",
+      "early_window_mean": 0.4264555715918541,
+      "late_window_mean": 0.4218430585861206,
+      "percent_change": -1.081592858200009,
+      "preferred_direction": "lower"
+    },
+    {
+      "metric": "Metrics/twist/error_vel_yaw",
+      "label": "偏航速度误差日志值",
+      "early_window_mean": 1.1185487139225005,
+      "late_window_mean": 0.9861558837890625,
+      "percent_change": -11.836125551400078,
+      "preferred_direction": "lower"
+    },
+    {
+      "metric": "Episode_Metrics/mean_action_acc",
+      "label": "动作二阶差分绝对值",
+      "early_window_mean": 0.34610688024759295,
+      "late_window_mean": 0.32079000455141066,
+      "percent_change": -7.3147565509450345,
+      "preferred_direction": "lower"
+    },
+    {
+      "metric": "Episode_Termination/fell_over",
+      "label": "摔倒终止计数均值（非摔倒率）",
+      "early_window_mean": 0.39575001189112663,
+      "late_window_mean": 0.235750006839633,
+      "percent_change": -40.429564180407574,
+      "preferred_direction": "lower"
+    }
+  ],
+  "runtime_at_iteration_2000_seconds": 5056.997435596,
+  "runtime_at_iteration_5000_seconds": 12656.746174676,
+  "runtime_at_final_iteration_seconds": 44982.710726696,
+  "source_sha256": "533b52ccdf537151b05f43320b5533048510b428b5d50567c73dea80016555d6"
+}

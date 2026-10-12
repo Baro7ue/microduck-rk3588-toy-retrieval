@@ -1,0 +1,15 @@
+{
+  "pages": 6,
+  "page_text_lengths": [
+    1033,
+    1063,
+    1091,
+    1044,
+    1008,
+    1599
+  ],
+  "command_blocks": 7,
+  "max_command_width_pt": 356.4140625,
+  "shell_syntax": "pass",
+  "output_bytes": 338962
+}

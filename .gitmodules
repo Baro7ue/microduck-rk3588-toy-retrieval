@@ -1,0 +1,8 @@
+[submodule "third_party/microduck"]
+	path = third_party/microduck
+	url = https://github.com/pollen-robotics/microduck.git
+	ignore = untracked
+[submodule "third_party/microduck_rl"]
+	path = third_party/microduck_rl
+	url = https://github.com/pollen-robotics/microduck_rl.git
+	ignore = untracked

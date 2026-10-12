@@ -1,0 +1,316 @@
+id	ts	phase	op	src	dst	ref
+1	2026-10-12T04:57:25Z	P1	begin			
+2	2026-10-12T04:57:25Z	P1	delete	.DS_Store		
+3	2026-10-12T04:57:25Z	P1	delete	task1/.DS_Store		
+4	2026-10-12T04:57:25Z	P1	delete	output/.DS_Store		
+5	2026-10-12T04:57:25Z	P1	delete	work/__pycache__		
+6	2026-10-12T04:57:25Z	P1	delete	work/.DS_Store		
+7	2026-10-12T04:57:25Z	P1	delete	work/g3-offline/.DS_Store		
+8	2026-10-12T04:57:25Z	P1	delete	work/vision-offline/yolo11n-follow-npu-fixed-area-before-keep-stand-20261009/__pycache__		
+9	2026-10-12T04:57:25Z	P1	delete	work/vision-offline/yolo11n-follow-fixed-area-before-keep-stand-20261009/__pycache__		
+10	2026-10-12T04:57:25Z	P1	delete	work/vision-offline/yolo11n-cpu/__pycache__		
+11	2026-10-12T04:57:25Z	P1	delete	work/tests/__pycache__		
+12	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/__pycache__		
+13	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/misc/__pycache__		
+14	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/mat_wrapper/__pycache__		
+15	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/gapi/__pycache__		
+16	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/utils/__pycache__		
+17	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/typing/__pycache__		
+18	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/cv2/data/__pycache__		
+19	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/thop/__pycache__		
+20	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/thop/vision/__pycache__		
+21	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/__pycache__		
+22	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/nn/__pycache__		
+23	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/nn/modules/__pycache__		
+24	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/utils/__pycache__		
+25	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/utils/callbacks/__pycache__		
+26	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/utils/export/__pycache__		
+27	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/__pycache__		
+28	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/fastsam/__pycache__		
+29	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/sam/__pycache__		
+30	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/nas/__pycache__		
+31	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/__pycache__		
+32	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/obb/__pycache__		
+33	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/detect/__pycache__		
+34	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/classify/__pycache__		
+35	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/yoloe/__pycache__		
+36	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/segment/__pycache__		
+37	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/world/__pycache__		
+38	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/yolo/pose/__pycache__		
+39	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/models/rtdetr/__pycache__		
+40	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/cfg/__pycache__		
+41	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/data/__pycache__		
+42	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/engine/__pycache__		
+43	2026-10-12T04:57:25Z	P1	delete	work/vision-export/site-packages/ultralytics/hub/__pycache__		
+44	2026-10-12T04:57:25Z	P1	delete	task/.DS_Store		
+45	2026-10-12T04:57:25Z	P1	delete	task/evidence/.DS_Store		
+46	2026-10-12T04:57:25Z	P1	delete	task/evidence/G4/close_ball_calibration_20261009/__pycache__		
+47	2026-10-12T04:57:25Z	P1	delete	task/checkpoints/.DS_Store		
+48	2026-10-12T04:57:25Z	P1	delete	参考资料/.DS_Store		
+49	2026-10-12T04:57:25Z	P1	delete	参考资料/02、开发板原理图/.DS_Store		
+50	2026-10-12T04:57:25Z	P1	delete	参考资料/10、用户手册/.DS_Store		
+51	2026-10-12T04:57:25Z	P1	delete	参考资料/10、用户手册/Linux6.1文档/.DS_Store		
+52	2026-10-12T04:57:25Z	P1	delete	outputs/.DS_Store		
+53	2026-10-12T04:57:31Z	P1	snapshot			
+54	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/.gitattributes	.gitattributes	
+55	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/.gitignore	.gitignore	
+56	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/PROVENANCE.md	PROVENANCE.md	
+57	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/README.md	README.md	
+58	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/env.sh	env.sh	
+59	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/pyproject.toml	pyproject.toml	
+60	2026-10-12T04:57:31Z	P1	mkdir	archive		
+61	2026-10-12T04:57:31Z	P1	mkdir	archive/2026-10_ball_follow		
+62	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/archive/2026-10_ball_follow/README.md	archive/2026-10_ball_follow/README.md	
+63	2026-10-12T04:57:31Z	P1	mkdir	configs		
+64	2026-10-12T04:57:31Z	P1	mkdir	configs/control		
+65	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/configs/control/heading_hold_schedule.json	configs/control/heading_hold_schedule.json	
+66	2026-10-12T04:57:31Z	P1	mkdir	configs/robotd		
+67	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/configs/robotd/board.toml	configs/robotd/board.toml	
+68	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/configs/robotd/mac_sim.toml.in	configs/robotd/mac_sim.toml.in	
+69	2026-10-12T04:57:31Z	P1	mkdir	data		
+70	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/data/README.md	data/README.md	
+71	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/docs/README.md	docs/README.md	
+72	2026-10-12T04:57:31Z	P1	mkdir	evidence		
+73	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/evidence/README.md	evidence/README.md	
+74	2026-10-12T04:57:31Z	P1	mkdir	models		
+75	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/models/README.md	models/README.md	
+76	2026-10-12T04:57:31Z	P1	mkdir	offline		
+77	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/offline/README.md	offline/README.md	
+78	2026-10-12T04:57:31Z	P1	mkdir	references		
+79	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/references/README.md	references/README.md	
+80	2026-10-12T04:57:31Z	P1	mkdir	report		
+81	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/report/README.md	report/README.md	
+82	2026-10-12T04:57:31Z	P1	mkdir	results		
+83	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/results/README.md	results/README.md	
+84	2026-10-12T04:57:31Z	P1	mkdir	runs		
+85	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/runs/README.md	runs/README.md	
+86	2026-10-12T04:57:31Z	P1	mkdir	scripts		
+87	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/lib.zsh	scripts/lib.zsh	
+88	2026-10-12T04:57:31Z	P1	mkdir	scripts/board		
+89	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/board/measure_board_resources.py	scripts/board/measure_board_resources.py	
+90	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/board/measure_board_resources.zsh	scripts/board/measure_board_resources.zsh	
+91	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/board/probe_board_stand_camera.zsh	scripts/board/probe_board_stand_camera.zsh	
+92	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/board/probe_board_yolo_camera.zsh	scripts/board/probe_board_yolo_camera.zsh	
+93	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/board/run_board_robotd.zsh	scripts/board/run_board_robotd.zsh	
+94	2026-10-12T04:57:31Z	P1	mkdir	scripts/sim		
+95	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/sim/build_mac_runtime.zsh	scripts/sim/build_mac_runtime.zsh	
+96	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/sim/run_mac_robotd.zsh	scripts/sim/run_mac_robotd.zsh	
+97	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/sim/run_sim_body.zsh	scripts/sim/run_sim_body.zsh	
+98	2026-10-12T04:57:31Z	P1	mkdir	scripts/tools		
+99	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/tools/run_tests.zsh	scripts/tools/run_tests.zsh	
+100	2026-10-12T04:57:31Z	P1	mkdir	scripts/vision		
+101	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/vision/convert_yolo_rknn.py	scripts/vision/convert_yolo_rknn.py	
+102	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/scripts/vision/export_yolo_onnx.py	scripts/vision/export_yolo_onnx.py	
+103	2026-10-12T04:57:31Z	P1	mkdir	sim		
+104	2026-10-12T04:57:31Z	P1	mkdir	sim/scenes		
+105	2026-10-12T04:57:31Z	P1	mkdir	sim/scenes/legacy_ball		
+106	2026-10-12T04:57:31Z	P1	mkdir	sim/scenes/legacy_ball/ball_1m_yellow		
+107	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/sim/scenes/legacy_ball/ball_1m_yellow/README.md	sim/scenes/legacy_ball/ball_1m_yellow/README.md	
+108	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/sim/scenes/legacy_ball/ball_1m_yellow/ball.xml	sim/scenes/legacy_ball/ball_1m_yellow/ball.xml	
+109	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/sim/scenes/legacy_ball/ball_1m_yellow/scene_ball_1m.xml	sim/scenes/legacy_ball/ball_1m_yellow/scene_ball_1m.xml	
+110	2026-10-12T04:57:31Z	P1	mkdir	src		
+111	2026-10-12T04:57:31Z	P1	mkdir	src/microduck_toy		
+112	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/__init__.py	src/microduck_toy/__init__.py	
+113	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/paths.py	src/microduck_toy/paths.py	
+114	2026-10-12T04:57:31Z	P1	mkdir	src/microduck_toy/control		
+115	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/control/__init__.py	src/microduck_toy/control/__init__.py	
+116	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/control/heading_hold.py	src/microduck_toy/control/heading_hold.py	
+117	2026-10-12T04:57:31Z	P1	mkdir	src/microduck_toy/rpc		
+118	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/rpc/__init__.py	src/microduck_toy/rpc/__init__.py	
+119	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/rpc/robotd_client.py	src/microduck_toy/rpc/robotd_client.py	
+120	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/rpc/stand_probe.py	src/microduck_toy/rpc/stand_probe.py	
+121	2026-10-12T04:57:31Z	P1	mkdir	src/microduck_toy/sim		
+122	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/sim/__init__.py	src/microduck_toy/sim/__init__.py	
+123	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/sim/bootstrap_body.py	src/microduck_toy/sim/bootstrap_body.py	
+124	2026-10-12T04:57:31Z	P1	mkdir	src/microduck_toy/vision		
+125	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/__init__.py	src/microduck_toy/vision/__init__.py	
+126	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/camera_geometry.py	src/microduck_toy/vision/camera_geometry.py	
+127	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/camera_stream.py	src/microduck_toy/vision/camera_stream.py	
+128	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/cpu_npu_compare.py	src/microduck_toy/vision/cpu_npu_compare.py	
+129	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/rknn_runner.py	src/microduck_toy/vision/rknn_runner.py	
+130	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/yolo_camera_probe.py	src/microduck_toy/vision/yolo_camera_probe.py	
+131	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/src/microduck_toy/vision/yolo_postprocess.py	src/microduck_toy/vision/yolo_postprocess.py	
+132	2026-10-12T04:57:31Z	P1	mkdir	tests		
+133	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_camera_geometry.py	tests/test_camera_geometry.py	
+134	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_camera_stream.py	tests/test_camera_stream.py	
+135	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_cpu_npu_compare.py	tests/test_cpu_npu_compare.py	
+136	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_heading_hold.py	tests/test_heading_hold.py	
+137	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_launchers.py	tests/test_launchers.py	
+138	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_paths.py	tests/test_paths.py	
+139	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_reorg.py	tests/test_reorg.py	
+140	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_rknn_runner.py	tests/test_rknn_runner.py	
+141	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_robotd_client.py	tests/test_robotd_client.py	
+142	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_yolo_camera_probe.py	tests/test_yolo_camera_probe.py	
+143	2026-10-12T04:57:31Z	P1	move	docs/reorg/staged/tests/test_yolo_postprocess.py	tests/test_yolo_postprocess.py	
+144	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/sim/scenes/legacy_ball/ball_1m_yellow		
+145	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/src/microduck_toy/vision		
+146	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/src/microduck_toy/sim		
+147	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/src/microduck_toy/rpc		
+148	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/src/microduck_toy/control		
+149	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/sim/scenes/legacy_ball		
+150	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/src/microduck_toy		
+151	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/sim/scenes		
+152	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/scripts/vision		
+153	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/scripts/tools		
+154	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/scripts/sim		
+155	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/scripts/board		
+156	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/configs/robotd		
+157	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/configs/control		
+158	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/archive/2026-10_ball_follow		
+159	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/tests		
+160	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/src		
+161	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/sim		
+162	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/scripts		
+163	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/runs		
+164	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/results		
+165	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/report		
+166	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/references		
+167	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/offline		
+168	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/models		
+169	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/evidence		
+170	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/docs		
+171	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/data		
+172	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/configs		
+173	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged/archive		
+174	2026-10-12T04:57:31Z	P1	rmdir	docs/reorg/staged		
+175	2026-10-12T04:57:31Z	P1	end			
+176	2026-10-12T04:57:36Z	P2	begin			
+177	2026-10-12T04:57:36Z	P2	move	task/evidence/G1	evidence/G1	
+178	2026-10-12T04:57:36Z	P2	move	task/evidence/G2	evidence/G2	
+179	2026-10-12T04:57:36Z	P2	move	task/evidence/G3	evidence/G3	
+180	2026-10-12T04:57:36Z	P2	move	task/evidence/G4	evidence/G4	
+181	2026-10-12T04:57:36Z	P2	move	task/evidence/walk_drift_20261004	evidence/walk_drift_20261004	
+182	2026-10-12T04:57:36Z	P2	mkdir	evidence/training_20261003		
+183	2026-10-12T04:57:36Z	P2	move	task/evidence/commit.txt	evidence/training_20261003/commit.txt	
+184	2026-10-12T04:57:36Z	P2	move	task/evidence/dependencies.sha256	evidence/training_20261003/dependencies.sha256	
+185	2026-10-12T04:57:36Z	P2	move	task/evidence/git-status.before.txt	evidence/training_20261003/git-status.before.txt	
+186	2026-10-12T04:57:36Z	P2	move	task/evidence/hf-dry-run.exit.txt	evidence/training_20261003/hf-dry-run.exit.txt	
+187	2026-10-12T04:57:36Z	P2	move	task/evidence/hf-dry-run.full.log	evidence/training_20261003/hf-dry-run.full.log	
+188	2026-10-12T04:57:36Z	P2	move	task/evidence/hf-inspect.txt	evidence/training_20261003/hf-inspect.txt	
+189	2026-10-12T04:57:36Z	P2	move	task/evidence/hf-live.log	evidence/training_20261003/hf-live.log	
+190	2026-10-12T04:57:36Z	P2	move	task/evidence/hf-submit.full.log	evidence/training_20261003/hf-submit.full.log	
+191	2026-10-12T04:57:36Z	P2	move	task/evidence/links.txt	evidence/training_20261003/links.txt	
+192	2026-10-12T04:57:36Z	P2	move	task/evidence/platform.txt	evidence/training_20261003/platform.txt	
+193	2026-10-12T04:57:36Z	P2	move	task/evidence/policies	evidence/training_20261003/policies	
+194	2026-10-12T04:57:36Z	P2	move	task/evidence/policies-download.log	evidence/training_20261003/policies-download.log	
+195	2026-10-12T04:57:36Z	P2	move	task/evidence/policy-download.log	evidence/training_20261003/policy-download.log	
+196	2026-10-12T04:57:36Z	P2	move	task/evidence/policy-shape.txt	evidence/training_20261003/policy-shape.txt	
+197	2026-10-12T04:57:36Z	P2	move	task/evidence/uv-sync.exit.txt	evidence/training_20261003/uv-sync.exit.txt	
+198	2026-10-12T04:57:36Z	P2	move	task/evidence/uv-sync.full.log	evidence/training_20261003/uv-sync.full.log	
+199	2026-10-12T04:57:36Z	P2	move	task/evidence/uv-sync.last20.txt	evidence/training_20261003/uv-sync.last20.txt	
+200	2026-10-12T04:57:36Z	P2	move	task/evidence/walk_17500_verification_20261004.json	evidence/training_20261003/walk_17500_verification_20261004.json	
+201	2026-10-12T04:57:36Z	P2	move	task/evidence/wandb-history-audit-20261004.json	evidence/training_20261003/wandb-history-audit-20261004.json	
+202	2026-10-12T04:57:36Z	P2	move	task/evidence/wandb-history-qktrrkg5-20261004-clean.csv	evidence/training_20261003/wandb-history-qktrrkg5-20261004-clean.csv	
+203	2026-10-12T04:57:36Z	P2	move	task/evidence/wandb-history-qktrrkg5-20261004.csv	evidence/training_20261003/wandb-history-qktrrkg5-20261004.csv	
+204	2026-10-12T04:57:36Z	P2	move	task/evidence/wandb-run-summary-20261004.json	evidence/training_20261003/wandb-run-summary-20261004.json	
+205	2026-10-12T04:57:36Z	P2	rmdir	task/evidence		
+206	2026-10-12T04:57:36Z	P2	move	task1/evidence	evidence/task1_serial_boot	
+207	2026-10-12T04:57:36Z	P2	rmdir	task1		
+208	2026-10-12T04:57:36Z	P2	mkdir	docs/guides		
+209	2026-10-12T04:57:36Z	P2	move	output/guides/G3_10分钟持续运行与资源采样_20261007.md	docs/guides/2026-10-07_g3_10min_run_resource_sampling.md	
+210	2026-10-12T04:57:36Z	P2	move	output/guides/G3_CPU策略推理耗时测量_20261007.md	docs/guides/2026-10-07_g3_cpu_policy_inference_timing.md	
+211	2026-10-12T04:57:36Z	P2	move	output/guides/G3_反馈采样修复与重新验收_20261007.md	docs/guides/2026-10-07_g3_feedback_sampling_fix_reacceptance.md	
+212	2026-10-12T04:57:36Z	P2	move	output/guides/G3_断联恢复与60秒行走_20261007.md	docs/guides/2026-10-07_g3_disconnect_recovery_60s_walk.md	
+213	2026-10-12T04:57:36Z	P2	move	output/guides/G4_YOLO11n板端CPU单图检测_20261008.md	docs/guides/2026-10-08_g4_yolo11n_board_cpu_single_image.md	
+214	2026-10-12T04:57:36Z	P2	move	output/guides/G4_一格距离停车_20261009.md	docs/guides/2026-10-09_g4_one_cell_distance_stop.md	
+215	2026-10-12T04:57:36Z	P2	move	output/guides/G4_三维球相机正样本_20261008.md	docs/guides/2026-10-08_g4_3d_ball_camera_positives.md	
+216	2026-10-12T04:57:36Z	P2	move	output/guides/G4_固定面积停车_20261009.md	docs/guides/2026-10-09_g4_fixed_area_stop.md	
+217	2026-10-12T04:57:36Z	P2	move	output/guides/G4_地面反射对照与板端复核_20261008.md	docs/guides/2026-10-08_g4_floor_reflection_control_board_recheck.md	
+218	2026-10-12T04:57:36Z	P2	move	output/guides/G4_板端接收仿真相机画面_20261007.md	docs/guides/2026-10-07_g4_board_receives_sim_camera.md	
+219	2026-10-12T04:57:36Z	P2	move	output/guides/G4_相机连续CPU检测_20261008.md	docs/guides/2026-10-08_g4_camera_continuous_cpu_detection.md	
+220	2026-10-12T04:57:36Z	P2	move	output/guides/G4_站立策略与相机检测联合检查_20261008.md	docs/guides/2026-10-08_g4_stand_policy_with_camera_detection.md	
+221	2026-10-12T04:57:36Z	P2	move	output/guides/G4_统一启动与录屏_20261008.md	docs/guides/2026-10-08_g4_unified_launch_and_recording.md	
+222	2026-10-12T04:57:36Z	P2	move	output/guides/G4_视觉接近与停止_20261008.md	docs/guides/2026-10-08_g4_visual_approach_and_stop.md	
+223	2026-10-12T04:57:36Z	P2	move	output/guides/G4_转向参考修正与验收_20261010.md	docs/guides/2026-10-10_g4_steering_reference_fix.md	
+224	2026-10-12T04:57:36Z	P2	move	output/guides/G4_速度对照_20261008.md	docs/guides/2026-10-08_g4_speed_comparison.md	
+225	2026-10-12T04:57:36Z	P2	mkdir	docs/analyses		
+226	2026-10-12T04:57:36Z	P2	move	output/pdf/MicroDuck_下一阶段行动指南_20261004.md	docs/analyses/2026-10-04_next_stage_action_guide.md	
+227	2026-10-12T04:57:36Z	P2	mkdir	references/ai_notes		
+228	2026-10-12T04:57:36Z	P2	mkdir	references/ai_notes/gpt_outputs		
+229	2026-10-12T04:57:36Z	P2	move	output/pdf/INT4_INT8_FP16_FP32_ONNX_RKNN_系统讲解_20261010.pdf	references/ai_notes/gpt_outputs/INT4_INT8_FP16_FP32_ONNX_RKNN_系统讲解_20261010.pdf	
+230	2026-10-12T04:57:36Z	P2	move	output/pdf/MicroDuck_下一阶段行动指南_20261004.pdf	references/ai_notes/gpt_outputs/MicroDuck_下一阶段行动指南_20261004.pdf	
+231	2026-10-12T04:57:36Z	P2	rmdir	output/guides		
+232	2026-10-12T04:57:36Z	P2	rmdir	output/pdf		
+233	2026-10-12T04:57:36Z	P2	rmdir	output		
+234	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck左偏绕圈诊断_20261004.md	docs/analyses/2026-10-04_left_drift_circling_diagnosis.md	
+235	2026-10-12T04:57:36Z	P2	mkdir	docs/analyses/figures		
+236	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck航向保持_5分钟对照_20261004.png	docs/analyses/figures/2026-10-04_heading_hold_5min_comparison.png	
+237	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck航向保持对照_20261004.png	docs/analyses/figures/2026-10-04_heading_hold_comparison.png	
+238	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck航向保持对照_20261004.svg	docs/analyses/figures/2026-10-04_heading_hold_comparison.svg	
+239	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck航向保持说明_20261004.md	docs/analyses/2026-10-04_heading_hold_notes.md	
+240	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck训练平台期分析_20261004.ipynb	docs/analyses/2026-10-04_training_plateau_analysis.ipynb	
+241	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck训练平台期分析_20261004.json	docs/analyses/2026-10-04_training_plateau_analysis.json	
+242	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck训练平台期分析_20261004.md	docs/analyses/2026-10-04_training_plateau_analysis.md	
+243	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck训练曲线分析_20261004.png	docs/analyses/figures/2026-10-04_training_curves.png	
+244	2026-10-12T04:57:36Z	P2	move	outputs/MicroDuck训练曲线分析_20261004.svg	docs/analyses/figures/2026-10-04_training_curves.svg	
+245	2026-10-12T04:57:36Z	P2	move	outputs/WandB训练时长核对_20261004.ipynb	docs/analyses/2026-10-04_wandb_training_duration_check.ipynb	
+246	2026-10-12T04:57:36Z	P2	move	outputs/WandB训练时长核对_20261004.json	docs/analyses/2026-10-04_wandb_training_duration_check.json	
+247	2026-10-12T04:57:36Z	P2	move	outputs/任务卡1_Mac串口启动日志_逐步教程.md	docs/guides/2026-10-03_task_card1_mac_serial_boot_log.md	
+248	2026-10-12T04:57:36Z	P2	move	outputs/任务卡1_Mac串口启动日志_逐步教程.pdf	references/ai_notes/gpt_outputs/任务卡1_Mac串口启动日志_逐步教程.pdf	
+249	2026-10-12T04:57:36Z	P2	rmdir	outputs		
+250	2026-10-12T04:57:36Z	P2	mkdir	docs/plans		
+251	2026-10-12T04:57:36Z	P2	move	reports/MicroDuck 寻球 导航方案.md	docs/plans/2026-10-10_ball_search_navigation_plan.md	
+252	2026-10-12T04:57:36Z	P2	move	reports/MicroDuck_玩具回收总体方案_Claude评估版_2026-10-11.md	docs/plans/2026-10-11_toy_retrieval_plan_for_review.md	
+253	2026-10-12T04:57:36Z	P2	rmdir	reports		
+254	2026-10-12T04:57:36Z	P2	mkdir	references/research_ball_navigation		
+255	2026-10-12T04:57:36Z	P2	move	research_notes/MicroDuck 寻球 导航方案/bhuman_tree.json	references/research_ball_navigation/bhuman_tree.json	
+256	2026-10-12T04:57:36Z	P2	move	research_notes/MicroDuck 寻球 导航方案/bit-bots_tree.json	references/research_ball_navigation/bit-bots_tree.json	
+257	2026-10-12T04:57:36Z	P2	mkdir	docs/research		
+258	2026-10-12T04:57:36Z	P2	move	research_notes/MicroDuck 寻球 导航方案	docs/research/ball_navigation	
+259	2026-10-12T04:57:36Z	P2	rmdir	research_notes		
+260	2026-10-12T04:57:36Z	P2	mkdir	scripts/learning		
+261	2026-10-12T04:57:36Z	P2	move	learning/peek_onnx.py	scripts/learning/peek_onnx.py	
+262	2026-10-12T04:57:36Z	P2	move	learning/peek_pt.py	scripts/learning/peek_pt.py	
+263	2026-10-12T04:57:36Z	P2	move	learning/run_onnx.py	scripts/learning/run_onnx.py	
+264	2026-10-12T04:57:36Z	P2	rmdir	learning		
+265	2026-10-12T04:57:36Z	P2	mkdir	references/vendor_alientek		
+266	2026-10-12T04:57:36Z	P2	move	参考资料/01、程序源码	references/vendor_alientek/01、程序源码	
+267	2026-10-12T04:57:36Z	P2	move	参考资料/02、开发板原理图	references/vendor_alientek/02、开发板原理图	
+268	2026-10-12T04:57:36Z	P2	move	参考资料/03、核心板资料	references/vendor_alientek/03、核心板资料	
+269	2026-10-12T04:57:36Z	P2	move	参考资料/06、参考资料	references/vendor_alientek/06、参考资料	
+270	2026-10-12T04:57:36Z	P2	move	参考资料/07、硬件资料	references/vendor_alientek/07、硬件资料	
+271	2026-10-12T04:57:36Z	P2	move	参考资料/08、RK官方文档	references/vendor_alientek/08、RK官方文档	
+272	2026-10-12T04:57:36Z	P2	move	参考资料/10、用户手册	references/vendor_alientek/10、用户手册	
+273	2026-10-12T04:57:36Z	P2	move	参考资料/MicroDuck_YOLO_云端训练行动指南.docx	references/ai_notes/MicroDuck_YOLO_云端训练行动指南.docx	
+274	2026-10-12T04:57:36Z	P2	move	参考资料/PPO学习资料_MicroDuck行走策略.pdf	references/ai_notes/PPO学习资料_MicroDuck行走策略.pdf	
+275	2026-10-12T04:57:36Z	P2	move	参考资料/RK3588 × MicroDuck 分步实施计划.pdf	references/ai_notes/RK3588 × MicroDuck 分步实施计划.pdf	
+276	2026-10-12T04:57:36Z	P2	move	参考资料/任务3_MicroDuck_下一阶段行动指南_20261004.pdf	references/ai_notes/任务3_MicroDuck_下一阶段行动指南_20261004.pdf	
+277	2026-10-12T04:57:36Z	P2	move	参考资料/任务卡1_Mac串口启动日志_逐步教程.pdf	references/ai_notes/任务卡1_Mac串口启动日志_逐步教程.pdf	
+278	2026-10-12T04:57:36Z	P2	move	参考资料/任务卡2_Mac行走与HF训练_逐步教程.pdf	references/ai_notes/任务卡2_Mac行走与HF训练_逐步教程.pdf	
+279	2026-10-12T04:57:36Z	P2	move	参考资料/给GPT的透明执行协议.txt	references/ai_notes/给GPT的透明执行协议.txt	
+280	2026-10-12T04:57:36Z	P2	move	参考资料/给GPT的透明执行协议_修订稿_v1.1.txt	references/ai_notes/给GPT的透明执行协议_修订稿_v1.1.txt	
+281	2026-10-12T04:57:36Z	P2	move	参考资料/边做边学_MicroDuck边缘部署知识补齐方法_20261004.pdf	references/ai_notes/边做边学_MicroDuck边缘部署知识补齐方法_20261004.pdf	
+282	2026-10-12T04:57:36Z	P2	move	参考资料/透明执行协议_修订说明_v1.1.md	references/ai_notes/透明执行协议_修订说明_v1.1.md	
+283	2026-10-12T04:57:36Z	P2	rmdir	参考资料		
+284	2026-10-12T04:57:36Z	P2	mkdir	archive/2026-10_ball_follow/pdf_build		
+285	2026-10-12T04:57:36Z	P2	move	tmp/pdfs	archive/2026-10_ball_follow/pdf_build/tmp_pdfs	
+286	2026-10-12T04:57:36Z	P2	rmdir	tmp		
+287	2026-10-12T04:57:36Z	P2	end			
+288	2026-10-12T04:57:42Z	P3	begin			
+289	2026-10-12T04:57:42Z	P3	mkdir	third_party		
+290	2026-10-12T04:57:42Z	P3	move	task/microduck	third_party/microduck	
+291	2026-10-12T04:57:42Z	P3	move	task/microduck_r1	third_party/microduck_rl	
+292	2026-10-12T04:57:42Z	P3	move	third_party/microduck_rl/.venv	third_party/microduck_rl/.venv.pre_reorg	
+293	2026-10-12T04:57:42Z	P3	move	task/policies	models/policies	
+294	2026-10-12T04:57:42Z	P3	mkdir	models/checkpoints		
+295	2026-10-12T04:57:42Z	P3	move	task/checkpoints/qktrrkg5	models/checkpoints/walk_qktrrkg5	
+296	2026-10-12T04:57:42Z	P3	rmdir	task/checkpoints		
+297	2026-10-12T04:57:42Z	P3	rmdir	task		
+298	2026-10-12T04:57:42Z	P3	symlink	../../../../third_party/microduck_rl/src/mjlab_microduck/robot/microduck/assets	sim/scenes/legacy_ball/ball_1m_yellow/assets	
+299	2026-10-12T04:57:42Z	P3	end			
+300	2026-10-12T07:33:40Z	P4	begin			
+301	2026-10-12T07:33:40Z	P4	mkdir	models/yolo		
+302	2026-10-12T07:33:40Z	P4	mkdir	models/yolo/yolo11n_coco		
+303	2026-10-12T07:33:40Z	P4	copy	work/vision-offline/yolo11n-cpu/models/yolo11n.pt	models/yolo/yolo11n_coco/yolo11n_coco.pt	
+304	2026-10-12T07:33:40Z	P4	copy	work/vision-offline/yolo11n-cpu/models/yolo11n.onnx	models/yolo/yolo11n_coco/yolo11n_coco_fp32_320.onnx	
+305	2026-10-12T07:33:40Z	P4	copy	work/vision-offline/yolo11n-cpu/models/export.json	models/yolo/yolo11n_coco/export.json	
+306	2026-10-12T07:33:40Z	P4	copy	work/vision-offline/yolo11n-cpu-npu/models/yolo11n-rk3588-fp.rknn	models/yolo/yolo11n_coco/yolo11n_coco_fp16_320.rknn	
+307	2026-10-12T07:33:40Z	P4	copy	work/vision-offline/yolo11n-cpu-npu/models/conversion.json	models/yolo/yolo11n_coco/conversion.json	
+308	2026-10-12T07:33:40Z	P4	move	work/g3-offline	offline/g3-offline	
+309	2026-10-12T07:33:40Z	P4	move	work/npu-offline	offline/npu-offline	
+310	2026-10-12T07:33:40Z	P4	move	work/vision-export	offline/vision-export	
+311	2026-10-12T07:33:40Z	P4	move	work/flash_tools	offline/flash_tools	
+312	2026-10-12T07:33:40Z	P4	move	work/vision-offline	archive/2026-10_ball_follow/vision-offline	
+313	2026-10-12T07:33:40Z	P4	move	work/task1_pdf_render	archive/2026-10_ball_follow/pdf_build/task1_pdf_render	
+314	2026-10-12T07:33:40Z	P4	move	work	archive/2026-10_ball_follow/work	
+315	2026-10-12T07:33:40Z	P4	end			

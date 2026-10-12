@@ -1,0 +1,26 @@
+# Local runtime rehearsal. Original repositories and model files stay pinned.
+[control]
+hz = 50
+
+[policy]
+enabled = true
+mode = "walk"
+walk = "/Users/ethan/Documents/RK3588 Microduck/task/policies/walk_17500.onnx"
+stand = "/Users/ethan/Documents/RK3588 Microduck/task/policies/velstand.onnx"
+sitstand = "none"
+ground_pick = "none"
+kick_left = "none"
+kick_right = "none"
+roulade = "none"
+
+# Match the unfiltered action output used in the successful policy replay.
+action_scale = 1.0
+standing_action_scale = 1.0
+standing_gain_ratio = 1.0
+gain = 200
+head_lowpass = 1.0
+legs_lowpass = 1.0
+voltage_adapt = false
+
+[audio]
+enabled = false

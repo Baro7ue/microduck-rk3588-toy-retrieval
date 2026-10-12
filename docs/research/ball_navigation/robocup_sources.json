@@ -1,0 +1,312 @@
+[
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Representations/Modeling/BallModel.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Representations/Modeling/BallModel.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Representations__Modeling__BallModel.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/Modeling/BallStateEstimator/BallStateEstimator.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/Modeling/BallStateEstimator/BallStateEstimator.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__Modeling__BallStateEstimator__BallStateEstimator.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/Modeling/BallStateEstimator/BallStateEstimator.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/Modeling/BallStateEstimator/BallStateEstimator.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__Modeling__BallStateEstimator__BallStateEstimator.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/Modeling/BallLostProvider/BallLostProvider.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/Modeling/BallLostProvider/BallLostProvider.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__Modeling__BallLostProvider__BallLostProvider.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/Modeling/BallLostProvider/BallLostProvider.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/Modeling/BallLostProvider/BallLostProvider.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__Modeling__BallLostProvider__BallLostProvider.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/SkillBehaviorControl/Options/HandleStrikerLostBall.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/SkillBehaviorControl/Options/HandleStrikerLostBall.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__SkillBehaviorControl__Options__HandleStrikerLostBall.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/SkillBehaviorControl/Skills/Head/GoToBallHeadControl.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/SkillBehaviorControl/Skills/Head/GoToBallHeadControl.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__SkillBehaviorControl__Skills__Head__GoToBallHeadControl.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/StrategyBehaviorControl/BallSearch.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/StrategyBehaviorControl/BallSearch.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__StrategyBehaviorControl__BallSearch.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/StrategyBehaviorControl/BallSearch.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/StrategyBehaviorControl/BallSearch.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__StrategyBehaviorControl__BallSearch.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_world_model/bitbots_ball_filter/bitbots_ball_filter/ball_filter.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_world_model/bitbots_ball_filter/bitbots_ball_filter/ball_filter.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_world_model__bitbots_ball_filter__bitbots_ball_filter__ball_filter.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_world_model/bitbots_ball_filter/config/ball_filter_parameters.yaml",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_world_model/bitbots_ball_filter/config/ball_filter_parameters.yaml",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_world_model__bitbots_ball_filter__config__ball_filter_parameters.yaml",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_blackboard/bitbots_blackboard/capsules/world_model_capsule.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_blackboard/bitbots_blackboard/capsules/world_model_capsule.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_blackboard__bitbots_blackboard__capsules__world_model_capsule.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/decisions/ball_seen.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/decisions/ball_seen.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_body_behavior__bitbots_body_behavior__behavior_dsd__decisions__ball_seen.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_body_behavior/config/body_behavior.yaml",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_body_behavior/config/body_behavior.yaml",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_body_behavior__config__body_behavior.yaml",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/actions/go_to_ball.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/actions/go_to_ball.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_body_behavior__bitbots_body_behavior__behavior_dsd__actions__go_to_ball.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/SkillBehaviorControl/Skills/Ball/GoToBallAndKick.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/SkillBehaviorControl/Skills/Ball/GoToBallAndKick.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__SkillBehaviorControl__Skills__Ball__GoToBallAndKick.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Representations/BehaviorControl/FieldBall.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Representations/BehaviorControl/FieldBall.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Representations__BehaviorControl__FieldBall.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/Modeling/BallStateEstimator/BallStateEstimateFilters.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/Modeling/BallStateEstimator/BallStateEstimateFilters.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__Modeling__BallStateEstimator__BallStateEstimateFilters.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/main.dsd",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/main.dsd",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_body_behavior__bitbots_body_behavior__behavior_dsd__main.dsd",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/actions/head_modes.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/actions/head_modes.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_body_behavior__bitbots_body_behavior__behavior_dsd__actions__head_modes.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_blackboard/bitbots_blackboard/capsules/pathfinding_capsule.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_blackboard/bitbots_blackboard/capsules/pathfinding_capsule.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_blackboard__bitbots_blackboard__capsules__pathfinding_capsule.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/BallSearchParticlesProvider/BallSearchParticlesProvider.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/BallSearchParticlesProvider/BallSearchParticlesProvider.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__BallSearchParticlesProvider__BallSearchParticlesProvider.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/BallSearchParticlesProvider/BallSearchParticlesProvider.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/BallSearchParticlesProvider/BallSearchParticlesProvider.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__BallSearchParticlesProvider__BallSearchParticlesProvider.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Modules/BehaviorControl/StrategyBehaviorControl/StrategyBehaviorControl.cpp",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Modules/BehaviorControl/StrategyBehaviorControl/StrategyBehaviorControl.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Modules__BehaviorControl__StrategyBehaviorControl__StrategyBehaviorControl.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bhuman/BHumanCodeRelease",
+    "branch": "master",
+    "commit": "d89d603f0388208cecd1c3144b6e8eb92aef4a93",
+    "commit_date": "2025-11-06T09:14:25Z",
+    "source_path": "Src/Tools/Modeling/BallLocatorTools.h",
+    "url": "https://raw.githubusercontent.com/bhuman/BHumanCodeRelease/d89d603f0388208cecd1c3144b6e8eb92aef4a93/Src/Tools/Modeling/BallLocatorTools.h",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bhuman__Src__Tools__Modeling__BallLocatorTools.h",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_motion/bitbots_head_mover/src/move_head.cpp",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_motion/bitbots_head_mover/src/move_head.cpp",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_motion__bitbots_head_mover__src__move_head.cpp",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_navigation/bitbots_path_planning/config/path_planning_parameters_default.yaml",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_navigation/bitbots_path_planning/config/path_planning_parameters_default.yaml",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_navigation__bitbots_path_planning__config__path_planning_parameters_default.yaml",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/actions/turn.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_behavior/bitbots_body_behavior/bitbots_body_behavior/behavior_dsd/actions/turn.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_behavior__bitbots_body_behavior__bitbots_body_behavior__behavior_dsd__actions__turn.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_navigation/bitbots_path_planning/bitbots_path_planning/controller.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_navigation/bitbots_path_planning/bitbots_path_planning/controller.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_navigation__bitbots_path_planning__bitbots_path_planning__controller.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_navigation/bitbots_path_planning/bitbots_path_planning/path_planning.py",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_navigation/bitbots_path_planning/bitbots_path_planning/path_planning.py",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_navigation__bitbots_path_planning__bitbots_path_planning__path_planning.py",
+    "access_date": "2026-10-10"
+  },
+  {
+    "repo": "bit-bots/bitbots_main",
+    "branch": "main",
+    "commit": "a9b62760085e77f36e541ea00eacab71d5a4775a",
+    "commit_date": "2026-10-08T12:12:10Z",
+    "source_path": "src/bitbots_navigation/bitbots_path_planning/config/path_planning_parameters_template.yaml",
+    "url": "https://raw.githubusercontent.com/bit-bots/bitbots_main/a9b62760085e77f36e541ea00eacab71d5a4775a/src/bitbots_navigation/bitbots_path_planning/config/path_planning_parameters_template.yaml",
+    "local": "research_notes/MicroDuck 寻球 导航方案/robocup_sources/bit-bots__src__bitbots_navigation__bitbots_path_planning__config__path_planning_parameters_template.yaml",
+    "access_date": "2026-10-10"
+  }
+]

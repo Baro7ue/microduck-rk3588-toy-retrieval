@@ -1,0 +1,40 @@
+{
+  "scope": "G4 separate floor-reflection control scene; same original orange ball at x=1.0m",
+  "source_commit": "cb70b792312d559a4da09064d92009079671815f",
+  "target_position_m": [
+    1.0,
+    0,
+    0.035
+  ],
+  "changes": [
+    "scene external model name and robot include path",
+    "ball initial x: 0.3 -> 1.0 m",
+    "groundplane material reflectance: 0.2 -> 0"
+  ],
+  "files": [
+    {
+      "path": "/Users/ethan/Documents/RK3588 Microduck/work/g4-scenes/ball_1m_no_reflection/scene_ball_1m.xml",
+      "sha256": "7d709a22f1ada1f2409b291b1a9155e880711c93d1cf356c8485b6707115a4ce"
+    },
+    {
+      "path": "/Users/ethan/Documents/RK3588 Microduck/work/g4-scenes/ball_1m_no_reflection/ball.xml",
+      "sha256": "d1804a9b440044328d921db63525b7a07af08e5ea57efa91ed901608c964f3da"
+    },
+    {
+      "path": "/Users/ethan/Documents/RK3588 Microduck/task/microduck_r1/src/mjlab_microduck/robot/microduck/scene_ball.xml",
+      "sha256": "3a6e69457fe68af692823c46da9e081021e3bf4be6c5381018446762acd20265"
+    },
+    {
+      "path": "/Users/ethan/Documents/RK3588 Microduck/task/microduck_r1/src/mjlab_microduck/robot/microduck/ball.xml",
+      "sha256": "54a455bf454a9b6167655381df91593bbca86695d8d71e29fb6af69454c7c865"
+    },
+    {
+      "path": "/Users/ethan/Documents/RK3588 Microduck/task/microduck_r1/src/mjlab_microduck/robot/microduck/robot_groundcontact.xml",
+      "sha256": "99d23867e46e9d4748ff1398016b850f09fb6cf02a558c0272743b39ce3acf15"
+    }
+  ],
+  "asset_directory": "/Users/ethan/Documents/RK3588 Microduck/task/microduck_r1/src/mjlab_microduck/robot/microduck/assets",
+  "model_sha256": "121662c804b9aa906563235ed2909815f2c23bc6e4052e651e01468817551826",
+  "compared_to_scene": "/Users/ethan/Documents/RK3588 Microduck/work/g4-scenes/ball_1m/scene_ball_1m.xml",
+  "single_change_from_ball_1m": "groundplane material reflectance: 0.2 -> 0; rendering only"
+}

@@ -1,0 +1,16 @@
+{
+  "pages": 7,
+  "page_text_lengths": [
+    1122,
+    1168,
+    1102,
+    1143,
+    1076,
+    1013,
+    1188
+  ],
+  "code_blocks": 15,
+  "max_code_width_pt": 279.1107421875,
+  "shell_syntax": "pass",
+  "output_bytes": 333523
+}

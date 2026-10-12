@@ -1,0 +1,37 @@
+# OS and Python caches
+.DS_Store
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Local-only folders: big or binary. Only README.md and MANIFEST.tsv (path, bytes, sha256) are tracked.
+/evidence/*
+!/evidence/README.md
+!/evidence/MANIFEST.tsv
+/offline/*
+!/offline/README.md
+!/offline/MANIFEST.tsv
+/references/*
+!/references/README.md
+!/references/MANIFEST.tsv
+/data/*
+!/data/README.md
+!/data/MANIFEST.tsv
+/runs/*
+!/runs/README.md
+
+# Models: small final ONNX/RKNN files are tracked; training checkpoints and .pt weights are not.
+/models/checkpoints/
+/models/**/*.pt
+/models/policies/.cache/
+
+# Archive: frozen code and docs are tracked; copied bundles and PDF build folders are not.
+/archive/*/vision-offline/*
+!/archive/*/vision-offline/MANIFEST.tsv
+/archive/*/pdf_build/*
+!/archive/*/pdf_build/MANIFEST.tsv
+
+# Reorganisation working files (the move log itself is tracked).
+/docs/reorg/snapshot_*.tsv
+/docs/reorg/move_plan.tsv

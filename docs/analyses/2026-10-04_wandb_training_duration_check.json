@@ -1,0 +1,26 @@
+{
+  "rows": 1,
+  "columns": 500,
+  "duplicate_headers": 0,
+  "ragged_rows": 0,
+  "name": "2026-10-03_13-14-58_md-first-s42-20261003-205907",
+  "state": "crashed",
+  "created_hk": "2026-10-03T21:16:07+08:00",
+  "runtime_seconds": 44985,
+  "runtime_hours": 12.495833333333334,
+  "runtime_hms": "12:29:45",
+  "inferred_end_if_elapsed_runtime_hk": "2026-10-04T09:45:52+08:00",
+  "bill_display_hours": 12.57,
+  "bill_display_minus_runtime_seconds": 267,
+  "non_env_config_columns": [
+    "Name",
+    "State",
+    "Notes",
+    "User",
+    "Tags",
+    "Created",
+    "Runtime",
+    "Sweep"
+  ],
+  "source_sha256": "3b12ef9403f351ed1e244db645d68e8fcffea95e54cf1741a768a99da2dccd39"
+}
