@@ -1,0 +1,511 @@
+diff --git a/configs/robotd/board.toml b/configs/robotd/board.toml.in
+similarity index 55%
+rename from configs/robotd/board.toml
+rename to configs/robotd/board.toml.in
+index c0a1f30..4d76934 100644
+--- a/configs/robotd/board.toml
++++ b/configs/robotd/board.toml.in
+@@ -1,6 +1,6 @@
+-# Reference copy of the robotd.toml installed on the RK3588 at /home/linaro/microduck-board/
+-# (from work/g3-offline/microduck-board/, 2026-10-07). The board reads its own copy, checked
+-# by SHA256SUMS there; editing this file changes nothing on the board.
++# RK3588 robotd parameters (from work/g3-offline/microduck-board/robotd.toml, 2026-10-07; only paths changed).
++# Template: scripts/board/run_board_robotd.zsh points the POLICY_DIR placeholders at the policies/ folder
++# of the run's bundle on the board, and copies every policy named here from models/policies/ into it.
+ # RK3588 runtime configuration: same parameters as the Mac rehearsal; board-local model paths.
+ [control]
+ hz = 50
+@@ -8,8 +8,8 @@ hz = 50
+ [policy]
+ enabled = true
+ mode = "walk"
+-walk = "/home/linaro/microduck-board/policies/walk_17500.onnx"
+-stand = "/home/linaro/microduck-board/policies/velstand.onnx"
++walk = "@POLICY_DIR@/walk_17500.onnx"
++stand = "@POLICY_DIR@/velstand.onnx"
+ sitstand = "none"
+ ground_pick = "none"
+ kick_left = "none"
+diff --git a/env.sh b/env.sh
+index fa50d5f..c520ccc 100644
+--- a/env.sh
++++ b/env.sh
+@@ -27,12 +27,11 @@ export MD_SIM_HOST="${MD_SIM_HOST:-192.168.50.1}"                         # Mac
+ export MD_MAC_STATE="${MD_MAC_STATE:-/private/tmp/md-runtime-ethan}"       # Mac-local robotd socket dir
+ export MD_STARTUP_SOCKET="${MD_STARTUP_SOCKET:-/private/tmp/md-rk-startup-ethan.sock}"  # forwarded board robotd.sock
+ export MD_BOARD_HOST="${MD_BOARD_HOST:-RK3588}"                            # ssh alias in ~/.ssh/config
+-export MD_BOARD_ROOT="${MD_BOARD_ROOT:-/home/linaro/microduck-board}"
+-# Board-side programs, as installed during G3/G4 (paths on the board, not on this Mac).
+-export MD_BOARD_ROBOTD="${MD_BOARD_ROBOTD:-/home/linaro/microduck-g3-offline/microduck/target/release/robotd}"
+-export MD_BOARD_ORT="${MD_BOARD_ORT:-/home/linaro/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0}"
+-export MD_BOARD_PY="${MD_BOARD_PY:-/home/linaro/rk3588-npu-venv/bin/python}"
+-export MD_BOARD_SITE="${MD_BOARD_SITE:-/home/linaro/microduck-board/vision-cpu-python}"
++export MD_BOARD_ROOT="${MD_BOARD_ROOT:-/home/linaro/microduck}"            # layout: configs/board/README_board.md
++# Board runtime installed by docs/reorg/board_reorg.zsh (paths on the board, not on this Mac).
++export MD_BOARD_ROBOTD="${MD_BOARD_ROBOTD:-$MD_BOARD_ROOT/runtime/bin/robotd}"
++export MD_BOARD_ORT="${MD_BOARD_ORT:-$MD_BOARD_ROOT/runtime/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0}"
++export MD_BOARD_PY="${MD_BOARD_PY:-$MD_BOARD_ROOT/runtime/venv/bin/python}"   # RKNN Lite2 + ONNX Runtime + OpenCV
+ 
+ case ":${PYTHONPATH:-}:" in
+   *":$MD_ROOT/src:"*) ;;
+diff --git a/scripts/board/measure_board_resources.py b/scripts/board/measure_board_resources.py
+index 980ad1b..d9d349d 100644
+--- a/scripts/board/measure_board_resources.py
++++ b/scripts/board/measure_board_resources.py
+@@ -12,7 +12,7 @@ import struct
+ import time
+ import traceback
+ 
+-ROOT = Path(os.environ.get('MD_BOARD_ROOT', '/home/linaro/microduck-board')) / 'run'
++ROOT = Path(os.environ.get('MD_BOARD_ROOT', '/home/linaro/microduck')) / 'run'
+ SOCKET = str(ROOT / 'robotd.sock')
+ 
+ 
+diff --git a/scripts/board/probe_board_yolo_camera.zsh b/scripts/board/probe_board_yolo_camera.zsh
+index 9e0862c..a161783 100755
+--- a/scripts/board/probe_board_yolo_camera.zsh
++++ b/scripts/board/probe_board_yolo_camera.zsh
+@@ -38,7 +38,7 @@ remote_out=$MD_BOARD_ROOT/run/${run:t}
+ remote="set -o pipefail
+ cd ${(q)remote_bundle} &&
+ sha256sum -c --quiet SHA256SUMS &&
+-PYTHONPATH=\"\$PWD:\"${(q)MD_BOARD_SITE} ${(q)MD_BOARD_PY} -u -m $module \\
++PYTHONPATH=\"\$PWD\" ${(q)MD_BOARD_PY} -u -m $module \\
+   --model models/$files[1] --duration ${(q)duration} --output-dir ${(q)remote_out}"
+ 
+ {
+diff --git a/scripts/board/run_board_robotd.zsh b/scripts/board/run_board_robotd.zsh
+index fdc3155..71e9110 100755
+--- a/scripts/board/run_board_robotd.zsh
++++ b/scripts/board/run_board_robotd.zsh
+@@ -1,19 +1,51 @@
+ #!/bin/zsh
+ # Start robotd on the RK3588 against the Mac sim body and forward its control socket to this Mac
+ # ($MD_STARTUP_SOCKET). Needs the sim body on $MD_SIM_HOST:7801 (scripts/sim/run_sim_body.zsh).
+-# The board checks its SHA256SUMS first; the robotd log stays in $MD_BOARD_ROOT/run/ on the board.
+-# Ctrl+C stops robotd and the socket forward together.
++# Config: configs/robotd/board.toml.in, rendered with the policies it names (from models/policies/)
++# into a checksummed bundle sent to $MD_BOARD_ROOT/bundles/<run>/; the board checks it first.
++# Ctrl+C stops robotd and the socket forward together; robotd's log is then copied back.
++# Output: runs/<UTC>_board_robotd/{bundle/, board/robotd.log}.
+ set -uo pipefail
+ source "${0:A:h}/../../env.sh"
+ source "$MD_ROOT/scripts/lib.zsh"
+ 
++template=$(<"$MD_ROOT/configs/robotd/board.toml.in") || md_die "读不到 configs/robotd/board.toml.in。"
++# Every "@POLICY_DIR@/<file>" in the template names a policy to send.
++policies=()
++for line in "${(@f)template}"; do
++  [[ $line =~ '@POLICY_DIR@/([^"]+)' ]] && policies+=($match[1])
++done
++policies=(${(u)policies})
++for policy in $policies; do
++  [[ -f $MD_MODELS/policies/$policy ]] || md_die "缺少策略文件 models/policies/$policy。"
++done
++
++run=$(md_run_dir board_robotd) || exit 1
++remote_bundle=$MD_BOARD_ROOT/bundles/${run:t}
++remote_out=$MD_BOARD_ROOT/run/${run:t}
++bundle=$run/bundle
++mkdir -p "$bundle/policies" || md_die "建不了 $bundle。"
++for policy in $policies; do
++  cp "$MD_MODELS/policies/$policy" "$bundle/policies/" || md_die "复制 $policy 失败。"
++done
++print -r -- "${template//@POLICY_DIR@/$remote_bundle/policies}" > "$bundle/robotd.toml"
++md_sha256sums "$bundle" || md_die "生成 SHA256SUMS 失败。"
++
+ remote="set -o pipefail
+-cd ${(q)MD_BOARD_ROOT} &&
+-sha256sum -c SHA256SUMS &&
+-mkdir -p run &&
++cd ${(q)remote_bundle} &&
++sha256sum -c --quiet SHA256SUMS &&
++mkdir -p ${(q)remote_out} &&
+ export ORT_DYLIB_PATH=${(q)MD_BOARD_ORT} DUCK_RUNTIME_DIR=${(q)MD_BOARD_ROOT}/run &&
+-${(q)MD_BOARD_ROBOTD} --sim ${(q)MD_SIM_HOST}:7801 --params ${(q)MD_BOARD_ROOT}/robotd.toml \\
++${(q)MD_BOARD_ROBOTD} --sim ${(q)MD_SIM_HOST}:7801 --params ${(q)remote_bundle}/robotd.toml \\
+   --socket \"\$DUCK_RUNTIME_DIR/robotd.sock\" \\
+-  2>&1 | tee \"\$DUCK_RUNTIME_DIR/robotd-\$(date +%Y%m%d-%H%M%S).log\""
++  2>&1 | tee ${(q)remote_out}/robotd.log"
++ssh "$MD_BOARD_HOST" "mkdir -p ${(q)MD_BOARD_ROOT}/bundles" &&
++  scp -rq "$bundle" "$MD_BOARD_HOST:$remote_bundle" || md_die "代码包传到板子失败。"
++robotd_status=0
+ ssh -t -o ExitOnForwardFailure=yes -o StreamLocalBindUnlink=yes \
+-  -L "$MD_STARTUP_SOCKET:$MD_BOARD_ROOT/run/robotd.sock" "$MD_BOARD_HOST" "$remote"
++  -L "$MD_STARTUP_SOCKET:$MD_BOARD_ROOT/run/robotd.sock" "$MD_BOARD_HOST" "$remote" || robotd_status=$?
++copy_status=0
++scp -rq "$MD_BOARD_HOST:$remote_out" "$run/board" || copy_status=$?
++print -r -- "robotd 退出码：$robotd_status；日志回传退出码：$copy_status；本地目录：$run"
++(( robotd_status == 0 )) || exit $robotd_status
++exit $copy_status
+diff --git a/src/microduck_toy/paths.py b/src/microduck_toy/paths.py
+index 3c88145..3b085b0 100644
+--- a/src/microduck_toy/paths.py
++++ b/src/microduck_toy/paths.py
+@@ -1,7 +1,7 @@
+ """Repository and board paths. Code uses these instead of absolute paths.
+ 
+ Set by env.sh on the Mac (MD_ROOT, MD_RUNS) and by the board launchers (MD_BOARD_ROOT);
+-the fallbacks below keep a plain checkout and the current board layout working.
++the fallbacks below keep a plain checkout working and match the board layout ~/microduck/.
+ """
+ from __future__ import annotations
+ 
+@@ -21,4 +21,4 @@ def runs_dir() -> Path:
+ 
+ def board_root() -> Path:
+     env = os.environ.get('MD_BOARD_ROOT')
+-    return Path(env) if env else Path.home() / 'microduck-board'
++    return Path(env) if env else Path.home() / 'microduck'
+diff --git a/src/microduck_toy/vision/cpu_npu_compare.py b/src/microduck_toy/vision/cpu_npu_compare.py
+index cb44d02..699ec62 100644
+--- a/src/microduck_toy/vision/cpu_npu_compare.py
++++ b/src/microduck_toy/vision/cpu_npu_compare.py
+@@ -12,7 +12,6 @@ import cv2
+ import numpy as np
+ import onnxruntime as ort
+ 
+-from microduck_toy.paths import board_root
+ from microduck_toy.vision.yolo_postprocess import (letterbox, validate_model, decode_predictions,
+                                  class_aware_nms, restore_boxes)
+ 
+@@ -71,10 +70,12 @@ def main():
+     from rknnlite.api import RKNNLite
+ 
+     parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--root", required=True, type=Path,
++                        help="bundle with models/{conversion.json,yolo11n.onnx,yolo11n-rk3588-fp.rknn}")
+     parser.add_argument("--output-dir", required=True, type=Path)
+     args = parser.parse_args()
+     args.output_dir.mkdir(parents=True)
+-    root = board_root() / "yolo11n-cpu-npu"
++    root = args.root
+     conversion = json.loads((root / "models/conversion.json").read_text())
+     onnx_path = root / "models/yolo11n.onnx"
+     rknn_path = root / "models/yolo11n-rk3588-fp.rknn"
+diff --git a/src/microduck_toy/vision/rknn_runner.py b/src/microduck_toy/vision/rknn_runner.py
+index 3e1942c..d7e26b6 100644
+--- a/src/microduck_toy/vision/rknn_runner.py
++++ b/src/microduck_toy/vision/rknn_runner.py
+@@ -12,7 +12,6 @@ import time
+ import cv2
+ import numpy as np
+ 
+-from microduck_toy.paths import board_root
+ from microduck_toy.vision.cpu_npu_compare import npu_pixels, validate_output
+ from microduck_toy.vision.yolo_postprocess import (letterbox, decode_predictions, class_aware_nms,
+                                  restore_boxes)
+@@ -102,16 +101,16 @@ class NPUCameraDetector:
+ 
+ def main(duration=30.0, address=('192.168.50.1', 7901), root=None, model_path=None,
+          directory=None):
+-    model_path = Path(model_path or board_root() /
+-                      'yolo11n-npu-camera/models/yolo11n-rk3588-fp.rknn')
+-    return run_camera(duration=duration, address=address, root=root, model_path=model_path,
++    if model_path is None:
++        raise ValueError('model_path必须给出（板上模型文件）')
++    return run_camera(duration=duration, address=address, root=root, model_path=Path(model_path),
+                       directory=directory, detector_factory=NPUCameraDetector, backend='npu')
+ 
+ 
+ if __name__ == '__main__':
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument('--model', type=Path, default=None)
++    parser.add_argument('--model', type=Path, required=True)
+     parser.add_argument('--duration', type=float, default=30.0)
+-    parser.add_argument('--output-dir', type=Path, default=None)
++    parser.add_argument('--output-dir', type=Path, required=True)
+     args = parser.parse_args()
+     raise SystemExit(main(duration=args.duration, model_path=args.model, directory=args.output_dir))
+diff --git a/src/microduck_toy/vision/yolo_camera_probe.py b/src/microduck_toy/vision/yolo_camera_probe.py
+index 9eb2b61..d300ea7 100644
+--- a/src/microduck_toy/vision/yolo_camera_probe.py
++++ b/src/microduck_toy/vision/yolo_camera_probe.py
+@@ -112,13 +112,15 @@ def main(duration=30.0, address=('192.168.50.1', 7901), root=None, model_path=No
+         raise ValueError('duration必须为0到60之间的有限秒数')
+     if backend not in ('cpu', 'npu'):
+         raise ValueError('backend必须为cpu或npu')
++    if model_path is None:
++        raise ValueError('model_path必须给出（板上模型文件）')
+     inference_field = 'session_run_ms' if backend == 'cpu' else 'inference_call_ms'
+     inference_name = 'session.run' if backend == 'cpu' else 'RKNNLite.inference'
+-    root = Path(root or board_root() / 'run/G4')
++    root = Path(root or board_root() / 'run')
+     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d_%H%M%S_%fZ')
+     directory = Path(directory) if directory is not None else root / f'camera_{backend}_{stamp}'
+     directory.mkdir(parents=True, exist_ok=False)
+-    model_path = Path(model_path or board_root() / 'yolo11n-cpu/models/yolo11n.onnx')
++    model_path = Path(model_path)
+     report = {'schema_version': 1, 'scope': f'camera-only {backend.upper()} detection; no body or robot RPC',
+               'outcome': 'not_started', 'requested_duration_s': duration, 'address': list(address),
+               'versions': {'python': sys.version.split()[0], 'numpy': np.__version__,
+@@ -260,8 +262,8 @@ def main(duration=30.0, address=('192.168.50.1', 7901), root=None, model_path=No
+ 
+ if __name__ == '__main__':
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument('--model', type=Path, default=None)
++    parser.add_argument('--model', type=Path, required=True)
+     parser.add_argument('--duration', type=float, default=30.0)
+-    parser.add_argument('--output-dir', type=Path, default=None)
++    parser.add_argument('--output-dir', type=Path, required=True)
+     args = parser.parse_args()
+     raise SystemExit(main(duration=args.duration, model_path=args.model, directory=args.output_dir))
+diff --git a/tests/test_board_defaults.py b/tests/test_board_defaults.py
+new file mode 100644
+index 0000000..b2aa182
+--- /dev/null
++++ b/tests/test_board_defaults.py
+@@ -0,0 +1,69 @@
++"""Board-side defaults after the 2026-10-12 board reorganisation (~/microduck/).
++
++The board programs no longer fall back to GPT's old bundle folders under ~/microduck-board/:
++the model and the output folder must be given (the launchers always pass both), and the
++default output root is ~/microduck/run/.
++"""
++from __future__ import annotations
++
++import contextlib
++import importlib.util
++import io
++import os
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++REPO = Path(__file__).resolve().parents[1]
++SRC = REPO / 'src'
++sys.path.insert(0, str(SRC))
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from microduck_toy.vision import rknn_runner, yolo_camera_probe
++from test_yolo_camera_probe import MODEL, camera
++
++
++def cli(module: str, *args: str) -> subprocess.CompletedProcess:
++    path = os.pathsep.join(filter(None, (str(SRC), os.environ.get('PYTHONPATH'))))   # keeps cv2 on the Mac
++    env = {**os.environ, 'PYTHONPATH': path}
++    return subprocess.run([sys.executable, '-m', module, *args], env=env, capture_output=True,
++                          text=True, timeout=60)
++
++
++class BoardDefaultTests(unittest.TestCase):
++    def test_camera_probes_need_an_explicit_model(self):
++        for main in (yolo_camera_probe.main, rknn_runner.main):
++            with tempfile.TemporaryDirectory() as board, \
++                    mock.patch.dict('os.environ', {'MD_BOARD_ROOT': board}):
++                with self.assertRaises(ValueError, msg=main.__module__):
++                    main(duration=1.0)
++                self.assertEqual(list(Path(board).iterdir()), [], main.__module__)
++
++    def test_camera_probe_output_defaults_to_board_run_folder(self):
++        with tempfile.TemporaryDirectory() as board, camera() as (address, _payload), \
++                mock.patch.dict('os.environ', {'MD_BOARD_ROOT': board}), \
++                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
++            yolo_camera_probe.main(duration=0.35, address=address, model_path=MODEL)
++            directory, = (Path(board) / 'run').iterdir()
++        self.assertTrue(directory.name.startswith('camera_cpu_'))
++
++    def test_command_lines_require_model_and_output_dir(self):
++        for module in ('microduck_toy.vision.yolo_camera_probe', 'microduck_toy.vision.rknn_runner'):
++            result = cli(module, '--duration', '1')
++            self.assertEqual(result.returncode, 2, module + result.stderr)
++            self.assertIn('--model', result.stderr)
++            self.assertIn('--output-dir', result.stderr)
++
++    def test_resource_sampler_defaults_to_the_new_board_root(self):
++        spec = importlib.util.spec_from_file_location(
++            'measure_board_resources', REPO / 'scripts/board/measure_board_resources.py')
++        module = importlib.util.module_from_spec(spec)
++        with mock.patch.dict('os.environ', {}, clear=True):
++            spec.loader.exec_module(module)
++        self.assertEqual(module.ROOT, Path('/home/linaro/microduck/run'))
++
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_cpu_npu_compare.py b/tests/test_cpu_npu_compare.py
+index e186569..21d26eb 100644
+--- a/tests/test_cpu_npu_compare.py
++++ b/tests/test_cpu_npu_compare.py
+@@ -1,4 +1,6 @@
+-"""cpu_npu_compare.main() reads the board's CPU/NPU comparison bundle under MD_BOARD_ROOT."""
++"""cpu_npu_compare.main() reads the CPU/NPU comparison bundle given with --root."""
++import contextlib
++import io
+ from pathlib import Path
+ import sys
+ import tempfile
+@@ -12,17 +14,25 @@ from microduck_toy.vision import cpu_npu_compare
+ 
+ 
+ class BundleLocationTests(unittest.TestCase):
+-    def test_main_reads_models_from_the_board_bundle(self):
++    def run_main(self, *args):
+         api = ModuleType('rknnlite.api')
+         api.RKNNLite = object
+-        with tempfile.TemporaryDirectory() as board, \
+-                mock.patch.dict(sys.modules, {'rknnlite': ModuleType('rknnlite'), 'rknnlite.api': api}), \
+-                mock.patch.dict('os.environ', {'MD_BOARD_ROOT': board}), \
+-                mock.patch.object(sys, 'argv', ['cpu_npu_compare', '--output-dir', f'{board}/out']):
++        with mock.patch.dict(sys.modules, {'rknnlite': ModuleType('rknnlite'), 'rknnlite.api': api}), \
++                mock.patch.object(sys, 'argv', ['cpu_npu_compare', *args]):
++            cpu_npu_compare.main()
++
++    def test_main_reads_models_from_the_given_bundle(self):
++        with tempfile.TemporaryDirectory() as board:
+             with self.assertRaises(FileNotFoundError) as caught:
+-                cpu_npu_compare.main()
+-        self.assertEqual(Path(caught.exception.filename),
+-                         Path(board) / 'yolo11n-cpu-npu/models/conversion.json')
++                self.run_main('--root', f'{board}/bundle', '--output-dir', f'{board}/out')
++        self.assertEqual(Path(caught.exception.filename), Path(board) / 'bundle/models/conversion.json')
++
++    def test_bundle_root_is_required(self):
++        with tempfile.TemporaryDirectory() as board, contextlib.redirect_stderr(io.StringIO()):
++            with self.assertRaises(SystemExit) as caught:
++                self.run_main('--output-dir', f'{board}/out')
++            self.assertFalse(Path(board, 'out').exists())
++        self.assertEqual(caught.exception.code, 2)
+ 
+ 
+ if __name__ == '__main__':
+diff --git a/tests/test_launchers.py b/tests/test_launchers.py
+index 133961a..8c6630a 100644
+--- a/tests/test_launchers.py
++++ b/tests/test_launchers.py
+@@ -6,7 +6,6 @@ The fake ssh runs the remote command with bash on a local "board" folder, so the
+ """
+ from __future__ import annotations
+ 
+-import hashlib
+ import os
+ from pathlib import Path
+ import shutil
+@@ -79,6 +78,8 @@ class LauncherTests(unittest.TestCase):
+         for name in ('yolo11n_coco_fp32_320.onnx', 'export.json',
+                      'yolo11n_coco_fp16_320.rknn', 'conversion.json'):
+             put(models / name, name)
++        for name in ('walk_17500.onnx', 'velstand.onnx'):
++            put(self.root / 'models/policies' / name, name)
+         runtime, rl = self.root / 'third_party/microduck', self.root / 'third_party/microduck_rl'
+         put(runtime / '.fake_head', RUNTIME_COMMIT + '\n')
+         put(rl / '.fake_head', RL_COMMIT + '\n')
+@@ -92,12 +93,9 @@ class LauncherTests(unittest.TestCase):
+         for name, text in FAKES.items():
+             put(self.stubs / name, text, 0o755)
+         self.board = base / 'board'
+-        put(self.board / 'robotd.toml', '[control]\nhz = 50\n')
+         put(self.board / 'bin/robotd', ROBOTD, 0o755)
+         put(self.board / 'bin/board_python', BOARD_PY, 0o755)
+         (self.board / 'run').mkdir()
+-        digest = hashlib.sha256((self.board / 'robotd.toml').read_bytes()).hexdigest()
+-        put(self.board / 'SHA256SUMS', f'{digest}  robotd.toml\n')
+ 
+         self.log = base / 'log'
+         self.log.mkdir()
+@@ -109,7 +107,7 @@ class LauncherTests(unittest.TestCase):
+                    FAKE_LOG=str(self.log), MD_MAC_STATE=str(base / 'state'),
+                    MD_STARTUP_SOCKET=str(base / 'startup.sock'), MD_BOARD_ROOT=str(self.board),
+                    MD_BOARD_ROBOTD=str(self.board / 'bin/robotd'),
+-                   MD_BOARD_PY=str(self.board / 'bin/board_python'), MD_BOARD_SITE=str(self.board / 'site'),
++                   MD_BOARD_PY=str(self.board / 'bin/board_python'),
+                    MD_BOARD_ORT=str(self.board / 'lib/libonnxruntime.so.1.28.0'))
+         self.env = env
+ 
+@@ -147,6 +145,21 @@ class LauncherTests(unittest.TestCase):
+                              [root, root + '/runs', root + '/third_party/microduck_rl',
+                               root + '/src:/x'], shell)
+ 
++    def test_env_sh_board_paths_follow_the_board_root(self):
++        names = ('MD_BOARD_ROOT', 'MD_BOARD_ROBOTD', 'MD_BOARD_ORT', 'MD_BOARD_PY')
++        command = (f"source '{self.root}/env.sh' && printf '%s\\n' "
++                   + ' '.join(f'"${name}"' for name in names) + ' "${MD_BOARD_SITE-unset}"')
++        env = {k: v for k, v in self.env.items() if not k.startswith('MD_BOARD_')}
++        for board in ('/home/linaro/microduck', '/x'):
++            run_env = env if board == '/home/linaro/microduck' else {**env, 'MD_BOARD_ROOT': board}
++            result = subprocess.run([ZSH, '-c', command], cwd=self.cwd, env=run_env,
++                                    capture_output=True, text=True)
++            self.assertEqual(result.returncode, 0, result.stderr)
++            self.assertEqual(result.stdout.splitlines(),
++                             [board, f'{board}/runtime/bin/robotd',
++                              f'{board}/runtime/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0',
++                              f'{board}/runtime/venv/bin/python', 'unset'])
++
+     def test_sim_body_defaults_for_the_board(self):
+         result = self.run_script('scripts/sim/run_sim_body.zsh')
+         self.assertEqual(result.returncode, 0, result.stderr)
+@@ -210,19 +223,42 @@ class LauncherTests(unittest.TestCase):
+         self.assertNotIn('@MD_ROOT@', toml.split('\n', 3)[3])
+ 
+     @unittest.skipUnless(shutil.which('sha256sum') and shutil.which('bash'), 'needs GNU sha256sum')
+-    def test_board_robotd_checks_sums_and_forwards_socket(self):
++    def test_board_robotd_ships_config_and_policies_and_copies_its_log_back(self):
+         result = self.run_script('scripts/board/run_board_robotd.zsh')
+         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+-        (ssh_args, _), = self.calls('ssh')
++        run, = self.runs()
++        self.assertRegex(run.name, r'^\d{8}T\d{6}Z_board_robotd$')
++        remote = self.board / 'bundles' / run.name
++        (ssh_args, _), = [call for call in self.calls('ssh') if '-L' in call[0]]
+         self.assertIn(f'{self.env["MD_STARTUP_SOCKET"]}:{self.board}/run/robotd.sock', ssh_args)
++        self.assertIn('sha256sum -c --quiet SHA256SUMS &&', '\n'.join(ssh_args))
+         (args, env), = self.calls('robotd')
+-        self.assertEqual(args[1:], ['--sim', '192.168.50.1:7801', '--params',
+-                                    f'{self.board}/robotd.toml', '--socket',
+-                                    f'{self.board}/run/robotd.sock'])
++        self.assertEqual(args, [str(remote), '--sim', '192.168.50.1:7801',
++                                '--params', f'{remote}/robotd.toml',
++                                '--socket', f'{self.board}/run/robotd.sock'])
+         self.assertEqual(env['ORT_DYLIB_PATH'], self.env['MD_BOARD_ORT'])
+-        self.assertTrue(list((self.board / 'run').glob('robotd-*.log')))
+-        put(self.board / 'robotd.toml', 'changed')
+-        self.assertNotEqual(self.run_script('scripts/board/run_board_robotd.zsh').returncode, 0)
++        self.assertEqual(env['DUCK_RUNTIME_DIR'], f'{self.board}/run')
++        toml = (remote / 'robotd.toml').read_text()
++        self.assertEqual((run / 'bundle/robotd.toml').read_text(), toml)
++        self.assertIn(f'walk = "{remote}/policies/walk_17500.onnx"', toml)
++        self.assertIn(f'stand = "{remote}/policies/velstand.onnx"', toml)
++        self.assertNotIn('@POLICY_DIR@', toml)
++        self.assertNotIn(str(remote), toml.split('\n', 3)[1])   # comments stay readable
++        self.assertEqual(sorted(p.name for p in (remote / 'policies').iterdir()),
++                         ['velstand.onnx', 'walk_17500.onnx'])
++        self.assertEqual((remote / 'policies/walk_17500.onnx').read_text(), 'walk_17500.onnx')
++        sums = (remote / 'SHA256SUMS').read_text()
++        for name in ('robotd.toml', 'policies/walk_17500.onnx', 'policies/velstand.onnx'):
++            self.assertIn('  ' + name + '\n', sums)
++        self.assertIn('robotd-fake', (self.board / 'run' / run.name / 'robotd.log').read_text())
++        self.assertIn('robotd-fake', (run / 'board/robotd.log').read_text())
++
++        (self.root / 'models/policies/velstand.onnx').unlink()
++        ssh_calls = len(self.calls('ssh'))
++        result = self.run_script('scripts/board/run_board_robotd.zsh')
++        self.assertNotEqual(result.returncode, 0)
++        self.assertIn('velstand.onnx', result.stderr)
++        self.assertEqual(len(self.calls('ssh')), ssh_calls)
+ 
+     @unittest.skipUnless(shutil.which('sha256sum') and shutil.which('bash'), 'needs GNU sha256sum')
+     def test_board_yolo_cpu_and_npu_bundles(self):
+@@ -238,7 +274,7 @@ class LauncherTests(unittest.TestCase):
+             self.assertEqual(args, [str(remote), '-u', '-m', module, '--model', 'models/' + model,
+                                     '--duration', flags[-1] if flags else '30',
+                                     '--output-dir', f'{self.board}/run/{run.name}'])
+-            self.assertEqual(env['PYTHONPATH'].split(':')[:2], [str(remote), str(self.board / 'site')])
++            self.assertEqual(env['PYTHONPATH'], str(remote))
+             self.assertTrue((remote / 'microduck_toy/vision/yolo_camera_probe.py').is_file())
+             self.assertFalse(list(remote.rglob('__pycache__')))
+             self.assertTrue((run / 'board/detections.jsonl').is_file())
+diff --git a/tests/test_paths.py b/tests/test_paths.py
+index daf1a7e..0357a10 100644
+--- a/tests/test_paths.py
++++ b/tests/test_paths.py
+@@ -14,7 +14,7 @@ class PathTests(unittest.TestCase):
+         with mock.patch.dict('os.environ', {}, clear=True):
+             self.assertEqual(paths.repo_root(), REPO)
+             self.assertEqual(paths.runs_dir(), REPO / 'runs')
+-            self.assertEqual(paths.board_root(), Path.home() / 'microduck-board')
++            self.assertEqual(paths.board_root(), Path.home() / 'microduck')
+ 
+     def test_environment_overrides(self):
+         env = {'MD_ROOT': '/r', 'MD_RUNS': '/r/x', 'MD_BOARD_ROOT': '/home/linaro/microduck'}

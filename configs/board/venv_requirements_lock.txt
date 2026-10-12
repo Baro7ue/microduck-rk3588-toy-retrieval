@@ -1,0 +1,13 @@
+# Board Python environment ~/microduck/runtime/venv (Python 3.11), installed offline by docs/reorg/board_reorg.zsh (B4):
+# the union of offline/npu-offline/lite2-2.3.2-cp311/requirements-lock.txt (RKNN Toolkit Lite2) and
+# archive/2026-10_ball_follow/vision-offline/yolo11n-cpu/requirements-lock.txt (ONNX Runtime); numpy and
+# opencv-python-headless appear in both with the same version and hash.
+flatbuffers==25.12.19 --hash=sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4
+numpy==1.26.4 --hash=sha256:7ab55401287bfec946ced39700c053796e7cc0e3acbef09993a9ad2adba6ca6e
+onnxruntime==1.28.0 --hash=sha256:8d66f9ceb29909c70839e4e4fb3435c7b490050d8f162bd5f3aba4ca01ee517f
+opencv-python-headless==4.11.0.86 --hash=sha256:6efabcaa9df731f29e5ea9051776715b1bdd1845d7c9530065c7951d2a2899eb
+packaging==25.0 --hash=sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484
+protobuf==6.33.6 --hash=sha256:e2afbae9b8e1825e3529f88d514754e094278bb95eadc0e199751cdd9a2e82a2
+psutil==6.1.1 --hash=sha256:33431e84fee02bc84ea36d9e2c4a6d395d479c9dd9bba2376c1f6ee8f3a4e0b3
+rknn-toolkit-lite2==2.3.2 --hash=sha256:bda74f1179e15fccb8726054a24898982522784b65bb340b20146955d254e800
+ruamel.yaml==0.17.21 --hash=sha256:742b35d3d665023981bd6d16b3d24248ce5df75fdb4e2924e93a05c1f8b61ca7
