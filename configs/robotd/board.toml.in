@@ -1,6 +1,6 @@
-# Reference copy of the robotd.toml installed on the RK3588 at /home/linaro/microduck-board/
-# (from work/g3-offline/microduck-board/, 2026-10-07). The board reads its own copy, checked
-# by SHA256SUMS there; editing this file changes nothing on the board.
+# RK3588 robotd parameters (from work/g3-offline/microduck-board/robotd.toml, 2026-10-07; only paths changed).
+# Template: scripts/board/run_board_robotd.zsh points the POLICY_DIR placeholders at the policies/ folder
+# of the run's bundle on the board, and copies every policy named here from models/policies/ into it.
 # RK3588 runtime configuration: same parameters as the Mac rehearsal; board-local model paths.
 [control]
 hz = 50
@@ -8,8 +8,8 @@ hz = 50
 [policy]
 enabled = true
 mode = "walk"
-walk = "/home/linaro/microduck-board/policies/walk_17500.onnx"
-stand = "/home/linaro/microduck-board/policies/velstand.onnx"
+walk = "@POLICY_DIR@/walk_17500.onnx"
+stand = "@POLICY_DIR@/velstand.onnx"
 sitstand = "none"
 ground_pick = "none"
 kick_left = "none"

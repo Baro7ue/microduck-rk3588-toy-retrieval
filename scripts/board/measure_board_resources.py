@@ -12,7 +12,7 @@ import struct
 import time
 import traceback
 
-ROOT = Path(os.environ.get('MD_BOARD_ROOT', '/home/linaro/microduck-board')) / 'run'
+ROOT = Path(os.environ.get('MD_BOARD_ROOT', '/home/linaro/microduck')) / 'run'
 SOCKET = str(ROOT / 'robotd.sock')
 
 

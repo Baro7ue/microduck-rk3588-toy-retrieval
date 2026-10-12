@@ -38,7 +38,7 @@ remote_out=$MD_BOARD_ROOT/run/${run:t}
 remote="set -o pipefail
 cd ${(q)remote_bundle} &&
 sha256sum -c --quiet SHA256SUMS &&
-PYTHONPATH=\"\$PWD:\"${(q)MD_BOARD_SITE} ${(q)MD_BOARD_PY} -u -m $module \\
+PYTHONPATH=\"\$PWD\" ${(q)MD_BOARD_PY} -u -m $module \\
   --model models/$files[1] --duration ${(q)duration} --output-dir ${(q)remote_out}"
 
 {

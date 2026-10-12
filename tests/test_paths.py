@@ -14,7 +14,7 @@ class PathTests(unittest.TestCase):
         with mock.patch.dict('os.environ', {}, clear=True):
             self.assertEqual(paths.repo_root(), REPO)
             self.assertEqual(paths.runs_dir(), REPO / 'runs')
-            self.assertEqual(paths.board_root(), Path.home() / 'microduck-board')
+            self.assertEqual(paths.board_root(), Path.home() / 'microduck')
 
     def test_environment_overrides(self):
         env = {'MD_ROOT': '/r', 'MD_RUNS': '/r/x', 'MD_BOARD_ROOT': '/home/linaro/microduck'}

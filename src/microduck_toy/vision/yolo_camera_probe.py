@@ -112,13 +112,15 @@ def main(duration=30.0, address=('192.168.50.1', 7901), root=None, model_path=No
         raise ValueError('duration必须为0到60之间的有限秒数')
     if backend not in ('cpu', 'npu'):
         raise ValueError('backend必须为cpu或npu')
+    if model_path is None:
+        raise ValueError('model_path必须给出（板上模型文件）')
     inference_field = 'session_run_ms' if backend == 'cpu' else 'inference_call_ms'
     inference_name = 'session.run' if backend == 'cpu' else 'RKNNLite.inference'
-    root = Path(root or board_root() / 'run/G4')
+    root = Path(root or board_root() / 'run')
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%d_%H%M%S_%fZ')
     directory = Path(directory) if directory is not None else root / f'camera_{backend}_{stamp}'
     directory.mkdir(parents=True, exist_ok=False)
-    model_path = Path(model_path or board_root() / 'yolo11n-cpu/models/yolo11n.onnx')
+    model_path = Path(model_path)
     report = {'schema_version': 1, 'scope': f'camera-only {backend.upper()} detection; no body or robot RPC',
               'outcome': 'not_started', 'requested_duration_s': duration, 'address': list(address),
               'versions': {'python': sys.version.split()[0], 'numpy': np.__version__,
@@ -260,8 +262,8 @@ def main(duration=30.0, address=('192.168.50.1', 7901), root=None, model_path=No
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--model', type=Path, default=None)
+    parser.add_argument('--model', type=Path, required=True)
     parser.add_argument('--duration', type=float, default=30.0)
-    parser.add_argument('--output-dir', type=Path, default=None)
+    parser.add_argument('--output-dir', type=Path, required=True)
     args = parser.parse_args()
     raise SystemExit(main(duration=args.duration, model_path=args.model, directory=args.output_dir))

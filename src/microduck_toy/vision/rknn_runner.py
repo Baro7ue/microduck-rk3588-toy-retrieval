@@ -12,7 +12,6 @@ import time
 import cv2
 import numpy as np
 
-from microduck_toy.paths import board_root
 from microduck_toy.vision.cpu_npu_compare import npu_pixels, validate_output
 from microduck_toy.vision.yolo_postprocess import (letterbox, decode_predictions, class_aware_nms,
                                  restore_boxes)
@@ -102,16 +101,16 @@ class NPUCameraDetector:
 
 def main(duration=30.0, address=('192.168.50.1', 7901), root=None, model_path=None,
          directory=None):
-    model_path = Path(model_path or board_root() /
-                      'yolo11n-npu-camera/models/yolo11n-rk3588-fp.rknn')
-    return run_camera(duration=duration, address=address, root=root, model_path=model_path,
+    if model_path is None:
+        raise ValueError('model_path必须给出（板上模型文件）')
+    return run_camera(duration=duration, address=address, root=root, model_path=Path(model_path),
                       directory=directory, detector_factory=NPUCameraDetector, backend='npu')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--model', type=Path, default=None)
+    parser.add_argument('--model', type=Path, required=True)
     parser.add_argument('--duration', type=float, default=30.0)
-    parser.add_argument('--output-dir', type=Path, default=None)
+    parser.add_argument('--output-dir', type=Path, required=True)
     args = parser.parse_args()
     raise SystemExit(main(duration=args.duration, model_path=args.model, directory=args.output_dir))

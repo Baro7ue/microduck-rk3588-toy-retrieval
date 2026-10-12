@@ -6,7 +6,6 @@ The fake ssh runs the remote command with bash on a local "board" folder, so the
 """
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -79,6 +78,8 @@ class LauncherTests(unittest.TestCase):
         for name in ('yolo11n_coco_fp32_320.onnx', 'export.json',
                      'yolo11n_coco_fp16_320.rknn', 'conversion.json'):
             put(models / name, name)
+        for name in ('walk_17500.onnx', 'velstand.onnx'):
+            put(self.root / 'models/policies' / name, name)
         runtime, rl = self.root / 'third_party/microduck', self.root / 'third_party/microduck_rl'
         put(runtime / '.fake_head', RUNTIME_COMMIT + '\n')
         put(rl / '.fake_head', RL_COMMIT + '\n')
@@ -92,12 +93,9 @@ class LauncherTests(unittest.TestCase):
         for name, text in FAKES.items():
             put(self.stubs / name, text, 0o755)
         self.board = base / 'board'
-        put(self.board / 'robotd.toml', '[control]\nhz = 50\n')
         put(self.board / 'bin/robotd', ROBOTD, 0o755)
         put(self.board / 'bin/board_python', BOARD_PY, 0o755)
         (self.board / 'run').mkdir()
-        digest = hashlib.sha256((self.board / 'robotd.toml').read_bytes()).hexdigest()
-        put(self.board / 'SHA256SUMS', f'{digest}  robotd.toml\n')
 
         self.log = base / 'log'
         self.log.mkdir()
@@ -109,7 +107,7 @@ class LauncherTests(unittest.TestCase):
                    FAKE_LOG=str(self.log), MD_MAC_STATE=str(base / 'state'),
                    MD_STARTUP_SOCKET=str(base / 'startup.sock'), MD_BOARD_ROOT=str(self.board),
                    MD_BOARD_ROBOTD=str(self.board / 'bin/robotd'),
-                   MD_BOARD_PY=str(self.board / 'bin/board_python'), MD_BOARD_SITE=str(self.board / 'site'),
+                   MD_BOARD_PY=str(self.board / 'bin/board_python'),
                    MD_BOARD_ORT=str(self.board / 'lib/libonnxruntime.so.1.28.0'))
         self.env = env
 
@@ -146,6 +144,21 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(result.stdout.splitlines(),
                              [root, root + '/runs', root + '/third_party/microduck_rl',
                               root + '/src:/x'], shell)
+
+    def test_env_sh_board_paths_follow_the_board_root(self):
+        names = ('MD_BOARD_ROOT', 'MD_BOARD_ROBOTD', 'MD_BOARD_ORT', 'MD_BOARD_PY')
+        command = (f"source '{self.root}/env.sh' && printf '%s\\n' "
+                   + ' '.join(f'"${name}"' for name in names) + ' "${MD_BOARD_SITE-unset}"')
+        env = {k: v for k, v in self.env.items() if not k.startswith('MD_BOARD_')}
+        for board in ('/home/linaro/microduck', '/x'):
+            run_env = env if board == '/home/linaro/microduck' else {**env, 'MD_BOARD_ROOT': board}
+            result = subprocess.run([ZSH, '-c', command], cwd=self.cwd, env=run_env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(),
+                             [board, f'{board}/runtime/bin/robotd',
+                              f'{board}/runtime/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0',
+                              f'{board}/runtime/venv/bin/python', 'unset'])
 
     def test_sim_body_defaults_for_the_board(self):
         result = self.run_script('scripts/sim/run_sim_body.zsh')
@@ -210,19 +223,42 @@ class LauncherTests(unittest.TestCase):
         self.assertNotIn('@MD_ROOT@', toml.split('\n', 3)[3])
 
     @unittest.skipUnless(shutil.which('sha256sum') and shutil.which('bash'), 'needs GNU sha256sum')
-    def test_board_robotd_checks_sums_and_forwards_socket(self):
+    def test_board_robotd_ships_config_and_policies_and_copies_its_log_back(self):
         result = self.run_script('scripts/board/run_board_robotd.zsh')
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        (ssh_args, _), = self.calls('ssh')
+        run, = self.runs()
+        self.assertRegex(run.name, r'^\d{8}T\d{6}Z_board_robotd$')
+        remote = self.board / 'bundles' / run.name
+        (ssh_args, _), = [call for call in self.calls('ssh') if '-L' in call[0]]
         self.assertIn(f'{self.env["MD_STARTUP_SOCKET"]}:{self.board}/run/robotd.sock', ssh_args)
+        self.assertIn('sha256sum -c --quiet SHA256SUMS &&', '\n'.join(ssh_args))
         (args, env), = self.calls('robotd')
-        self.assertEqual(args[1:], ['--sim', '192.168.50.1:7801', '--params',
-                                    f'{self.board}/robotd.toml', '--socket',
-                                    f'{self.board}/run/robotd.sock'])
+        self.assertEqual(args, [str(remote), '--sim', '192.168.50.1:7801',
+                                '--params', f'{remote}/robotd.toml',
+                                '--socket', f'{self.board}/run/robotd.sock'])
         self.assertEqual(env['ORT_DYLIB_PATH'], self.env['MD_BOARD_ORT'])
-        self.assertTrue(list((self.board / 'run').glob('robotd-*.log')))
-        put(self.board / 'robotd.toml', 'changed')
-        self.assertNotEqual(self.run_script('scripts/board/run_board_robotd.zsh').returncode, 0)
+        self.assertEqual(env['DUCK_RUNTIME_DIR'], f'{self.board}/run')
+        toml = (remote / 'robotd.toml').read_text()
+        self.assertEqual((run / 'bundle/robotd.toml').read_text(), toml)
+        self.assertIn(f'walk = "{remote}/policies/walk_17500.onnx"', toml)
+        self.assertIn(f'stand = "{remote}/policies/velstand.onnx"', toml)
+        self.assertNotIn('@POLICY_DIR@', toml)
+        self.assertNotIn(str(remote), toml.split('\n', 3)[1])   # comments stay readable
+        self.assertEqual(sorted(p.name for p in (remote / 'policies').iterdir()),
+                         ['velstand.onnx', 'walk_17500.onnx'])
+        self.assertEqual((remote / 'policies/walk_17500.onnx').read_text(), 'walk_17500.onnx')
+        sums = (remote / 'SHA256SUMS').read_text()
+        for name in ('robotd.toml', 'policies/walk_17500.onnx', 'policies/velstand.onnx'):
+            self.assertIn('  ' + name + '\n', sums)
+        self.assertIn('robotd-fake', (self.board / 'run' / run.name / 'robotd.log').read_text())
+        self.assertIn('robotd-fake', (run / 'board/robotd.log').read_text())
+
+        (self.root / 'models/policies/velstand.onnx').unlink()
+        ssh_calls = len(self.calls('ssh'))
+        result = self.run_script('scripts/board/run_board_robotd.zsh')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('velstand.onnx', result.stderr)
+        self.assertEqual(len(self.calls('ssh')), ssh_calls)
 
     @unittest.skipUnless(shutil.which('sha256sum') and shutil.which('bash'), 'needs GNU sha256sum')
     def test_board_yolo_cpu_and_npu_bundles(self):
@@ -238,7 +274,7 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual(args, [str(remote), '-u', '-m', module, '--model', 'models/' + model,
                                     '--duration', flags[-1] if flags else '30',
                                     '--output-dir', f'{self.board}/run/{run.name}'])
-            self.assertEqual(env['PYTHONPATH'].split(':')[:2], [str(remote), str(self.board / 'site')])
+            self.assertEqual(env['PYTHONPATH'], str(remote))
             self.assertTrue((remote / 'microduck_toy/vision/yolo_camera_probe.py').is_file())
             self.assertFalse(list(remote.rglob('__pycache__')))
             self.assertTrue((run / 'board/detections.jsonl').is_file())

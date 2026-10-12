@@ -1,7 +1,7 @@
 """Repository and board paths. Code uses these instead of absolute paths.
 
 Set by env.sh on the Mac (MD_ROOT, MD_RUNS) and by the board launchers (MD_BOARD_ROOT);
-the fallbacks below keep a plain checkout and the current board layout working.
+the fallbacks below keep a plain checkout working and match the board layout ~/microduck/.
 """
 from __future__ import annotations
 
@@ -21,4 +21,4 @@ def runs_dir() -> Path:
 
 def board_root() -> Path:
     env = os.environ.get('MD_BOARD_ROOT')
-    return Path(env) if env else Path.home() / 'microduck-board'
+    return Path(env) if env else Path.home() / 'microduck'

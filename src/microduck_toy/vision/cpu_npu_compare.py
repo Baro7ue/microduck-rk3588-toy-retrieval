@@ -12,7 +12,6 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from microduck_toy.paths import board_root
 from microduck_toy.vision.yolo_postprocess import (letterbox, validate_model, decode_predictions,
                                  class_aware_nms, restore_boxes)
 
@@ -71,10 +70,12 @@ def main():
     from rknnlite.api import RKNNLite
 
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", required=True, type=Path,
+                        help="bundle with models/{conversion.json,yolo11n.onnx,yolo11n-rk3588-fp.rknn}")
     parser.add_argument("--output-dir", required=True, type=Path)
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True)
-    root = board_root() / "yolo11n-cpu-npu"
+    root = args.root
     conversion = json.loads((root / "models/conversion.json").read_text())
     onnx_path = root / "models/yolo11n.onnx"
     rknn_path = root / "models/yolo11n-rk3588-fp.rknn"

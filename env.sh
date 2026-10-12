@@ -27,12 +27,11 @@ export MD_SIM_HOST="${MD_SIM_HOST:-192.168.50.1}"                         # Mac 
 export MD_MAC_STATE="${MD_MAC_STATE:-/private/tmp/md-runtime-ethan}"       # Mac-local robotd socket dir
 export MD_STARTUP_SOCKET="${MD_STARTUP_SOCKET:-/private/tmp/md-rk-startup-ethan.sock}"  # forwarded board robotd.sock
 export MD_BOARD_HOST="${MD_BOARD_HOST:-RK3588}"                            # ssh alias in ~/.ssh/config
-export MD_BOARD_ROOT="${MD_BOARD_ROOT:-/home/linaro/microduck-board}"
-# Board-side programs, as installed during G3/G4 (paths on the board, not on this Mac).
-export MD_BOARD_ROBOTD="${MD_BOARD_ROBOTD:-/home/linaro/microduck-g3-offline/microduck/target/release/robotd}"
-export MD_BOARD_ORT="${MD_BOARD_ORT:-/home/linaro/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0}"
-export MD_BOARD_PY="${MD_BOARD_PY:-/home/linaro/rk3588-npu-venv/bin/python}"
-export MD_BOARD_SITE="${MD_BOARD_SITE:-/home/linaro/microduck-board/vision-cpu-python}"
+export MD_BOARD_ROOT="${MD_BOARD_ROOT:-/home/linaro/microduck}"            # layout: configs/board/README_board.md
+# Board runtime installed by docs/reorg/board_reorg.zsh (paths on the board, not on this Mac).
+export MD_BOARD_ROBOTD="${MD_BOARD_ROBOTD:-$MD_BOARD_ROOT/runtime/bin/robotd}"
+export MD_BOARD_ORT="${MD_BOARD_ORT:-$MD_BOARD_ROOT/runtime/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0}"
+export MD_BOARD_PY="${MD_BOARD_PY:-$MD_BOARD_ROOT/runtime/venv/bin/python}"   # RKNN Lite2 + ONNX Runtime + OpenCV
 
 case ":${PYTHONPATH:-}:" in
   *":$MD_ROOT/src:"*) ;;
