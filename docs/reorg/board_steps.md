@@ -47,7 +47,7 @@ zsh docs/reorg/board_reorg.zsh plan B2      # 只列出要做什么，每行末�
 zsh docs/reorg/board_reorg.zsh apply B2
 ```
 
-验收：启动脚本用到的东西一个都没动，所以按现在的路径跑一次 NPU 检测，结果应当照常（先在另一个终端用 `zsh scripts/sim/run_sim_body.zsh` 开仿真身体）：
+验收：启动脚本用到的东西一个都没动，所以按现在的路径跑一次 NPU 检测，结果应当照常（先在另一个终端用 `zsh scripts/sim/run_sim_body.zsh --scene sim/scenes/legacy_ball/ball_1m_yellow/scene_ball_1m.xml` 开带黄球的仿真身体）：
 
 ```zsh
 zsh scripts/board/probe_board_yolo_camera.zsh --npu --duration 10
@@ -84,7 +84,7 @@ zsh scripts/tools/run_tests.zsh
 然后按今天的顺序冒烟，三个终端：
 
 ```zsh
-zsh scripts/sim/run_sim_body.zsh                        # 终端 1：仿真身体（带相机）
+zsh scripts/sim/run_sim_body.zsh --scene sim/scenes/legacy_ball/ball_1m_yellow/scene_ball_1m.xml   # 终端 1：带黄球的仿真身体（和 10-12 早上同一场景）
 zsh scripts/board/run_board_robotd.zsh                  # 终端 2：板上 robotd
 zsh scripts/board/probe_board_stand_camera.zsh          # 终端 3：站立 10 秒 + CPU 检测
 zsh scripts/board/probe_board_yolo_camera.zsh --npu     # 终端 3：NPU 检测
