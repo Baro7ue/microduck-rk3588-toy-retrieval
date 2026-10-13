@@ -1,0 +1,37 @@
+# Stage 0 robotd config s1u (upstream tuning).
+# S1: stand slot = alpha_stand.onnx, limp_fall on (upstream design: limp while falling,
+# pose back once still, then the standing network gets up).
+# Template: the POLICY_DIR placeholder becomes models/policies on the Mac
+# (scripts/sim/stage0/run_robotd.zsh) or the bundle's policies/ on the board
+# (scripts/board/stage0/run_board_robotd.zsh). The ground_pick slot is for 0b; with no manifest
+# beside the files robotd uses its defaults: a 4 s cycle, handed back at phase 0.7.
+[control]
+hz = 50
+
+[policy]
+enabled = true
+mode = "walk"
+walk = "@POLICY_DIR@/walk_17500.onnx"
+stand = "@POLICY_DIR@/alpha_stand.onnx"
+sitstand = "none"
+ground_pick = "@POLICY_DIR@/alpha_ground_pick.onnx"
+kick_left = "none"
+kick_right = "none"
+roulade = "none"
+
+# Upstream tuning: robotd's own defaults, which its comments say the alpha policies were trained
+# with (robotd-params/src/lib.rs PolicyParams; duck-control control.rs:697-712). Only used to
+# check whether a failure comes from our tuning. voltage_adapt stays off: the sim reports 7.4 V.
+action_scale = 0.9
+standing_action_scale = 1.0
+standing_gain_ratio = 0.8
+gain = 200
+head_lowpass = 0.5
+legs_lowpass = 0.7
+voltage_adapt = false
+
+[safety]
+limp_fall = true
+
+[audio]
+enabled = false
