@@ -1,0 +1,339 @@
+{
+  "about": "Stage 0 exit facts (plan section 7). Stage 1 code reads its numbers from here only. Units are in the key names. \"mac\" = robotd on the Mac, \"board\" = robotd on the RK3588 with the MuJoCo body on the Mac; both driven by run_test on the Mac.",
+  "written_utc": "2026-10-14",
+  "measured_with_commit": "763ab29 (0a rescored with the 2026-10-14 scorer fix)",
+  "runs": {
+    "0c_mac_s2": "runs/20261013T133014Z_s0c_s2",
+    "0c_mac_s1": "runs/20261014T025843Z_s0c_s1",
+    "0a_mac_s2": "runs/20261014T031811Z_s0a_s2",
+    "0b_mac_s2": "runs/20261014T033610Z_s0b_s2",
+    "robotd_board_s2": "runs/20261014T035419Z_s0_board_robotd_s2",
+    "0c_board_s2": "runs/20261014T040237Z_s0c_s2",
+    "0a_board_s2": "runs/20261014T040513Z_s0a_s2",
+    "0b_board_s2": "runs/20261014T041649Z_s0b_s2",
+    "d4_curves": "claude-docs/stage0_toys_20261013/tools/curves/d4.json",
+    "d5_mac": "runs/20261013T130952Z_d5_mac_cpu",
+    "d5_board": "runs/20261013T130956Z_d5_board_npu"
+  },
+  "robotd": {
+    "config": "configs/robotd/stage0/s2.toml.in",
+    "slots": {"walk": "walk_17500.onnx", "stand": "velstand.onnx", "ground_pick": "alpha_ground_pick.onnx"},
+    "limp_fall": false,
+    "knobs": "s2 (our stage0 values, not the upstream s2u knobs)",
+    "standing_threshold_twist": 0.05,
+    "why": "0c: s1 and s2 both 15/15 get-ups; s2 chosen by the plan tie-break (shorter mean get-up)",
+    "loop_mac": {"rate_hz": 50.0, "missed_ticks": "0/15045"},
+    "loop_board": {"rate_hz": 50.0, "missed_ticks": "6/90166"}
+  },
+  "getup": {
+    "mac_s2": {"success": "15/15", "mean_s": 1.54, "sd_s": 1.06, "max_s": 4.82},
+    "mac_s1_for_comparison": {"success": "15/15", "mean_s": 2.35, "sd_s": 0.77, "max_s": 4.18},
+    "board_s2": {"success": "4/4", "mean_s": 1.19, "sd_s": 0.1, "max_s": 1.34},
+    "push_to_fall_mps_mac_s2": {"forward": 1.05, "backward": 1.05, "left": 1.05, "right": 0.6},
+    "board_note": "board c2 pushed at 1.05 m/s; backward needed 1.2 m/s to fall",
+    "episode_rule": "a fall does not end the episode: velstand gets up by itself (decision 7B); log each fall and its get-up time"
+  },
+  "walking": {
+    "retrain_walker": false,
+    "why": "0a: no falls at H0/H1/H2 in any part, all 1 m walks reached on Mac and board",
+    "head_poses_rad": {
+      "H0": {"neck": 0.0, "head": 0.0},
+      "H1": {"neck": 0.0, "head": 0.6},
+      "H2": {"neck": 0.0, "head": 1.0},
+      "H3": {"neck": -0.4, "head": 0.8}
+    },
+    "segment_head_pose": {"A_search_over_0.6m": "H0", "B_approach_0.6_to_0.25m": "H1", "C_inching_under_0.25m": "H2"},
+    "segment_note": "segment distances come from the 2026-10-11 approach proposal; Stage 1 tunes them",
+    "forward_dead_band_vx_mps": 0.1,
+    "forward_dead_band_note": "cold start, H0/H1/H2 alike: vx <= 0.10 does not move; 0.15 moves at 0.04-0.07 m/s",
+    "forward_steady_mps_mac": {
+      "H0": [
+        [0.05, 0.0],
+        [0.1, 0.0],
+        [0.15, 0.066],
+        [0.2, 0.084],
+        [0.25, 0.112],
+        [0.3, 0.224],
+        [0.35, 0.207],
+        [0.4, 0.253]
+      ],
+      "H1": [
+        [0.05, 0.0],
+        [0.1, 0.0],
+        [0.15, 0.053],
+        [0.2, 0.068],
+        [0.25, 0.175],
+        [0.3, 0.194],
+        [0.35, 0.254],
+        [0.4, 0.251]
+      ],
+      "H2": [[0.05, 0.0], [0.1, 0.0], [0.15, 0.043], [0.2, 0.086], [0.25, 0.156], [0.3, 0.2], [0.35, 0.266], [0.4, 0.285]]
+    },
+    "turn_steady_radps_mac_H1": {
+      "cold": [
+        [0.25, 0.0],
+        [-0.25, 0.0],
+        [0.5, 0.0],
+        [-0.5, -0.48],
+        [0.75, 0.9],
+        [-0.75, -0.74],
+        [1.0, 1.18],
+        [-1.0, -1.01]
+      ],
+      "warm": [
+        [0.25, 0.0],
+        [-0.25, -0.19],
+        [0.5, 0.62],
+        [-0.5, -0.48],
+        [0.75, 0.89],
+        [-0.75, -0.73],
+        [1.0, 1.17],
+        [-1.0, -0.98]
+      ]
+    },
+    "turn_dead_band_note": "cold: +0.25 and +0.5 (left) do not turn, -0.25 does not, -0.5 does; warm (after 2 s at 0.3 m/s): +0.25 does not, -0.25 does",
+    "straight_1m_heading_pi": {
+      "kp": 1.0,
+      "ki": 0.25,
+      "mac": [
+        {
+          "head": "H1",
+          "vx": 0.2,
+          "reached_1m": "3/3",
+          "time_s": [13.4, 13.3, 13.5],
+          "max_abs_left_cm": 11.9,
+          "yaw_drift_deg": [-0.3, -5.7, -4.9]
+        },
+        {
+          "head": "H1",
+          "vx": 0.3,
+          "reached_1m": "3/3",
+          "time_s": [4.8, 4.8, 4.8],
+          "max_abs_left_cm": 13.6,
+          "yaw_drift_deg": [5.4, 11.0, 8.9]
+        },
+        {
+          "head": "H2",
+          "vx": 0.2,
+          "reached_1m": "3/3",
+          "time_s": [13.0, 14.8, 13.9],
+          "max_abs_left_cm": 4.6,
+          "yaw_drift_deg": [15.8, -1.9, 1.9]
+        },
+        {
+          "head": "H2",
+          "vx": 0.3,
+          "reached_1m": "3/3",
+          "time_s": [4.6, 4.6, 4.7],
+          "max_abs_left_cm": 9.4,
+          "yaw_drift_deg": [3.3, 10.0, 6.6]
+        }
+      ],
+      "board": [
+        {
+          "head": "H1",
+          "vx": 0.2,
+          "reached_1m": "3/3",
+          "time_s": [12.1, 12.7, 12.3],
+          "max_abs_left_cm": 5.7,
+          "yaw_drift_deg": [-4.2, 1.9, -0.2]
+        },
+        {
+          "head": "H1",
+          "vx": 0.3,
+          "reached_1m": "3/3",
+          "time_s": [5.9, 5.0, 5.0],
+          "max_abs_left_cm": 8.0,
+          "yaw_drift_deg": [-7.2, -3.8, -4.8]
+        },
+        {
+          "head": "H2",
+          "vx": 0.2,
+          "reached_1m": "3/3",
+          "time_s": [12.6, 9.6, 12.3],
+          "max_abs_left_cm": 6.7,
+          "yaw_drift_deg": [-2.9, -2.4, -1.0]
+        },
+        {
+          "head": "H2",
+          "vx": 0.3,
+          "reached_1m": "3/3",
+          "time_s": [4.8, 5.0, 4.9],
+          "max_abs_left_cm": 12.0,
+          "yaw_drift_deg": [-2.8, 9.4, -7.4]
+        }
+      ]
+    },
+    "stop_from_0.3mps_mac": {
+      "H0": {"coast_cm_mean": 3.9, "coast_cm_max": 4.1, "still_after_zero_s_mean": 0.75, "still_after_zero_s_max": 0.87},
+      "H1": {"coast_cm_mean": 4.6, "coast_cm_max": 5.7, "still_after_zero_s_mean": 0.75, "still_after_zero_s_max": 0.78},
+      "H2": {"coast_cm_mean": 4.9, "coast_cm_max": 5.2, "still_after_zero_s_mean": 0.73, "still_after_zero_s_max": 0.97}
+    }
+  },
+  "inching": {
+    "forward_pulse_cm": {
+      "mac": [
+        {"vx": 0.25, "seconds": 0.2, "mean": 0.51, "sd": 0.43, "min": 0.03, "max": 1.23, "always_moved": false},
+        {"vx": 0.25, "seconds": 0.3, "mean": 1.85, "sd": 0.63, "min": 1.23, "max": 3.29, "always_moved": true},
+        {"vx": 0.25, "seconds": 0.5, "mean": 5.31, "sd": 1.14, "min": 3.75, "max": 6.56, "always_moved": true},
+        {"vx": 0.25, "seconds": 0.8, "mean": 9.76, "sd": 0.96, "min": 8.06, "max": 11.26, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.2, "mean": 1.42, "sd": 0.82, "min": 0.13, "max": 2.14, "always_moved": false},
+        {"vx": 0.3, "seconds": 0.3, "mean": 4.09, "sd": 0.49, "min": 3.23, "max": 4.67, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.5, "mean": 9.61, "sd": 1.16, "min": 8.09, "max": 12.18, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.8, "mean": 16.74, "sd": 0.9, "min": 15.44, "max": 18.69, "always_moved": true}
+      ],
+      "board": [
+        {"vx": 0.25, "seconds": 0.2, "mean": 0.93, "sd": 0.52, "min": 0.19, "max": 1.73, "always_moved": false},
+        {"vx": 0.25, "seconds": 0.3, "mean": 3.38, "sd": 0.66, "min": 1.78, "max": 3.91, "always_moved": true},
+        {"vx": 0.25, "seconds": 0.5, "mean": 6.5, "sd": 0.79, "min": 5.37, "max": 7.93, "always_moved": true},
+        {"vx": 0.25, "seconds": 0.8, "mean": 11.66, "sd": 1.48, "min": 9.3, "max": 13.63, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.2, "mean": 2.52, "sd": 0.53, "min": 1.48, "max": 3.27, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.3, "mean": 4.76, "sd": 0.53, "min": 3.71, "max": 5.39, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.5, "mean": 9.06, "sd": 1.09, "min": 7.3, "max": 10.54, "always_moved": true},
+        {"vx": 0.3, "seconds": 0.8, "mean": 16.86, "sd": 1.49, "min": 14.02, "max": 18.41, "always_moved": true}
+      ]
+    },
+    "turn_pulse_deg": {
+      "mac": [
+        {"wz": 0.6, "seconds": 0.3, "mean": 2.37, "sd": 0.08, "min": 2.26, "max": 2.53, "always_moved": true},
+        {"wz": 0.6, "seconds": 0.5, "mean": 2.5, "sd": 0.15, "min": 2.14, "max": 2.69, "always_moved": true},
+        {"wz": -0.6, "seconds": 0.3, "mean": 0.13, "sd": 0.75, "min": -1.69, "max": 0.82, "always_moved": false},
+        {"wz": -0.6, "seconds": 0.5, "mean": -9.05, "sd": 5.87, "min": -15.64, "max": -1.2, "always_moved": true},
+        {"wz": 1.0, "seconds": 0.3, "mean": 2.65, "sd": 0.06, "min": 2.58, "max": 2.8, "always_moved": true},
+        {"wz": 1.0, "seconds": 0.5, "mean": 4.15, "sd": 5.22, "min": 1.34, "max": 18.24, "always_moved": true},
+        {"wz": -1.0, "seconds": 0.3, "mean": -18.23, "sd": 3.33, "min": -21.62, "max": -12.58, "always_moved": true},
+        {"wz": -1.0, "seconds": 0.5, "mean": -33.68, "sd": 2.92, "min": -38.83, "max": -30.65, "always_moved": true}
+      ],
+      "board": [
+        {"wz": 0.6, "seconds": 0.3, "mean": 2.4, "sd": 0.1, "min": 2.23, "max": 2.6, "always_moved": true},
+        {"wz": 0.6, "seconds": 0.5, "mean": 2.5, "sd": 0.09, "min": 2.37, "max": 2.67, "always_moved": true},
+        {"wz": -0.6, "seconds": 0.3, "mean": -0.67, "sd": 1.82, "min": -5.35, "max": 0.63, "always_moved": false},
+        {"wz": -0.6, "seconds": 0.5, "mean": -9.95, "sd": 4.86, "min": -18.19, "max": -2.62, "always_moved": true},
+        {"wz": 1.0, "seconds": 0.3, "mean": 2.67, "sd": 0.14, "min": 2.37, "max": 2.79, "always_moved": true},
+        {"wz": 1.0, "seconds": 0.5, "mean": 12.43, "sd": 10.19, "min": 2.11, "max": 26.84, "always_moved": true},
+        {"wz": -1.0, "seconds": 0.3, "mean": -22.48, "sd": 2.37, "min": -27.18, "max": -18.71, "always_moved": true},
+        {"wz": -1.0, "seconds": 0.5, "mean": -33.54, "sd": 4.37, "min": -41.2, "max": -27.52, "always_moved": true}
+      ]
+    },
+    "smallest_forward_step": {
+      "mac": {"vx": 0.25, "seconds": 0.3, "mean_cm": 1.85, "sd_cm": 0.63},
+      "board": {"vx": 0.3, "seconds": 0.2, "mean_cm": 2.52, "sd_cm": 0.53},
+      "limit": "mean <= 3 cm, sd <= 1 cm: passed on both"
+    },
+    "smallest_turn": {
+      "left": {"wz": 0.6, "seconds": 0.3, "mac_deg": 2.37, "board_deg": 2.4, "sd_deg": 0.1},
+      "right": "no reliable small right turn: -0.6 x 0.3 s often does not move, -0.6 x 0.5 s gives -9 to -10 deg (sd 5-6), -1.0 x 0.3 s gives -18 to -22 deg (sd 2-3)"
+    },
+    "settle_after_forward_pulse": {
+      "mac": {"median_s": 0.66, "p90_s": 0.97, "never_still_in_window": 0},
+      "board": {"median_s": 0.75, "p90_s": 1.18, "never_still_in_window": 0}
+    },
+    "notes": [
+      "the same pulse goes 1-1.5 cm further on the board than on the Mac (inferred: later stop over the forwarded socket); calibrate pulses again on the final Stage 3 setup",
+      "left and right turn pulses are asymmetric; Stage 1 must design turn inching around it (e.g. small left pulses, right turns as larger steps or a left-only correction)",
+      "coast after a 0.3 m/s stop (4-5 cm) is about the 4 cm grasp tolerance, so the C segment uses pulses, not continuous walking"
+    ]
+  },
+  "head_geometry_mac": {
+    "H0": {
+      "tip_forward_cm": 7.9,
+      "tip_left_cm": -0.3,
+      "tip_z_cm": 20.9,
+      "camera_z_cm": 23.3,
+      "camera_pitch_down_rad": 0.23
+    },
+    "H1": {
+      "tip_forward_cm": 7.2,
+      "tip_left_cm": -0.2,
+      "tip_z_cm": 17.9,
+      "camera_z_cm": 20.0,
+      "camera_pitch_down_rad": 0.66
+    },
+    "H2": {
+      "tip_forward_cm": 6.2,
+      "tip_left_cm": -0.4,
+      "tip_z_cm": 16.1,
+      "camera_z_cm": 17.7,
+      "camera_pitch_down_rad": 0.98
+    },
+    "H3": {
+      "tip_forward_cm": 7.1,
+      "tip_left_cm": -0.3,
+      "tip_z_cm": 16.1,
+      "camera_z_cm": 17.7,
+      "camera_pitch_down_rad": 1.04
+    }
+  },
+  "ground_pick": {
+    "tip_lowest_z_cm": {"mac_H0": 2.04, "mac_H2": 2.05, "board_H2": 2.08},
+    "landing_in_trunk_frame_cm": {
+      "mac_H0": {"forward": 7.71, "left": 1.4, "sd_forward": 0.01, "sd_left": 0.01},
+      "mac_H2": {"forward": 8.0, "left": 1.46, "sd_forward": 0.0, "sd_left": 0.01},
+      "board_H2": {"forward": 8.01, "left": 1.57, "sd_forward": 0.02, "sd_left": 0.04}
+    },
+    "success": {"mac_H0": "10/10", "mac_H2": "10/10", "board_H2": "10/10", "falls": 0},
+    "tip_lowest_phase": 0.29,
+    "handback_phase": 0.7,
+    "patch_robotd_handback": false,
+    "why_no_patch": "every pick stable within 1 s of the 0.70 hand-back and walked after it",
+    "stop_target_note": "pick from H2; aim to put the toy centre 8.0 cm ahead and 1.5 cm left of the trunk; grasp tolerance 4 cm (decision 8B)",
+    "spread_note": "spread is tiny because each pick starts from a teleport reset; real approach error will dominate"
+  },
+  "toys": {
+    "source": "Google Scanned Objects (CC-BY 4.0) via mujoco_scanned_objects, scaled to <= 8 cm, mass = hull volume x 0.6 g/cm3",
+    "targets": [
+      {
+        "name": "SCHOOL_BUS",
+        "label": "yellow school bus",
+        "coco": "bus",
+        "scale": 0.7764,
+        "size_cm": [7.61, 2.5, 2.97],
+        "mass_g": 28.6
+      },
+      {
+        "name": "Thomas_Friends_Woodan_Railway_Henry",
+        "label": "green engine Henry",
+        "coco": "train",
+        "scale": 0.447,
+        "size_cm": [8.0, 1.68, 2.26],
+        "mass_g": 12.9
+      },
+      {
+        "name": "FOOD_BEVERAGE_SET__2",
+        "label": "red ketchup bottle, lying",
+        "coco": "bottle",
+        "scale": 0.7207,
+        "size_cm": [8.0, 3.38, 2.04],
+        "mass_g": 24.5
+      }
+    ],
+    "distractors": [
+      {
+        "name": "My_First_Wiggle_Crocodile",
+        "label": "green crocodile (same colour as Henry)",
+        "coco": null,
+        "scale": 0.4067,
+        "size_cm": [8.0, 2.78, 2.48],
+        "mass_g": 19.1
+      },
+      {
+        "name": "Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj",
+        "label": "blue engine Thomas (same shape as Henry)",
+        "coco": "train",
+        "scale": 0.6532,
+        "size_cm": [5.76, 2.5, 3.29],
+        "mass_g": 19.6
+      }
+    ]
+  },
+  "detection": {
+    "pretrained_right_class": "4/3600 views (d4)",
+    "pretrained_search_radius_m": 0.0,
+    "search_radius_rule": "set after the Stage 2 fine-tuned YOLO curve (decision 2A); pretrained = 0 is the report baseline",
+    "any_class_recall_whole_frame": {"0.5m": 0.47, "1.0m": 0.39, "1.5m": 0.14, "from_1.7m": 0.0},
+    "any_class_recall_band_crop": {"0.5m": 0.37, "1.0m": 0.45, "1.5m": 0.43, "2.0m": 0.38, "misses_nearer_than_m": 0.45},
+    "floor_effect": "any-class 15% on the blue checker floor vs 42% on light wood: Stage 2 data needs both floors",
+    "toy_size_px_in_360x640": {"0.5m": 55, "0.8m": 33, "1.2m": 22, "1.6m": 16, "2.5m": 10},
+    "cross_platform_d5": "passed: Mac CPU 49/49 boxes identical; board NPU FP16 band crop 13/13, whole frame 8 vs 9 (within 2/40)"
+  }
+}

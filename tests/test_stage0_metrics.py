@@ -8,8 +8,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from microduck_toy.stage0 import metrics
+from microduck_toy.stage0 import common, metrics
 from microduck_toy.stage0.metrics import COLUMNS
+from microduck_toy.stage0.s0a_walk import score_pulse, score_stop
 from microduck_toy.stage0.s0b_pick import score_pick
 from microduck_toy.stage0.s0c_getup import score_getup
 
@@ -81,6 +82,11 @@ class GeometryTests(unittest.TestCase):
         self.assertAlmostEqual(settled, 0.98, places=6)   # last moving row is already at x=0.49
         self.assertIsNone(metrics.settle_time(moving, 0.0))
 
+    def test_free_until_stops_before_the_probe_holds_again(self):
+        rows = series(0, 1) + series(1, 2, released=0)
+        self.assertAlmostEqual(metrics.free_until(rows, 0.0, 5.0), 0.98)
+        self.assertEqual(metrics.free_until(rows, 0.0, 0.5), 0.5)
+
 
 class FileTests(unittest.TestCase):
     def test_truth_and_states_round_trip(self):
@@ -103,6 +109,17 @@ class FileTests(unittest.TestCase):
             spans = metrics.label_spans(metrics.read_states(states))
             self.assertEqual([s['policy'] for s in spans], ['stand', 'ground_pick', 'stand'])
             self.assertEqual((spans[1]['start'], spans[1]['end']), (0.04, 0.06))
+
+    def test_rescore_falls_back_to_the_trials_kept_in_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            meta = {'refs': REFS, 'quick': False}
+            trials = [{'part': 'a3t', 'start': 1.0, 'released': 1.5}]
+            (Path(tmp) / 'summary.json').write_text(json.dumps({'meta': meta, 'trials': trials}))
+            (Path(tmp) / 'trials.jsonl').write_text('')
+            self.assertEqual(common.Rescored(tmp).trials, trials)
+            (Path(tmp) / 'summary.json').write_text(json.dumps({'meta': meta}))
+            with self.assertRaises(RuntimeError):
+                common.Rescored(tmp)
 
     def test_continuity_counts_missing_batches(self):
         rows = series(0, 1) + series(1.06, 2)
@@ -149,6 +166,55 @@ class ScoringTests(unittest.TestCase):
         self.assertAlmostEqual(result['tip_left_m'], 0.01)
         self.assertAlmostEqual(result['stable_after_handback_s'], 0.0)
         self.assertFalse(result['fell'])
+
+    # Turn pulse at yaw -1.5 rad: 0.5 s at -0.4 rad/s, then still creeping when the next block's
+    # reset puts the robot back at yaw 0 (board a3t -0.6 x 0.5 s rep 10, 2026-10-14).
+    def creeping_turn(self, cut):
+        rows = series(0, 1, yaw=-1.5)
+        rows += [row(round(1 + 0.02 * i, 6), yaw=-1.5 - 0.4 * 0.02 * i) for i in range(25)]
+        rows += [row(round(1.5 + 0.02 * i, 6), yaw=-1.7 - 0.05 * 0.02 * i)
+                 for i in range(int(round((cut - 1.5) / 0.02)))]
+        return rows
+
+    def test_pulse_ignores_the_next_reset(self):
+        rows = self.creeping_turn(3.0) + series(3.0, 4.0, released=0) + series(4.0, 6.0)
+        record = {'head': 'H2', 'wz': -0.6, 'seconds': 0.5, 'rep': 10,
+                  'start': 1.0, 'released': 1.5}
+        result = score_pulse(rows, record)
+        self.assertAlmostEqual(result['yaw_deg'], math.degrees(-0.2 - 0.05 * 1.48), places=6)
+        self.assertIsNone(result['still_after_zero_s'])
+        self.assertAlmostEqual(result['window_s'], 1.48)
+
+    def test_pulse_stops_at_the_next_trial(self):
+        rows = self.creeping_turn(3.0)
+        rows += [row(round(3 + 0.02 * i, 6), yaw=-1.775 - 0.01 * i) for i in range(25)]
+        rows += series(3.5, 6.0, yaw=-2.025)
+        record = {'head': 'H2', 'wz': -0.6, 'seconds': 0.5, 'rep': 9,
+                  'start': 1.0, 'released': 1.5}
+        unbounded = score_pulse(rows, record)['yaw_deg']
+        self.assertAlmostEqual(unbounded, math.degrees(-0.525), places=6)
+        bounded = score_pulse(rows, record, limit=3.0)
+        self.assertAlmostEqual(bounded['yaw_deg'], math.degrees(-0.275), places=6)
+        self.assertAlmostEqual(bounded['window_s'], 1.5)
+
+    def test_pulse_that_settles_reads_the_still_pose(self):
+        rows = self.creeping_turn(2.0) + series(2.0, 6.0, yaw=-1.725)
+        record = {'head': 'H2', 'wz': -0.6, 'seconds': 0.5, 'rep': 1,
+                  'start': 1.0, 'released': 1.5}
+        result = score_pulse(rows, record, limit=5.0)
+        # still from 1.84 s: what is left of the creep (-1.717 -> -1.725) is under 0.5 deg
+        self.assertAlmostEqual(result['yaw_deg'], math.degrees(-0.217), places=6)
+        self.assertAlmostEqual(result['still_after_zero_s'], 0.34)
+        self.assertAlmostEqual(result['window_s'], 3.0)
+
+    def test_stop_ignores_the_next_reset(self):
+        rows = series(0, 1)
+        rows += [row(round(1 + 0.02 * i, 6), x=0.002 * i, vx=0.1) for i in range(150)]
+        rows += series(4.0, 5.0, released=0) + series(5.0, 9.0)
+        record = {'head': 'H0', 'rep': 1, 'start': 0.0, 'released': 1.0}
+        result = score_stop(rows, record)
+        self.assertAlmostEqual(result['coast_m'], 0.002 * 149, places=6)
+        self.assertIsNone(result['still_after_zero_s'])
 
 
 if __name__ == '__main__':

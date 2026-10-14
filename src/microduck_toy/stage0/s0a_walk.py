@@ -212,30 +212,41 @@ def score_a2(rows, record) -> dict:
             'fell': fell(rows, record['start'], record['end'] + 1.0)}
 
 
-def score_pulse(rows, record) -> dict:
+def after_zero(rows, record, seconds: float, limit: float) -> tuple[float | None, dict, float]:
+    """The trunk once the command is zero: (time it went still or None, its pose then, window
+    end). The window is `seconds` long but stops at the next trial's start (limit) and at the
+    probe's next hold, so a slow settle never reads the pose after the next reset."""
+    released = record['released']
+    end = metrics.free_until(rows, released, min(released + seconds, limit))
+    still = metrics.settle_time(rows, released, end=end)
+    final = metrics.at(rows, still) if still is not None else metrics.window(rows, released, end)[-1]
+    return still, final, end
+
+
+def score_pulse(rows, record, limit: float = math.inf) -> dict:
     origin = metrics.at(rows, record['start'])
-    still = metrics.settle_time(rows, record['released'], end=record['released'] + SETTLE_MAX_S)
-    final = metrics.at(rows, still if still is not None else record['released'] + SETTLE_MAX_S)
+    still, final, end = after_zero(rows, record, SETTLE_MAX_S, limit)
     rel = metrics.relative(origin, final)
     out = {k: record[k] for k in ('head', 'vx', 'wz', 'seconds', 'rep') if k in record}
     out.update({'forward_m': rel['forward'], 'left_m': rel['left'],
                 'yaw_deg': math.degrees(rel['dyaw']),
-                'still_after_zero_s': (still - record['released']) if still else None,
-                'fell': fell(rows, record['start'], record['released'] + SETTLE_MAX_S)})
+                'still_after_zero_s': (still - record['released']) if still is not None else None,
+                'window_s': end - record['released'],
+                'fell': fell(rows, record['start'], end)})
     return out
 
 
-def score_stop(rows, record) -> dict:
+def score_stop(rows, record, limit: float = math.inf) -> dict:
     """Coast after the command goes to zero, measured from that moment."""
     stop = metrics.at(rows, record['released'])
-    still = metrics.settle_time(rows, record['released'], end=record['released'] + 4.0)
-    final = metrics.at(rows, still if still is not None else record['released'] + 4.0)
+    still, final, end = after_zero(rows, record, 4.0, limit)
     rel = metrics.relative(stop, final)
     return {'head': record['head'], 'rep': record['rep'], 'coast_m': rel['forward'],
             'coast_left_m': rel['left'], 'coast_yaw_deg': math.degrees(rel['dyaw']),
             'speed_at_zero_mps': math.hypot(stop['vx'], stop['vy']),
             'still_after_zero_s': (still - record['released']) if still is not None else None,
-            'fell': fell(rows, record['start'], record['released'] + 4.0)}
+            'window_s': end - record['released'],
+            'fell': fell(rows, record['start'], end)}
 
 
 def group(results, keys):
@@ -265,8 +276,12 @@ def score(s, rows) -> dict:
     scorers = {'a5': score_a5, 'a1v': score_sweep, 'a1w': score_sweep, 'a2': score_a2,
                'a3f': score_pulse, 'a3t': score_pulse, 'a4': score_stop}
     parts = {}
-    for record in s.trials:
-        parts.setdefault(record['part'], []).append(scorers[record['part']](rows, record))
+    next_starts = [t['start'] for t in s.trials[1:]] + [math.inf]
+    for record, limit in zip(s.trials, next_starts):
+        scorer = scorers[record['part']]
+        bounded = record['part'] in ('a3f', 'a3t', 'a4')
+        parts.setdefault(record['part'], []).append(
+            scorer(rows, record, limit) if bounded else scorer(rows, record))
     a4 = parts.get('a4', [])
     verdict = {}
     if 'a1v' in parts:

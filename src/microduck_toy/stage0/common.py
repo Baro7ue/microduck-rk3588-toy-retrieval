@@ -5,7 +5,8 @@ A run folder runs/<UTC>_s0<test>_<config>/ holds
     state.jsonl                    robot.state at 50 Hz (skeleton and frames dropped)
     events.jsonl                   every move/head/rpc/probe op, time.monotonic()
     trials.jsonl                   one line per trial, written as the trial ends
-    summary.json                   the scores and the pass/fail against the plan's numbers
+    summary.json                   the scores, the pass/fail against the plan's numbers, and
+                                   the trials again (--rescore uses them if trials.jsonl is empty)
 """
 from __future__ import annotations
 
@@ -62,8 +63,9 @@ class Summary:
     def write_summary(self, summary: dict) -> None:
         self.meta['finished_utc'] = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         path = self.dir / 'summary.json'
-        path.write_text(json.dumps(metrics.clean({'meta': self.meta, **summary}), indent=2,
-                                   ensure_ascii=False))
+        path.write_text(json.dumps(metrics.clean({'meta': self.meta, **summary,
+                                                  'trials': self.trials}),
+                                   indent=2, ensure_ascii=False))
         print(f'结果：{path}', flush=True)
 
 
@@ -72,12 +74,16 @@ class Rescored(Summary):
 
     def __init__(self, directory: str):
         self.dir = Path(directory)
-        self.meta = json.loads((self.dir / 'summary.json').read_text())['meta']
+        saved = json.loads((self.dir / 'summary.json').read_text())
+        self.meta = saved['meta']
         self.meta['rescored'] = True
         self.refs = self.meta['refs']
         self.args = argparse.Namespace(quick=self.meta['quick'])
-        with (self.dir / 'trials.jsonl').open() as handle:
-            self.trials = [json.loads(line) for line in handle]
+        path = self.dir / 'trials.jsonl'
+        lines = path.read_text().splitlines() if path.exists() else []
+        self.trials = [json.loads(line) for line in lines if line.strip()] or saved.get('trials', [])
+        if not self.trials:
+            raise RuntimeError(f'{self.dir}: no trials in trials.jsonl or summary.json')
 
 
 class Session(Summary):
@@ -96,7 +102,6 @@ class Session(Summary):
         self.refs = self.probe.call('info')['refs']
         self.probe.call('record', path=str(self.dir / 'truth.csv'))
         self.robot = Robot(args.socket, self.dir, self.events)
-        self.trials_file = (self.dir / 'trials.jsonl').open('a')
         self.trials: list[dict] = []
         self.meta = {'test': test, 'config': args.config, 'target': args.target,
                      'socket': args.socket, 'quick': args.quick, 'parts': args.parts,
@@ -193,9 +198,11 @@ class Session(Summary):
         return None
 
     def trial(self, record: dict) -> None:
+        # Opened per write: on the Mac, six of seven runs (2026-10-13/14) kept an empty
+        # trials.jsonl while it was held open; summary.json keeps a second copy either way.
         self.trials.append(record)
-        self.trials_file.write(json.dumps(record) + '\n')
-        self.trials_file.flush()
+        with (self.dir / 'trials.jsonl').open('a') as handle:
+            handle.write(json.dumps(record) + '\n')
 
     # ── end ──────────────────────────────────────────────────────────────
 
@@ -207,7 +214,6 @@ class Session(Summary):
         finally:
             self.robot.close()
             self.probe.close()
-            self.trials_file.close()
             self.events.close()
         return metrics.read_truth(self.dir / 'truth.csv')
 

@@ -157,6 +157,17 @@ def settle_time(rows: list[dict], start: float, window_s: float = 0.5,
     return None
 
 
+def free_until(rows: list[dict], start: float, end: float) -> float:
+    """The last moment in [start, end] before the probe holds the robot again (truth
+    released == 0). A reset teleports the trunk, so rows from there on belong to the next trial."""
+    last = start
+    for row in window(rows, start, end):
+        if not row['released']:
+            return last
+        last = row['mono']
+    return end
+
+
 def continuity(rows: list[dict]) -> dict:
     """Is truth.csv complete? One row per 20 ms batch of sim time, and wall-clock gaps."""
     sim_gaps = [b['t'] - a['t'] for a, b in zip(rows, rows[1:])]
