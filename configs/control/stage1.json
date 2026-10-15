@@ -1,0 +1,61 @@
+{
+  "about": "Stage 1 knobs (plan claude-docs/stage1_plan_20261014, revision 1). Numbers here are either set by the plan or measured in Stage 0 (configs/control/stage0_facts.json) and copied with their source; values Stage 1 measures go to configs/control/stage1_facts.json instead.",
+  "arena": {
+    "half_size_m": 1.0,
+    "wall_height_m": 0.3,
+    "wall_thickness_m": 0.02,
+    "tray": {
+      "size_m": 0.3,
+      "rim_height_m": 0.01,
+      "rim_thickness_m": 0.006,
+      "base_thickness_m": 0.003,
+      "centre_m": [0.65, 0.0],
+      "note": "centre on the +x wall's centre line, 0.2 m between the tray edge and the wall"
+    }
+  },
+  "layout": {
+    "wall_clear_m": 0.25,
+    "tray_clear_m": 0.35,
+    "toy_gap_m": 0.2,
+    "start_clear_m": 0.5,
+    "robot_wall_clear_m": 0.3,
+    "formal_seeds": 20,
+    "formal_seed_base": 1000,
+    "note": "plan 1A: toys >= 0.25 m from walls, >= 0.35 m from the tray centre, >= 0.2 m apart, >= 0.5 m from the robot start; robot_wall_clear_m keeps the start off the walls"
+  },
+  "grasp": {
+    "tol_xy_m": 0.04,
+    "tol_z_m": 0.045,
+    "open_threshold": 0.5,
+    "seed": 0,
+    "blocked_deg_per_cm": 4.0,
+    "held_threshold_deg": -1.5,
+    "note": "p = 1 - (e / tol_xy)^2 for the nearest toy within tol_xy and tol_z of the mouth tip (microduck-lab world/arena.py:1573-1631; decision 8B tolerance 4 cm). The sim reports a closed mouth holding a toy at -5 deg + blocked_deg_per_cm x the toy's smaller cross-section (an abstraction of a stalled servo); our code calls it held above held_threshold_deg"
+  },
+  "pick": {
+    "phi_close": 0.33,
+    "phi_close_sweep": [0.29, 0.33, 0.38],
+    "period_s": 4.0,
+    "handback_phase": 0.7,
+    "confirm_after_s": 1.0,
+    "ideal_toy_forward_m": 0.08,
+    "ideal_toy_left_m": 0.015,
+    "note": "Stage 0: beak lowest at phase 0.29, training holds it down to 0.425, lab closes at 0.38; H2 pick lands the beak 8.0 cm ahead and 1.46 cm left of the trunk (stage0_facts ground_pick.landing_in_trunk_frame_cm.mac_H2)"
+  },
+  "camera": {
+    "raw_width": 640,
+    "raw_height": 360,
+    "fovy_deg": 45.0,
+    "note": "the sim head camera (mjlab_microduck/sim/camera.py): 640x360 on its side, fovy 45 deg across the 360 px axis; the detector sees it turned upright (360 wide x 640 high, np.rot90 k=3); frame = which image robot.state frames.camera's OpenCV axes describe: 'upright' (checked in the cloud twin 2026-10-14: projections land within ~10 px of the oracle box centre, 'raw' is 50-200 px off)",
+    "frame": "upright"
+  },
+  "colour": {
+    "min_area_px": 12,
+    "ranges_hsv": {
+      "SCHOOL_BUS": [[[17, 150, 90], [31, 255, 255]]],
+      "Thomas_Friends_Woodan_Railway_Henry": [[[46, 80, 45], [68, 255, 255]]],
+      "FOOD_BEVERAGE_SET__2": [[[0, 140, 60], [6, 255, 255]], [[172, 140, 60], [180, 255, 255]]]
+    },
+    "note": "OpenCV-style HSV (H 0-180, S and V 0-255). Set from cloud renders 2026-10-14 (H2 at 0.12/0.22 m, H1 at 0.35/0.55 m, 2 headings, both floors): bus H 19-30 S ~216; Henry H 52-57 S ~121; ketchup H 1-3 S ~215; floors: blue checker H ~105, light wood H 16-30 S 61-117 (so yellow needs S >= 150); green crocodile H 28-44, blue Thomas H ~105. Checked again in 1D"
+  }
+}

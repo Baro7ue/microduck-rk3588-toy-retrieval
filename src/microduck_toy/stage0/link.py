@@ -17,6 +17,7 @@ import time
 SEND_HZ = 20.0
 # Dropped from the logged copy of robot.state: about 9 KB per message at 50 Hz.
 UNLOGGED = ('skeleton', 'frames')
+UNLOGGED_REPLY = ('rgb_b64',)
 HEADS = {
     'H0': (0.0, 0.0),
     'H1': (0.0, 0.6),
@@ -59,7 +60,9 @@ class Probe:
         if 'error' in answer:
             raise RuntimeError(f'probe {op}: {answer["error"]}')
         if self.events and op not in ('truth', 'info'):
-            self.events.log(f'probe.{op}', **params, reply=answer)
+            # Stage 1 `view` replies carry a base64 frame (~0.9 MB): 1.5 GB of log per 1D run.
+            reply = {k: v for k, v in answer.items() if k not in UNLOGGED_REPLY}
+            self.events.log(f'probe.{op}', **params, reply=reply)
         return answer
 
     def truth(self) -> dict:

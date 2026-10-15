@@ -1,0 +1,160 @@
+{
+ "about": "The five Stage 1 toys: Google Scanned Objects meshes (CC-BY 4.0) from github.com/kevinzakka/mujoco_scanned_objects @6ff8d27; FOOD_BEVERAGE_SET__2 is piece 2 of FOOD_BEVERAGE_SET, split out by claude-docs/stage0_toys_20261013/tools/split.py. scale, mass_g and size_cm are the Stage 0 exit table values (configs/control/stage0_facts.json toys); base_rotation (lays the ketchup bottle down) and axis_deg (the long axis after it, degrees from +x) are from the Stage 0 toy screen (candidates.json). Only model.obj and texture.png are kept; collision is one box fitted to the scaled mesh.",
+ "toys": [
+  {
+   "name": "SCHOOL_BUS",
+   "role": "target",
+   "label": "yellow school bus",
+   "coco": "bus",
+   "scale": 0.7764,
+   "mass_g": 28.6,
+   "size_cm": [
+    7.61,
+    2.5,
+    2.97
+   ],
+   "base_rotation": [
+    [
+     1.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "axis_deg": 90.77
+  },
+  {
+   "name": "Thomas_Friends_Woodan_Railway_Henry",
+   "role": "target",
+   "label": "green engine Henry",
+   "coco": "train",
+   "scale": 0.447,
+   "mass_g": 12.9,
+   "size_cm": [
+    8.0,
+    1.68,
+    2.26
+   ],
+   "base_rotation": [
+    [
+     1.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "axis_deg": -179.64
+  },
+  {
+   "name": "FOOD_BEVERAGE_SET__2",
+   "role": "target",
+   "label": "red ketchup bottle, lying",
+   "coco": "bottle",
+   "scale": 0.7207,
+   "mass_g": 24.5,
+   "size_cm": [
+    8.0,
+    3.38,
+    2.04
+   ],
+   "base_rotation": [
+    [
+     1.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ],
+    [
+     0.0,
+     -1.0,
+     0.0
+    ]
+   ],
+   "axis_deg": 87.61
+  },
+  {
+   "name": "My_First_Wiggle_Crocodile",
+   "role": "distractor",
+   "label": "green crocodile (same colour as Henry)",
+   "coco": null,
+   "scale": 0.4067,
+   "mass_g": 19.1,
+   "size_cm": [
+    8.0,
+    2.78,
+    2.48
+   ],
+   "base_rotation": [
+    [
+     1.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "axis_deg": -177.98
+  },
+  {
+   "name": "Thomas_Friends_Wooden_Railway_Talking_Thomas_z7yi7UFHJRj",
+   "role": "distractor",
+   "label": "blue engine Thomas (same shape as Henry)",
+   "coco": "train",
+   "scale": 0.6532,
+   "mass_g": 19.6,
+   "size_cm": [
+    5.76,
+    2.5,
+    3.29
+   ],
+   "base_rotation": [
+    [
+     1.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.0,
+     1.0,
+     0.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "axis_deg": 89.84
+  }
+ ]
+}
