@@ -19,6 +19,8 @@ runs/<UTC>_s2d_rknn_<mode>[_<algo>]/ with
   pred_<split>.jsonl         --predict: the simulator's boxes, the format of stage2.predict
   conversion.json            sha256 of the ONNX and the RKNN, config, versions, the above summaries
   toolkit.log                the toolkit's own log
+  check*.onnx                the toolkit's intermediate graphs (it writes them to the working
+                             directory, so the script runs it from this folder)
 
 Config as in rknn_model_zoo examples/yolo11/python/convert.py: mean 0, std 255, target rk3588.
 INT8 is the toolkit default w8a8 per channel; --algo picks normal (default), mmse or kl_divergence
@@ -32,6 +34,7 @@ import datetime as dt
 import hashlib
 from importlib.metadata import version
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -113,6 +116,7 @@ def main(argv=None) -> int:
     ap.add_argument('--predict', default='', help='comma-separated splits, e.g. test,test_far')
     ap.add_argument('--out', type=Path)
     args = ap.parse_args(argv)
+    args.onnx, args.data = args.onnx.resolve(), args.data.resolve()
     from rknn.api import RKNN
 
     root = repo_root()
@@ -122,7 +126,7 @@ def main(argv=None) -> int:
         raise SystemExit(f'ONNX class names {ort.names} differ from the config {cfg["classes"]}')
     stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     tag = args.mode + ('' if args.algo == 'normal' or args.mode == 'fp16' else f'_{args.algo}')
-    folder = args.out or root / 'runs' / f'{stamp}_s2d_rknn_{tag}'
+    folder = (args.out or root / 'runs' / f'{stamp}_s2d_rknn_{tag}').resolve()
     folder.mkdir(parents=True)
     rknn_path = folder / f'yolo11n_toys_{tag}.rknn'
     config = {'mean_values': [[0, 0, 0]], 'std_values': [[255, 255, 255]],
@@ -137,6 +141,8 @@ def main(argv=None) -> int:
         calib_info = {'frames': len(ids), 'seed': CALIB_SEED, 'strata': calib_info,
                       'sha256': sha256(folder / 'calib.txt')}
 
+    cwd = Path.cwd()
+    os.chdir(folder)
     rknn = RKNN(verbose=True, verbose_file=str(folder / 'toolkit.log'))
     try:
         rknn.config(**config)
@@ -163,6 +169,7 @@ def main(argv=None) -> int:
             print(split, preds[split], flush=True)
     finally:
         rknn.release()
+        os.chdir(cwd)
 
     onnx_model = onnx.load(str(args.onnx))
     report = {
