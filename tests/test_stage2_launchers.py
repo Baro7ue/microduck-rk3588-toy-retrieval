@@ -1,6 +1,7 @@
 """Stage 2 zsh launchers (Mac parity, board NPU evaluation), with the fakes from test_launchers.py."""
 from __future__ import annotations
 
+import socket
 import unittest
 
 import test_launchers
@@ -10,6 +11,12 @@ from test_launchers import ZSH, put
 BOARD_PREDICT = test_launchers.RECORD + '''out=''
 while [ $# -gt 0 ]; do [ "$1" = --out ] && out=$2; shift; done
 mkdir -p "$(dirname "$out")" && echo '{"id": "x", "dets": []}' > "$out"
+'''
+
+# Board Python for the deployment run: writes <--out>/summary.json.
+BOARD_DEPLOY = test_launchers.RECORD + '''out=''
+while [ $# -gt 0 ]; do [ "$1" = --out ] && out=$2; shift; done
+mkdir -p "$out" && echo '{"pass": true}' > "$out/summary.json"
 '''
 
 
@@ -84,6 +91,51 @@ class Stage2LauncherTests(unittest.TestCase):
         modules = [args[args.index('-m') + 1] for args, _ in self.calls('python')]
         self.assertEqual(modules, (['microduck_toy.stage2.evaluate'] * 3
                                    + ['microduck_toy.stage2.parity'] * 2) * 2)
+
+    def board_socket(self):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(str(self.board / 'run/robotd.sock'))
+        self.addCleanup(sock.close)
+
+    def test_deploy_runs_each_backend_on_the_board_then_the_table(self):
+        put(self.board / 'bin/board_python', BOARD_DEPLOY, 0o755)
+        put(self.stubs / 'sudo', test_launchers.RECORD, 0o755)
+        self.board_socket()
+        result = self.run_script('scripts/board/stage2/run_deploy_board.zsh', str(self.pack),
+                                 '--frames', '50', FAKE_LSOF_STATUS='0')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        run = next(p for p in self.runs() if p.name.endswith('_s2f_board_deploy'))
+        board = self.calls('board_python')
+        self.assertEqual([a[a.index('--backend') + 1] for a, _ in board], ['cpu', 'fp16', 'int8'])
+        cpu = board[0][0]
+        self.assertEqual(cpu[1:4], ['-u', '-m', 'microduck_toy.stage2.deploy'])
+        self.assertEqual(cpu[cpu.index('--model') + 1], 'models/yolo11n_toys_split_320.onnx')
+        self.assertEqual(cpu[cpu.index('--camera') + 1], '192.168.50.1:7901')
+        self.assertEqual(cpu[cpu.index('--socket') + 1], str(self.board / 'run/robotd.sock'))
+        self.assertEqual(cpu[cpu.index('--frames') + 1], '50')
+        self.assertEqual(board[2][0][board[2][0].index('--model') + 1], 'models/yolo11n_toys_int8.rknn')
+        bundle = self.board / 'bundles' / run.name
+        for rel in ('microduck_toy/stage2/deploy.py', 'configs/vision/stage2.json',
+                    'configs/control/stage1.json', 'models/yolo11n_toys_fp16.rknn'):
+            self.assertTrue((bundle / rel).is_file(), rel)
+        for b in ('cpu', 'fp16', 'int8'):
+            self.assertTrue((run / 'board' / b / 'summary.json').is_file())
+        mac = [args for args, _ in self.calls('python')]
+        self.assertEqual([a[a.index('-m') + 1] for a in mac], ['microduck_toy.stage2.deploy'] * 2)
+        self.assertIn('--place', mac[0])
+        self.assertEqual(mac[1][mac[1].index('--table') + 1], str(run))
+        self.assertTrue((run / 'layout.json').is_file())
+
+    def test_deploy_stops_without_the_camera_or_board_robotd(self):
+        self.assertNotEqual(self.run_script('scripts/board/stage2/run_deploy_board.zsh',
+                                            str(self.pack)).returncode, 0)
+        result = self.run_script('scripts/board/stage2/run_deploy_board.zsh', str(self.pack),
+                                 FAKE_LSOF_STATUS='0')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('run_board_robotd.zsh s2', result.stderr)
+        self.assertEqual(self.calls('board_python'), [])
+        self.assertNotEqual(self.run_script('scripts/board/stage2/run_deploy_board.zsh', str(self.pack),
+                                            '--backends', 'gpu', FAKE_LSOF_STATUS='0').returncode, 0)
 
 
 if __name__ == '__main__':

@@ -158,8 +158,15 @@ class OnnxYoloSplit:
             raise ValueError(f'expected 9 outputs, got {self.outputs}')
         self.iou = iou
 
+    @staticmethod
+    def prepare(img320: np.ndarray, bgr: bool = True) -> np.ndarray:
+        return views.tensor(img320, bgr=bgr)
+
+    def run(self, x: np.ndarray) -> list[np.ndarray]:
+        return self.session.run(self.outputs, {self.input: x})
+
     def raw(self, img320: np.ndarray) -> list[np.ndarray]:
-        return self.session.run(self.outputs, {self.input: views.tensor(img320)})
+        return self.run(self.prepare(img320))
 
     def __call__(self, img320: np.ndarray, conf: float = 0.25) -> list[dict]:
         return to_dicts(self.names, *decode_split(self.raw(img320), conf, self.iou))
@@ -184,12 +191,18 @@ class RknnYolo:
             raise RuntimeError(f'cannot load {path} on the NPU')
         return cls(runtime, names, iou)
 
-    def raw(self, img320: np.ndarray) -> list[np.ndarray]:
-        rgb = np.ascontiguousarray(img320[None, :, :, ::-1])
-        outs = self.runtime.inference(inputs=[rgb], data_format=['nhwc'])
+    @staticmethod
+    def prepare(img320: np.ndarray, bgr: bool = True) -> np.ndarray:
+        return np.ascontiguousarray((img320[:, :, ::-1] if bgr else img320)[None])
+
+    def run(self, x: np.ndarray) -> list[np.ndarray]:
+        outs = self.runtime.inference(inputs=[x], data_format=['nhwc'])
         if outs is None or len(outs) != 3 * len(STRIDES):
             raise RuntimeError(f'RKNN returned {None if outs is None else len(outs)} outputs')
         return outs
+
+    def raw(self, img320: np.ndarray) -> list[np.ndarray]:
+        return self.run(self.prepare(img320))
 
     def __call__(self, img320: np.ndarray, conf: float = 0.25) -> list[dict]:
         return to_dicts(self.names, *decode_split(self.raw(img320), conf, self.iou))
