@@ -42,8 +42,10 @@ def make(kind: str, model: Path | None, cfg: dict):
     raise ValueError(kind)
 
 
-def run(data: Path, split: str, det, out: Path) -> dict:
+def run(data: Path, split: str, det, out: Path, only: set | None = None) -> dict:
     ids = [json.loads(x)['id'] for x in (data / 'meta' / f'{split}.jsonl').read_text().splitlines()]
+    if only is not None:
+        ids = [i for i in ids if i in only]
     n_det = 0
     with open(out, 'w') as f:
         for fid in ids:
@@ -65,11 +67,13 @@ def main(argv=None) -> int:
     ap.add_argument('--split', default='test')
     ap.add_argument('--detector', choices=('onnx', 'onnx-split', 'rknn', 'colour'), required=True)
     ap.add_argument('--model', type=Path)
+    ap.add_argument('--ids', type=Path, help='only these frame ids (one per line)')
     ap.add_argument('--out', type=Path, required=True)
     args = ap.parse_args(argv)
     cfg = json.loads((repo_root() / 'configs/vision/stage2.json').read_text())
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    print(run(args.data, args.split, make(args.detector, args.model, cfg), args.out))
+    only = set(args.ids.read_text().split()) if args.ids else None
+    print(run(args.data, args.split, make(args.detector, args.model, cfg), args.out, only))
     print(args.out)
     return 0
 
