@@ -1,6 +1,6 @@
 {
   "about": "Stage 1 exit facts (plan section 10), written as each sub-step passes. Code from Stage 1E on reads its numbers only from here and stage0_facts.json. Units are in the key names. mac = robotd s2 on the Mac.",
-  "written_utc": "2026-10-15",
+  "written_utc": "2026-10-23",
   "measured_with_commit": "30e6d6d for the reruns (b_fall, c_trim, d_H1); the first runs used the same Stage 1 code before it was committed (HEAD aabf27f)",
   "runs": {
     "parity_grid": "runs/20261015T072945Z_s1a_parity_EthandeMacBook-Air.local",
@@ -15,7 +15,10 @@
     "1f_quick": "runs/20261023T075619Z_s1f_s2",
     "1f_main": "runs/20261023T075845Z_s1f_s2",
     "1f_blind": "runs/20261023T082706Z_s1f_s2",
-    "1f_blind30": "runs/20261023T090224Z_s1f_s2"
+    "1f_blind30": "runs/20261023T090224Z_s1f_s2",
+    "1g_quick": "runs/20261023T111201Z_s1g_s2",
+    "1g": "runs/20261023T111354Z_s1g_s2",
+    "1f_blind_board": "runs/20261023T122303Z_s1f_s2"
   },
   "scene": {
     "parity_box_px_max": {
@@ -436,5 +439,17 @@
     "handover_truth_cm": {"forward": [21.8, 2.3], "left": [3.02, 2.43], "aim_right_of_toy_cm": 1.0},
     "note": "the gate passed (>= 0.5 grasped per close) but the inching lost to the blind walk. Truth vs the looks: in 228 of 309 H2 looks the toy's box touched the left image edge (129 with the toy centre already off the image), and then the ranged left was 1.85 cm too small, so decide() picked a toy that was 4-6 cm left (19 such closes, 6 grasped). Uncut boxes ranged within 0.2 cm. dy = truth - ranged (left), dx = truth - ranged (forward). The C pulses also differed from pulses_mac, see pulses_h2_1f. A footprint model (toy half sizes x 0.9, the H2 camera_frame) predicts the left cut in 299 of 309 looks"
   },
-  "pending": ["1E approach parameters (B segment aim, C segment controller)", "1F grasp gate", "1G carry"]
+  "carry_1g_mac": {"trials": 9, "loaded_by_first_pick": 9, "falls": 0, "drops": 0, "robot_held_read_matches_truth": 9, "pass": true,
+    "route": "stand 5 s H0, then walk 0.5 m H0 0.2 -> left 90 -> H0 0.3 -> left 90 -> H1 0.2 -> right 90 -> H1 0.3 -> right 90 (control/approach.py walk/turn on odometry)",
+    "sway_in_beak_mm_mean": {"stand": 6, "walk_H0_0.2": 3, "walk_H0_0.3": 6, "walk_H1_0.2": 5, "walk_H1_0.3": 5, "turn_left": 14, "turn_right": 11},
+    "max_tilt_deg_mean": {"stand": 0.4, "walk_H0_0.2": 3.7, "walk_H0_0.3": 4.6, "walk_H1_0.2": 4.5, "walk_H1_0.3": 4.5, "turn_left": 4.0, "turn_right": 3.6},
+    "walk_forward_m_mean": {"H0_0.2": 0.455, "H0_0.3": 0.519, "H1_0.2": 0.46, "H1_0.3": 0.49},
+    "walk_drift_left_cm": {"H0_0.2": [1.0, 0.6], "H0_0.3": [4.9, 3.4], "H1_0.2": [3.8, 0.9], "H1_0.3": [3.7, 1.7]},
+    "turned_deg": {"left_90": [95.6, 3.0], "right_90": [-95.3, 1.7]},
+    "stage3_default": "carry at head H1 with the approach walk (0.25 m/s, between the tested 0.2 and 0.3; H1 looks ahead at the floor for the tray); every tested head/speed passed",
+    "note": "the sim weld only lets go when the mouth opens or the robot falls, so this measures balance with the toy's mass at the head, not slip; drift is in the start heading frame with the heading PI on, [mean, sd]"},
+  "approach_1f_board": {"part": "f_blind", "starts": 9, "closes": 14, "grasped": 8, "success_per_close": 0.571, "held_within_3": [8, 9], "park_err_rms_cm": 2.31, "park_err_mean_cm": [-0.66, -0.48], "park_grasp_p_mean": 0.667, "mean_start_s": 14.9, "falls": 0, "robotd_state_hz": 50.0, "state_gaps_over_30ms": 2, "pass": true,
+    "mac_same_9_starts": {"closes": 11, "grasped": 9, "held_within_3": [9, 9], "park_err_rms_cm": 2.42, "mean_start_s": 12.0},
+    "note": "robotd on the RK3588 (s2 bundle), body and oracle eyes on the Mac. Park accuracy is the same as the Mac (RMS 2.3 vs 2.4 cm, model grasp chance at the trigger 0.667 vs 0.669 over 30 Mac starts), so 0.57 vs the Mac 0.82 on these 9 starts is sampling noise of the grasp draw (sd ~0.13 at 14 closes), not a board effect; start 3 (bus) missed 3 times at 2.7-3.2 cm"},
+  "pending": []
 }
