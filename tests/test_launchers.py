@@ -68,7 +68,7 @@ class LauncherTests(unittest.TestCase):
         base = Path(self.tmp.name).resolve()   # macOS: /var is a link to /private/var, and launchers resolve links
         self.root = base / 'RK3588 Microduck copy'
         self.root.mkdir()
-        for name in ('env.sh', 'scripts', 'src', 'configs'):
+        for name in ('env.sh', 'scripts', 'src', 'configs', 'cpp'):
             src = REPO / name
             if src.is_dir():
                 shutil.copytree(src, self.root / name, ignore=shutil.ignore_patterns('__pycache__'))

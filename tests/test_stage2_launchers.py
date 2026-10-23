@@ -19,6 +19,15 @@ while [ $# -gt 0 ]; do [ "$1" = --out ] && out=$2; shift; done
 mkdir -p "$out" && echo '{"pass": true}' > "$out/summary.json"
 '''
 
+# cmake on the board: `--build DIR` leaves a passing unit_tests and an md_bench that writes --out.
+CMAKE = test_launchers.RECORD + '''if [ "$1" = --build ]; then
+  mkdir -p "$2"
+  printf '#!/bin/sh\\necho "9 tests, 0 failed"\\n' > "$2/unit_tests"
+  printf '#!/bin/sh\\nwhile [ $# -gt 0 ]; do [ "$1" = --out ] && out=$2; shift; done\\necho {} > "$out"\\n' > "$2/md_bench"
+  chmod +x "$2/unit_tests" "$2/md_bench"
+fi
+'''
+
 
 @unittest.skipUnless(ZSH, 'zsh not installed')
 class Stage2LauncherTests(unittest.TestCase):
@@ -136,6 +145,37 @@ class Stage2LauncherTests(unittest.TestCase):
         self.assertEqual(self.calls('board_python'), [])
         self.assertNotEqual(self.run_script('scripts/board/stage2/run_deploy_board.zsh', str(self.pack),
                                             '--backends', 'gpu', FAKE_LSOF_STATUS='0').returncode, 0)
+
+    def test_cpp_bench_builds_tests_runs_both_and_compares(self):
+        put(self.board / 'bin/board_python', BOARD_PREDICT, 0o755)
+        put(self.stubs / 'cmake', CMAKE, 0o755)
+        put(self.root / 'offline/rknn-2.3.2/include/rknn_api.h', '/* fake */')
+        put(self.pack / 'cpp/frames.tsv', 'id\tkind\tx0\ty0\tgain\tpad_x\tpad_y\n')
+        put(self.pack / 'cpp/uyvy/test_300000.uyvy', 'x')
+        result = self.run_script('scripts/board/stage2/run_cpp_bench.zsh', str(self.pack))
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        run = next(p for p in self.runs() if p.name.endswith('_s2h_cpp_bench'))
+        bundle = self.board / 'bundles' / run.name
+        for rel in ('cpp/board_bench/CMakeLists.txt', 'cpp/board_bench/src/main.cpp',
+                    'rknn/include/rknn_api.h', 'frames/frames.tsv', 'models/yolo11n_toys_int8.rknn',
+                    'microduck_toy/stage2/cpp_bench.py'):
+            self.assertTrue((bundle / rel).is_file(), rel)
+        cmake = [a for a, _ in self.calls('cmake')]
+        self.assertEqual(cmake[0][1:5], ['-S', 'cpp/board_bench', '-B', 'build'])
+        self.assertEqual(cmake[0][5], f'-DRKNN_ROOT={bundle}/rknn')
+        board = self.calls('board_python')
+        self.assertEqual(len(board), 1)
+        self.assertEqual(board[0][0][3:5], ['microduck_toy.stage2.cpp_bench', 'reference'])
+        for name in ('cpp.jsonl', 'ref.jsonl', 'unit_tests.log', 'build.log'):
+            self.assertTrue((run / 'board' / name).is_file(), name)
+        mac = [a for a, _ in self.calls('python')]
+        self.assertEqual(mac[-1][mac[-1].index('-m') + 1:mac[-1].index('-m') + 3],
+                         ['microduck_toy.stage2.cpp_bench', 'compare'])
+
+    def test_cpp_bench_needs_the_cpp_frames(self):
+        self.assertNotEqual(self.run_script('scripts/board/stage2/run_cpp_bench.zsh',
+                                            str(self.pack)).returncode, 0)
+        self.assertEqual(self.calls('board_python'), [])
 
 
 if __name__ == '__main__':
