@@ -15,7 +15,8 @@
       "val": {"seed_base": 200000, "count": 500, "floors": ["grid", "wood"]},
       "test": {"seed_base": 300000, "count": 1500, "floors": ["grid", "wood"]},
       "test_unseen": {"seed_base": 400000, "count": 500, "floors": ["carpet"]},
-      "test_far": {"seed_base": 500000, "count": 600, "floors": ["grid", "wood"], "p_search": 1.0, "p_empty_in_search": 0.0, "p_tray_focus": 0.0, "p_far": 1.0}
+      "test_far": {"seed_base": 500000, "count": 600, "floors": ["grid", "wood"], "p_search": 1.0, "p_empty_in_search": 0.0, "p_tray_focus": 0.0, "p_far": 1.0},
+      "test_walk": {"seed_base": 600000, "episodes": 30, "floors": ["grid", "wood"], "p_search": 1.0, "p_empty_in_search": 0.0, "p_tray_focus": 0.0, "note": "not rendered by datagen: stage2.walkrec records it from robotd walking in the sim body; a seed gives the layout, the head and the toy to walk to"}
     },
     "p_search": 0.5,
     "p_empty_in_search": 0.2,
@@ -50,6 +51,14 @@
       "sun_diffuse": [0.3, 0.9],
       "sun_tilt_deg": [0.0, 35.0],
       "note": "upstream scene.xml default: headlight diffuse 0.6 ambient 0.3, one directional light straight down (diffuse 0.7)"
+    },
+    "walk": {
+      "spin_deg": 120.0,
+      "spin_frames": 6,
+      "walk_frames": 4,
+      "stop_short_m": 0.3,
+      "settle_s": 1.0,
+      "note": "test_walk episode (plan 2A step 7): at the search head, turn spin_deg/2 right, then sweep spin_deg left (approach.turn speed) taking spin_frames window frames evenly by odometry yaw; then turn to the focus toy, head H1, walk (approach.walk gait and heading PI) to stop_short_m before it, taking walk_frames letterbox frames evenly by odometry distance. Frames come from the arena body's camera while robotd turns or walks, so they carry the real sway and the real standing posture (velstand holds the head lower than the STAND keyframe that datagen poses)"
     },
     "label": {"min_side_px": 2.0, "min_area_px": 6.0, "note": "input pixels; smaller visible boxes are dropped and counted in meta"},
     "carpet": {"rgb1": [0.52, 0.49, 0.45], "markrgb": [0.38, 0.35, 0.32], "random": 0.35, "note": "the floor only test_unseen uses"},

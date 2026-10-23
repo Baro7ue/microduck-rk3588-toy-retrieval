@@ -124,6 +124,7 @@ class ArenaCamera(sim_camera.Camera):
             self.renderer.update_scene(world.data, camera=self.camera)
             self.seg.update_scene(world.data, camera=self.camera)
             truth = world.view_truth()
+            truth['camera'] = self.pose_truth(world.data)
         rgb = self.renderer.render()
         seg = self.seg.render()
         boxes = world.oracle_boxes(seg)
@@ -135,6 +136,21 @@ class ArenaCamera(sim_camera.Camera):
             self.wanted = False
             self.view = {'seq': self.seq, 'rgb': rgb, 'boxes': boxes, 'truth': truth}
             self.cond.notify_all()
+
+    def pose_truth(self, data) -> dict:
+        """The camera at render time: world position, and the upright-image row of the horizon
+        (the same formula robot.state gives the Stage 2 window), for checking the robot's own."""
+        xmat = data.cam_xmat[self.camera].reshape(3, 3)
+        rot = np.stack([xmat[:, 1], xmat[:, 0], -xmat[:, 2]], axis=1)  # upright OpenCV -> world
+        ahead = rot[:, 2].copy()
+        ahead[2] = 0.0
+        horizon = None
+        if np.linalg.norm(ahead) > 1e-6:
+            v = rot.T @ (ahead / np.linalg.norm(ahead))
+            if v[2] > 1e-6:
+                horizon = 320.0 + 180.0 / math.tan(math.radians(22.5)) * v[1] / v[2]
+        return {'pos': [float(x) for x in data.cam_xpos[self.camera]],
+                'horizon_row': None if horizon is None else round(float(horizon), 2)}
 
     def next_view(self, after: int, timeout: float) -> dict | None:
         deadline = time.monotonic() + timeout

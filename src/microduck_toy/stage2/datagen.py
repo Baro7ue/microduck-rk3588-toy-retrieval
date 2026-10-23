@@ -281,6 +281,47 @@ def _axis_quat(axis, angle):
     return [math.cos(angle / 2), axis[0] * s, axis[1] * s, axis[2] * s]
 
 
+def label_objects(boxes, truth: dict, trunk_xy, heading: float, cam_xy, mapping, cfg: dict):
+    """Segmentation boxes in the upright frame -> (YOLO labels, objects, dropped).
+
+    truth: {name: (x, y, z, half extents or None)} in the world; trunk_xy and heading place the
+    robot, cam_xy the camera (for dist_cam_m). An object outside the input, or smaller than
+    label.min_side_px / min_area_px there, is dropped (kept in `dropped` with the reason)."""
+    lab = cfg['datagen']['label']
+    classes = cfg['classes']
+    c, s = math.cos(heading), math.sin(heading)
+    labels, objects, dropped = [], [], []
+    for b in boxes:
+        name = b['name']
+        if name not in truth:
+            continue  # a parked toy seen over the wall (cannot happen inside the field)
+        box_in = views.to_input_box(b['xyxy'], mapping)
+        x, y, z, half = truth[name]
+        dx, dy = x - trunk_xy[0], y - trunk_xy[1]
+        obj = {'name': name, 'cls': classes.index(name), 'xyxy_frame': b['xyxy'],
+               'area_frame_px': b['area_px'], 'cut_frame': b['cut'],
+               'xyxy_input': [round(v, 2) for v in box_in] if box_in else None,
+               'dist_cam_m': round(math.hypot(x - cam_xy[0], y - cam_xy[1]), 4),
+               'fwd_m': round(c * dx + s * dy, 4), 'left_m': round(-s * dx + c * dy, 4),
+               'half_z_m': round(half[2], 4) if half else None}
+        if box_in is None:
+            dropped.append({**obj, 'why': 'outside input'})
+            continue
+        w, h = box_in[2] - box_in[0], box_in[3] - box_in[1]
+        if min(w, h) < float(lab['min_side_px']) or w * h < float(lab['min_area_px']):
+            dropped.append({**obj, 'why': 'too small'})
+            continue
+        objects.append(obj)
+        n = views.INPUT
+        labels.append((obj['cls'], (box_in[0] + box_in[2]) / 2 / n, (box_in[1] + box_in[3]) / 2 / n,
+                       w / n, h / n))
+    return labels, objects, dropped
+
+
+def yolo_rows(labels) -> str:
+    return ''.join(f'{c} {x:.6f} {y:.6f} {w:.6f} {h:.6f}\n' for c, x, y, w, h in labels)
+
+
 class Renderer:
     """One compiled field per floor; the head camera and segmentation at 640x360."""
 
@@ -392,7 +433,6 @@ class Renderer:
         mujoco.mju_quat2Mat(tmat, tq)
         tmat = tmat.reshape(3, 3)
         hyaw = math.atan2(tmat[1, 0], tmat[0, 0])
-        c, s = math.cos(hyaw), math.sin(hyaw)
         truth = {}
         for short in scene['toys']:
             x, y, z, _ = arena.toy_pose(r.data, r.ids, toy_lib.resolve(short))
@@ -400,33 +440,8 @@ class Renderer:
         tray_xy = r.ids.tray_centre
         truth['tray'] = (float(tray_xy[0]), float(tray_xy[1]), 0.0, None)
 
-        lab = self.cfg['datagen']['label']
-        classes = self.cfg['classes']
-        labels, objects, dropped = [], [], []
-        for b in boxes:
-            name = b['name']
-            if name not in truth:
-                continue  # a parked toy seen over the wall (cannot happen inside the field)
-            box_in = views.to_input_box(b['xyxy'], mapping)
-            x, y, z, half = truth[name]
-            dx, dy = x - trunk[0], y - trunk[1]
-            obj = {'name': name, 'cls': classes.index(name), 'xyxy_frame': b['xyxy'],
-                   'area_frame_px': b['area_px'], 'cut_frame': b['cut'],
-                   'xyxy_input': [round(v, 2) for v in box_in] if box_in else None,
-                   'dist_cam_m': round(math.hypot(x - cam_pos[0], y - cam_pos[1]), 4),
-                   'fwd_m': round(c * dx + s * dy, 4), 'left_m': round(-s * dx + c * dy, 4),
-                   'half_z_m': round(half[2], 4) if half else None}
-            if box_in is None:
-                dropped.append({**obj, 'why': 'outside input'})
-                continue
-            w, h = box_in[2] - box_in[0], box_in[3] - box_in[1]
-            if min(w, h) < float(lab['min_side_px']) or w * h < float(lab['min_area_px']):
-                dropped.append({**obj, 'why': 'too small'})
-                continue
-            objects.append(obj)
-            n = views.INPUT
-            labels.append((obj['cls'], (box_in[0] + box_in[2]) / 2 / n, (box_in[1] + box_in[3]) / 2 / n,
-                           w / n, h / n))
+        labels, objects, dropped = label_objects(boxes, truth, trunk[:2], hyaw, cam_pos[:2], mapping,
+                                                 self.cfg)
 
         # The camera as robot.state reports it (frames.camera in the trunk frame, OpenCV upright
         # axes), so ranging.ground_point can run on these frames in 2E.
@@ -468,8 +483,7 @@ def _job(args):
     fid = frame_id(split, seed)
     out = Path(out)
     cv2.imwrite(str(out / 'images' / split / f'{fid}.png'), img)
-    (out / 'labels' / split / f'{fid}.txt').write_text(
-        ''.join(f'{c} {x:.6f} {y:.6f} {w:.6f} {h:.6f}\n' for c, x, y, w, h in labels))
+    (out / 'labels' / split / f'{fid}.txt').write_text(yolo_rows(labels))
     return {'id': fid, **meta}
 
 

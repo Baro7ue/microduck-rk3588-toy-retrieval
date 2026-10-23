@@ -4,6 +4,12 @@
         --detector onnx --model models/yolo/yolo11n_coco/yolo11n_coco_fp32_320.onnx \
         --out runs/<UTC>_s2b_coco/test.jsonl
     python -m microduck_toy.stage2.predict --data ... --split test --detector colour --out ...
+    python -m microduck_toy.stage2.predict --data ... --split test --detector onnx-split \
+        --model runs/<UTC>_s2d_export/yolo11n_toys_split_320.onnx --out ...
+    python -m microduck_toy.stage2.predict --data ... --split test --detector rknn --model x.rknn ...
+
+--detector rknn runs on the board (RKNNLite). The cloud simulator's predictions come from
+convert_rknn.py, which calls run() here with the model it has just built.
 
 One JSON line per frame: {"id", "dets": [{"cls", "conf", "xyxy"}], "ms"}. Boxes are kept down to
 conf 0.001 (Ultralytics' val threshold) so AP sees the whole ranking; ms is the detector call on
@@ -27,6 +33,10 @@ AP_CONF = 0.001
 def make(kind: str, model: Path | None, cfg: dict):
     if kind == 'onnx':
         return detect.OnnxYolo(model, iou=float(cfg['detect']['iou']))
+    if kind == 'onnx-split':
+        return detect.OnnxYoloSplit(model, iou=float(cfg['detect']['iou']))
+    if kind == 'rknn':
+        return detect.RknnYolo.board(model, cfg['classes'], iou=float(cfg['detect']['iou']))
     if kind == 'colour':
         return detect.ColourBoxes(cfg['baselines']['colour'])
     raise ValueError(kind)
@@ -53,7 +63,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--data', type=Path, required=True)
     ap.add_argument('--split', default='test')
-    ap.add_argument('--detector', choices=('onnx', 'colour'), required=True)
+    ap.add_argument('--detector', choices=('onnx', 'onnx-split', 'rknn', 'colour'), required=True)
     ap.add_argument('--model', type=Path)
     ap.add_argument('--out', type=Path, required=True)
     args = ap.parse_args(argv)
