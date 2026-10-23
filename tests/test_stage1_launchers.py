@@ -48,7 +48,8 @@ class Stage1LauncherTests(unittest.TestCase):
         self.assertNotEqual(self.run_script('scripts/sim/stage1/run_test.zsh', '1b',
                                             '--config', 's2').returncode, 0)   # no test port
         for test, module in (('1a', 's1a_scene'), ('1b', 's1b_grasp'), ('1c', 's1c_back'),
-                             ('1d', 's1d_range')):
+                             ('1d', 's1d_range'), ('1f', 's1f_approach'),
+                             ('1g', 's1g_carry')):
             result = self.run_script('scripts/sim/stage1/run_test.zsh', test, '--config', 's2',
                                      '--quick', FAKE_LSOF_STATUS='0')
             self.assertEqual(result.returncode, 0, result.stderr)

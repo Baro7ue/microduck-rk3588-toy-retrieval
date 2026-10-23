@@ -1,0 +1,440 @@
+{
+  "about": "Stage 1 exit facts (plan section 10), written as each sub-step passes. Code from Stage 1E on reads its numbers only from here and stage0_facts.json. Units are in the key names. mac = robotd s2 on the Mac.",
+  "written_utc": "2026-10-15",
+  "measured_with_commit": "30e6d6d for the reruns (b_fall, c_trim, d_H1); the first runs used the same Stage 1 code before it was committed (HEAD aabf27f)",
+  "runs": {
+    "parity_grid": "runs/20261015T072945Z_s1a_parity_EthandeMacBook-Air.local",
+    "parity_wood": "runs/20261015T073000Z_s1a_parity_EthandeMacBook-Air.local",
+    "1a": "runs/20261015T074645Z_s1a_s2",
+    "1b": "runs/20261015T080644Z_s1b_s2",
+    "1b_fall": "runs/20261015T094124Z_s1b_s2",
+    "1c": "runs/20261015T082338Z_s1c_s2",
+    "1c_trim": "runs/20261015T094236Z_s1c_s2",
+    "1d_H2": "runs/20261015T083022Z_s1d_s2",
+    "1d_H1": "runs/20261015T095725Z_s1d_s2",
+    "1f_quick": "runs/20261023T075619Z_s1f_s2",
+    "1f_main": "runs/20261023T075845Z_s1f_s2",
+    "1f_blind": "runs/20261023T082706Z_s1f_s2",
+    "1f_blind30": "runs/20261023T090224Z_s1f_s2"
+  },
+  "scene": {
+    "parity_box_px_max": {
+      "grid": 0,
+      "wood": 0
+    },
+    "stage2_images_from_cloud": true,
+    "layouts": "configs/control/stage1_layouts.json: 20 formal seeds from 1000",
+    "1a": "stand 10 s at H0 and H2: 0 falls, 0 missed ticks, toys moved 0 mm; 60/60 layout x target loads standing"
+  },
+  "grasp": {
+    "phi_close": 0.29,
+    "phi_sweep_beak_to_toy_mm": {
+      "0.29": {
+        "xy": 0.5,
+        "z": 8.7
+      },
+      "0.33": {
+        "xy": 1.4,
+        "z": 10.2
+      },
+      "0.38": {
+        "xy": 2.1,
+        "z": 14.4
+      }
+    },
+    "ideal_spot": "30/30 grasped, held read 30/30, stable within 1 s of the hand-back, lifted >= 3 cm, 0 falls",
+    "offset_grasped_of_5": {
+      "1cm": 4,
+      "2cm": 4,
+      "3cm": 2,
+      "4cm": 0,
+      "5cm": 0
+    },
+    "offset_expected_of_5": {
+      "1cm": 4.71,
+      "2cm": 3.77,
+      "3cm": 2.58,
+      "4cm": 0.03,
+      "5cm": 0.2
+    },
+    "held_mouth_deg": {
+      "bus": 5.0,
+      "henry": 1.7,
+      "ketchup": 3.1
+    },
+    "empty_mouth_deg": -5.0,
+    "held_threshold_deg": -1.5,
+    "fall_release": "3/3 (walking 0.2 m/s at H1, pushed until it fell); 4/4 pushes the robot recovered from kept the toy",
+    "note": "the grasp is the abstract weld model p = 1 - (e / 4 cm)^2 (stage1.json grasp)"
+  },
+  "pulses_mac": {
+    "F2": {
+      "vx_mps": 0.25,
+      "wz_radps": 0.0,
+      "seconds": 0.3,
+      "role": "forward",
+      "label": "vx+0.25x0.3",
+      "forward_cm": [2.14, 0.69],
+      "left_cm": [-0.21, 0.7],
+      "yaw_deg": [4.88, 2.71],
+      "yaw_range_deg": [0.9, 9.2],
+      "settle_after_stop_s": [0.64, 0.96],
+      "n": 10,
+      "from": "c_odom"
+    },
+    "F5": {
+      "vx_mps": 0.25,
+      "wz_radps": 0.0,
+      "seconds": 0.5,
+      "role": "forward",
+      "label": "vx+0.25x0.5",
+      "forward_cm": [5.27, 0.68],
+      "left_cm": [0.3, 0.16],
+      "yaw_deg": [4.18, 2.05],
+      "yaw_range_deg": [-0.2, 6.0],
+      "settle_after_stop_s": [0.81, 0.85],
+      "n": 10,
+      "from": "c_odom"
+    },
+    "L2": {
+      "vx_mps": 0.0,
+      "wz_radps": 0.6,
+      "seconds": 0.3,
+      "role": "turn",
+      "label": "wz+0.60x0.3",
+      "forward_cm": [-0.13, 0.01],
+      "left_cm": [-0.07, 0.0],
+      "yaw_deg": [1.9, 0.07],
+      "yaw_range_deg": [1.8, 2.1],
+      "settle_after_stop_s": [1.31, 1.35],
+      "n": 10,
+      "from": "c_odom"
+    },
+    "R17": {
+      "vx_mps": 0.0,
+      "wz_radps": -1.0,
+      "seconds": 0.3,
+      "role": "turn",
+      "label": "wz-1.00x0.3",
+      "forward_cm": [-1.21, 0.1],
+      "left_cm": [0.79, 0.08],
+      "yaw_deg": [-17.18, 0.87],
+      "yaw_range_deg": [-18.5, -15.6],
+      "settle_after_stop_s": [0.64, 0.75],
+      "n": 10,
+      "from": "c_odom"
+    },
+    "B10": {
+      "vx_mps": -0.4,
+      "wz_radps": 0.0,
+      "seconds": 0.5,
+      "role": "retreat",
+      "label": "vx-0.4x0.5",
+      "forward_cm": [-10.54, 0.49],
+      "left_cm": [-1.66, 1.33],
+      "yaw_deg": [9.36, 5.44],
+      "yaw_range_deg": [2.1, 19.0],
+      "settle_after_stop_s": [0.54, 0.57],
+      "n": 10,
+      "from": "c_back"
+    },
+    "F3r": {
+      "vx_mps": 0.25,
+      "wz_radps": -0.2,
+      "seconds": 0.3,
+      "role": "forward",
+      "label": "vx+0.25wz-0.2x0.3",
+      "forward_cm": [3.48, 0.32],
+      "left_cm": [0.92, 0.55],
+      "yaw_deg": [-6.4, 4.45],
+      "yaw_range_deg": [-13.1, 1.5],
+      "settle_after_stop_s": [0.75, 1.26],
+      "n": 10,
+      "from": "c_trim"
+    },
+    "F6r": {
+      "vx_mps": 0.25,
+      "wz_radps": -0.1,
+      "seconds": 0.5,
+      "role": "forward",
+      "label": "vx+0.25wz-0.1x0.5",
+      "forward_cm": [6.01, 0.89],
+      "left_cm": [0.03, 0.42],
+      "yaw_deg": [-1.4, 4.22],
+      "yaw_range_deg": [-7.4, 6.9],
+      "settle_after_stop_s": [0.64, 1.11],
+      "n": 10,
+      "from": "c_trim"
+    }
+  },
+  "pulses_mac_note": "Effect of one pulse at H2 from a settled stand, truth, robot frame before the pulse: [mean, sd] over 10. yaw > 0 = turned left. Every forward pulse turns left (F2 +4.9, F5 +4.2 deg) and every backward pulse turns left 9-16 deg. A right-turn bias (c_trim) moves the mean but doubles the spread (F3r, F6r sd 4.2-4.5 deg vs 2.0-2.7), so no forward pulse goes straight; the controller must look after every pulse. Turns are tight: L2 +1.9 +- 0.07 deg, R17 -17.2 +- 0.9 deg. settle_after_stop_s = [median, p90] from the end of the command to a settled stand.",
+  "pulses_mac_unused": {
+    "vx-0.3x0.3": {
+      "part": "c_back",
+      "forward_cm": [-1.76, 0.26],
+      "left_cm": [-1.31, 0.18],
+      "yaw_deg": [13.82, 3.95],
+      "yaw_range_deg": [5.9, 17.9]
+    },
+    "vx-0.3x0.5": {
+      "part": "c_back",
+      "forward_cm": [-5.96, 0.42],
+      "left_cm": [-1.67, 0.24],
+      "yaw_deg": [15.73, 2.61],
+      "yaw_range_deg": [11.1, 19.4]
+    },
+    "vx-0.4x0.3": {
+      "part": "c_back",
+      "forward_cm": [-5.75, 0.59],
+      "left_cm": [-0.53, 1.09],
+      "yaw_deg": [12.16, 3.88],
+      "yaw_range_deg": [6.7, 18.2]
+    },
+    "vx+0.25wz-0.4x0.3": {
+      "part": "c_trim",
+      "forward_cm": [3.31, 0.91],
+      "left_cm": [0.55, 0.72],
+      "yaw_deg": [-8.93, 5.9],
+      "yaw_range_deg": [-14.8, 2.6]
+    },
+    "vx+0.25wz-0.6x0.3": {
+      "part": "c_trim",
+      "forward_cm": [3.38, 0.41],
+      "left_cm": [0.41, 0.34],
+      "yaw_deg": [-12.34, 3.98],
+      "yaw_range_deg": [-20.0, -6.2]
+    },
+    "vx+0.25wz-0.2x0.5": {
+      "part": "c_trim",
+      "forward_cm": [7.37, 0.68],
+      "left_cm": [-0.09, 0.49],
+      "yaw_deg": [-6.24, 5.61],
+      "yaw_range_deg": [-15.5, 0.2]
+    },
+    "vx+0.25wz-0.3x0.5": {
+      "part": "c_trim",
+      "forward_cm": [7.3, 1.33],
+      "left_cm": [-0.0, 0.39],
+      "yaw_deg": [-13.3, 5.7],
+      "yaw_range_deg": [-21.8, 0.1]
+    },
+    "vx-0.40wz-0.2x0.5": {
+      "part": "c_trim",
+      "forward_cm": [-10.35, 1.28],
+      "left_cm": [0.95, 1.79],
+      "yaw_deg": [-4.76, 6.3],
+      "yaw_range_deg": [-12.1, 10.4]
+    },
+    "vx-0.40wz-0.4x0.5": {
+      "part": "c_trim",
+      "forward_cm": [-10.57, 0.92],
+      "left_cm": [1.61, 1.65],
+      "yaw_deg": [-10.14, 4.03],
+      "yaw_range_deg": [-17.6, -3.5]
+    },
+    "vx-0.40wz-0.6x0.5": {
+      "part": "c_trim",
+      "forward_cm": [-11.14, 1.32],
+      "left_cm": [1.82, 1.39],
+      "yaw_deg": [-12.58, 4.79],
+      "yaw_range_deg": [-21.8, -5.3]
+    }
+  },
+  "pulses_h2_1f": {
+    "F2": {
+      "vx_mps": 0.25,
+      "wz_radps": 0.0,
+      "seconds": 0.3,
+      "role": "forward",
+      "label": "vx+0.25x0.3",
+      "forward_cm": [3.8, 0.38],
+      "left_cm": [0.73, 0.49],
+      "yaw_deg": [-2.87, 4.41],
+      "yaw_range_deg": [-8.9, 10.9],
+      "n": 45,
+      "from": "1f_main",
+      "settle_after_stop_s": [0.64, 0.96]
+    },
+    "F5": {
+      "vx_mps": 0.25,
+      "wz_radps": 0.0,
+      "seconds": 0.5,
+      "role": "forward",
+      "label": "vx+0.25x0.5",
+      "forward_cm": [7.04, 1.03],
+      "left_cm": [-0.76, 0.67],
+      "yaw_deg": [-2.18, 8.03],
+      "yaw_range_deg": [-21.1, 26.6],
+      "n": 114,
+      "from": "1f_main",
+      "settle_after_stop_s": [0.81, 0.85]
+    },
+    "L2": {
+      "vx_mps": 0.0,
+      "wz_radps": 0.6,
+      "seconds": 0.3,
+      "role": "turn",
+      "label": "wz+0.60x0.3",
+      "forward_cm": [-0.15, 0.12],
+      "left_cm": [-0.14, 0.26],
+      "yaw_deg": [2.7, 2.77],
+      "yaw_range_deg": [0.6, 19.4],
+      "n": 101,
+      "from": "1f_main",
+      "settle_after_stop_s": [1.31, 1.35]
+    },
+    "R17": {
+      "vx_mps": 0.0,
+      "wz_radps": -1.0,
+      "seconds": 0.3,
+      "role": "turn",
+      "label": "wz-1.00x0.3",
+      "forward_cm": [-1.21, 0.1],
+      "left_cm": [0.79, 0.08],
+      "yaw_deg": [-17.18, 0.87],
+      "yaw_range_deg": [-18.5, -15.6],
+      "settle_after_stop_s": [0.64, 0.75],
+      "n": 10,
+      "from": "c_odom (pulses_mac; 1F f_main had 1: -18.95 deg)"
+    },
+    "B10": {
+      "vx_mps": -0.4,
+      "wz_radps": 0.0,
+      "seconds": 0.5,
+      "role": "retreat",
+      "label": "vx-0.4x0.5",
+      "forward_cm": [-10.54, 0.49],
+      "left_cm": [-1.66, 1.33],
+      "yaw_deg": [9.36, 5.44],
+      "yaw_range_deg": [2.1, 19.0],
+      "settle_after_stop_s": [0.54, 0.57],
+      "n": 10,
+      "from": "c_back (pulses_mac; 1F f_main had 6: -12.3 cm, +10.3 deg)"
+    }
+  },
+  "pulses_h2_1f_note": "Effect of each C-segment pulse in 1F f_main (runs/20261023T075845Z_s1f_s2), truth, from the pulse command to the next look (settle_s standing + 5 frames), robot frame before the pulse: [mean, sd] over n. These pulses come one after another with only 1.0 s of standing between them, and they differ from the single pulses from a 3 s settled stand in pulses_mac: F2 goes 3.8 cm (not 2.1) and forward pulses turn right on average (F2 -2.9, F5 -2.2 deg, not +4.9 and +4.2) with a much wider spread (F5 sd 8.0 deg, -21 to +27). The robot was standing still before each pulse (trunk speed < 0.01 m/s), so this is the gait starting from wherever the feet ended, not leftover motion. R17 and B10 were too rare in 1F and are copied from pulses_mac. The C segment uses this table (stage1.json inching.pulse_table).",
+  "odometry_mac": {
+    "usable": true,
+    "err_forward_cm": [0.38, 0.26],
+    "err_left_cm": [-0.14, 0.27],
+    "err_yaw_deg_p90_abs": 0.01,
+    "note": "robot.state odom vs truth per pulse (1c, 80 pulses); c_trim's 90 pulses: sd 0.43 / 0.36 cm. The sim IMU is perfect, so the yaw number is not a board number"
+  },
+  "ranging": {
+    "H2": {
+      "segment": "C, toy 8-25 cm",
+      "raw_err_cm": {
+        "forward": [-0.43, 0.52],
+        "left": [-0.01, 0.26]
+      },
+      "table_corrected_err_cm": {
+        "forward": [0.0, 0.24],
+        "left": [0.0, 0.25]
+      },
+      "correction_table_cm": {
+        "forward": {
+          "0.08": 0.64,
+          "0.10": -0.32,
+          "0.12": -0.64,
+          "0.15": -0.64,
+          "0.18": -0.66,
+          "0.21": -0.68,
+          "0.25": -0.72,
+          "0.30": -0.75
+        },
+        "left": {
+          "0.08": -0.16,
+          "0.10": -0.07,
+          "0.12": -0.02,
+          "0.15": 0.04,
+          "0.18": 0.06,
+          "0.21": 0.05,
+          "0.25": 0.05,
+          "0.30": 0.04
+        }
+      },
+      "box_cut_below_cm": 10,
+      "pass": true,
+      "camera_frame": {
+        "from": "1d_H2 frame 0 (robot.state at H2, standing, Mac)",
+        "camera_pos_m": [0.076854627141357, -0.0036170276860961006, 0.057744023195830926],
+        "camera_quat": [0.17761853742209557, -0.675642225799114, 0.6784125406234837, -0.22741077944117813],
+        "gravity": [-0.007877288991198803, -0.0035065246561967983, -0.9999628256105252],
+        "trunk_z_m": 0.1172442072551238,
+        "note": "frames.camera (trunk frame, OpenCV axes), safety.gravity and odom z as robot.state gives them; the H2 view is lopsided: toy centre at 8 cm ahead is in the image from 7.4 cm right to 4.2 cm left (20 cm ahead: 10.5 right to 6.6 left), so a toy far left of the centre line leaves the view first"
+      }
+    },
+    "H1": {
+      "segment": "B, toy 25-60 cm",
+      "raw_err_cm": {
+        "forward": [-0.96, 0.22],
+        "left": [0.04, 0.15]
+      },
+      "table_corrected_err_cm": {
+        "forward": [0.0, 0.17],
+        "left": [0.0, 0.15]
+      },
+      "correction_table_cm": {
+        "forward": {
+          "0.20": -0.77,
+          "0.25": -0.8,
+          "0.30": -0.85,
+          "0.40": -0.93,
+          "0.50": -1.05,
+          "0.60": -1.17
+        },
+        "left": {
+          "0.20": 0.06,
+          "0.25": 0.06,
+          "0.30": 0.05,
+          "0.40": 0.04,
+          "0.50": 0.03,
+          "0.60": 0.03
+        }
+      },
+      "pass": true
+    },
+    "correction_note": "subtract the table value (ranged - truth, interpolated by ranged forward distance) from the ranged position; [mean, sd] over 3 targets x 8 toy headings",
+    "colour_box_H2_C_segment": {
+      "centre_px_vs_oracle_mean": {
+        "bus": 1.0,
+        "henry": 26.8,
+        "ketchup": 7.5
+      },
+      "ranged_err_cm": {
+        "bus": {
+          "forward": [-0.4, 0.52],
+          "left": [0.02, 0.27]
+        },
+        "henry": {
+          "forward": [-0.53, 0.79],
+          "left": [0.01, 0.85]
+        },
+        "ketchup": {
+          "forward": [-0.35, 0.58],
+          "left": [0.0, 0.39]
+        }
+      },
+      "pass_5px": false,
+      "note": "HSV boxes only the coloured part (Henry's green body, the bottle's red); Stage 1 control uses the oracle box, the colour box is the Stage 2 baseline"
+    }
+  },
+  "fall_guard_mac": {
+    "truth_fall_to_velstand_s": [0.34, 0.35, 0.34],
+    "limit_s": 0.35,
+    "false_falls_in_normal_motion": 0,
+    "pass": true,
+    "note": "plan 1E: 3 falls from the b_fall rerun (plan asked 4); false = robot.state safety.fallen with no truth fall in 1a, 1c, c_trim (0 of 0)"
+  },
+  "approach_1f_mac_first": {
+    "decide": "InchingController with LATERAL_WEIGHT 3 on pulses_mac (inching.py md5 3dec7e1d)",
+    "f_main": {"starts": 30, "closes": 44, "grasped": 25, "success_per_close": 0.568, "held_within_3": 0.833, "park_err_rms_cm": 2.59, "park_err_mean_cm": [-0.05, 1.8], "mean_start_s": 34.0, "falls": 0},
+    "f_blind": {"starts": 10, "closes": 12, "grasped": 10, "success_per_close": 0.833, "held_within_3": 1.0, "park_err_rms_cm": 2.04, "park_err_mean_cm": [-1.07, -0.51], "mean_start_s": 11.7, "falls": 0},
+    "f_blind30": {"starts": 30, "closes": 47, "grasped": 29, "success_per_close": 0.617, "first_close_grasped": [17, 30], "held_within_3": 0.967, "park_err_rms_cm": 2.41, "park_err_mean_cm": [-0.47, -0.35], "park_err_sd_cm": [1.69, 1.65], "park_grasp_p_mean": 0.669, "mean_start_s": 15.5, "falls": 0, "by_toy_grasped_closes": {"bus": [9, 18], "henry": [10, 16], "ketchup": [10, 13]}, "note": "same 30 starts as f_main (--blind-starts 30). Passes the gate; the 10-start 0.833 was optimistic. Park error is scatter, not bias (means under 0.5 cm, sd ~1.7 cm per axis), so a fixed offset will not help"},
+    "last_segment": "blind walk (H1 look + odometry), Ethan chose it 2026-10-23 after f_main vs f_blind; visual inching stays as the Stage 4 comparison",
+    "h2_looks": {"n": 309, "left_cut": 228, "centre_off_image_left": 129, "dy_cm_left_cut": [1.85, 1.11], "dy_cm_clean": [0.05, 0.16], "dx_cm_clean": [0.04, 0.2], "dx_cm_bottom_cut_6_9cm": [-0.92, 0.3]},
+    "handover_truth_cm": {"forward": [21.8, 2.3], "left": [3.02, 2.43], "aim_right_of_toy_cm": 1.0},
+    "note": "the gate passed (>= 0.5 grasped per close) but the inching lost to the blind walk. Truth vs the looks: in 228 of 309 H2 looks the toy's box touched the left image edge (129 with the toy centre already off the image), and then the ranged left was 1.85 cm too small, so decide() picked a toy that was 4-6 cm left (19 such closes, 6 grasped). Uncut boxes ranged within 0.2 cm. dy = truth - ranged (left), dx = truth - ranged (forward). The C pulses also differed from pulses_mac, see pulses_h2_1f. A footprint model (toy half sizes x 0.9, the H2 camera_frame) predicts the left cut in 299 of 309 looks"
+  },
+  "pending": ["1E approach parameters (B segment aim, C segment controller)", "1F grasp gate", "1G carry"]
+}

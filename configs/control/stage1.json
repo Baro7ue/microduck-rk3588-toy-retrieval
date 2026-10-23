@@ -57,5 +57,45 @@
       "FOOD_BEVERAGE_SET__2": [[[0, 140, 60], [6, 255, 255]], [[172, 140, 60], [180, 255, 255]]]
     },
     "note": "OpenCV-style HSV (H 0-180, S and V 0-255). Set from cloud renders 2026-10-14 (H2 at 0.12/0.22 m, H1 at 0.35/0.55 m, 2 headings, both floors): bus H 19-30 S ~216; Henry H 52-57 S ~121; ketchup H 1-3 S ~215; floors: blue checker H ~105, light wood H 16-30 S 61-117 (so yellow needs S >= 150); green crocodile H 28-44, blue Thomas H ~105. Checked again in 1D"
+  },
+  "approach": {
+    "b_head": "H1",
+    "c_head": "H2",
+    "c_start_m": 0.24,
+    "b_max_steps": 6,
+    "turn_tol_deg": 10.0,
+    "turn_wz_radps": 0.8,
+    "turn_lead_deg": 4.0,
+    "walk_vx_mps": 0.25,
+    "walk_slide_m": 0.04,
+    "walk_min_m": 0.03,
+    "heading_kp": 1.0,
+    "heading_ki": 0.25,
+    "heading_max_radps": 0.3,
+    "note": "control/approach.py B segment (plan 1E): look at H1, turn in place towards the aim point when it is more than turn_tol_deg off (wz 0.8: stage0_facts turn_steady at H1, +-0.75 is the smallest that always turns; in the cloud twin turns of 6-8 deg in place came back during the stop, 11 deg ones held), stop turn_lead_deg early (EMA and stop, a start value), else walk towards it at 0.25 m/s with the heading PI (stage0_facts straight_1m_heading_pi kp 1, ki 0.25; correction capped at 0.3 rad/s as in heading_hold.py) stopping walk_slide_m early (coast 3.9-4.9 cm from 0.3 m/s); hand over to C at H2 once the toy is within c_start_m (C segment < 0.25 m)"
+  },
+  "inching": {
+    "target_m": [0.08, 0.015],
+    "window_m": 0.015,
+    "max_pulses": 12,
+    "max_s": 30.0,
+    "settle_s": 1.0,
+    "frames": 5,
+    "pulses": ["F2", "F5", "L2", "R17"],
+    "retreat": "B10",
+    "aim_right_of_toy_m": 0.01,
+    "note": "plan 1E C segment. target = where GroundPick lands the beak at H2 (stage0_facts 0b: 8.0 cm ahead, 1.5 cm left of the trunk); window = +-1.5 cm per axis; budget 12 pulses or 30 s, then retreat (B10, about 10 cm back) and aim again in the B segment. pulses = the names decide() may send, from stage1_facts.json pulses_mac; R17 (the 17 deg right turn) is in because every forward pulse turns left (1C), see the 1E guide. aim_right_of_toy_m: the B segment aims the trunk this far right of the toy; the plan's start value was 2 cm, 1 cm here because with R17 in the sim does best at 0-2 cm (H2 sees little on the left: 4.2 cm at 8 cm ahead); tuned in 1F",
+    "sim": {
+      "start_forward_m": [0.16, 0.26],
+      "start_left_spread_m": 0.04,
+      "bias_sd_m": 0.002,
+      "look_sd_m": 0.0015,
+      "camera_fps": 15.0,
+      "toy_centre_z_m": 0.01,
+      "edge_margin_px": 20,
+      "bottom_row_px": 630,
+      "max_decisions": 40,
+      "note": "control/pulse_sim.py only. Starts: where the B segment is assumed to stop (an assumption until 1F measures it). Ranging error per axis = a bias per episode (sd 0.2 cm: 1D's error depends on the toy's heading, so averaging frames does not remove it) + 0.15 cm per look; together about 1D's table-corrected sd 0.24-0.25 cm. Visible = the toy centre projects at least edge_margin_px inside the upright image and no lower than bottom_row_px (about 7.3 cm ahead at H2). 15 fps = the board camera"
+    }
   }
 }
