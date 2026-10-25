@@ -29,8 +29,8 @@ md('''
 code('''
 # 1. Settings (change only if you renamed the zip or the Drive folder)
 DRIVE_DIR = '/content/drive/MyDrive/microduck_stage2'
-DATA_ZIP = 'DATA_ZIP_NAME'
-DATA_ZIP_SHA256 = 'DATA_ZIP_SHA'
+DATA_ZIP = '@ZIP_NAME@'
+DATA_ZIP_SHA256 = '@ZIP_SHA256@'
 RUN_NAME = 'yolo11n_toys_320_s0'
 ULTRALYTICS = '8.3.200'          # same as the Mac export (models/yolo/yolo11n_coco/export.json)
 COCO_PT_SHA256 = '0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1'
@@ -143,6 +143,6 @@ nb = {'cells': cells, 'metadata': {'accelerator': 'GPU', 'colab': {'provenance':
       'kernelspec': {'display_name': 'Python 3', 'name': 'python3'}, 'language_info': {'name': 'python'}},
       'nbformat': 4, 'nbformat_minor': 0}
 zip_name, zip_sha, out = sys.argv[1:4]
-text = json.dumps(nb, indent=1, ensure_ascii=False).replace('DATA_ZIP_NAME', zip_name).replace('DATA_ZIP_SHA', zip_sha)
+text = json.dumps(nb, indent=1, ensure_ascii=False).replace('@ZIP_NAME@', zip_name).replace('@ZIP_SHA256@', zip_sha)
 open(out, 'w').write(text + '\n')
 print(out)
