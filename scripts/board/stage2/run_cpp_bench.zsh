@@ -6,7 +6,8 @@
 # rknn_api.h is Rockchip's (not in git): $MD_ROOT/offline/rknn-2.3.2/include/rknn_api.h, downloaded
 # there from GitHub (airockchip/rknn-toolkit2 v2.3.2, sha256 checked) the first time.
 # Output: runs/<UTC>_s2h_cpp_bench/{bundle/, board/{build.log, unit_tests.log, cpp.jsonl, ref.jsonl,
-# cpp_inputs/, ref_inputs/}, compare.json, console.log}.
+# cpp_inputs/, ref_inputs/}, compare.json, console.log}. Both detectors run on cores $MD_BOARD_CPUS
+# (env.sh: 4-7, the big cores), so the C++ and Python times compare like for like.
 set -uo pipefail
 source "${0:A:h}/../../../env.sh"
 source "$MD_ROOT/scripts/lib.zsh"
@@ -44,6 +45,7 @@ md_sha256sums "$bundle" || md_die "生成 SHA256SUMS 失败。"
 remote_bundle=$MD_BOARD_ROOT/bundles/${run:t}
 remote_out=$MD_BOARD_ROOT/run/${run:t}
 src=cpp/board_bench
+pin=${MD_BOARD_CPUS:+taskset -c ${(q)MD_BOARD_CPUS} }
 remote="set -o pipefail
 cd ${(q)remote_bundle} &&
 sha256sum -c --quiet SHA256SUMS &&
@@ -65,10 +67,10 @@ echo '== 单元测试'
 ./build/unit_tests | tee ${(q)remote_out}/unit_tests.log
 unit=\$?
 echo '== C++ 跑帧包'
-./build/md_bench --pack frames --model models/yolo11n_toys_int8.rknn --out ${(q)remote_out}/cpp.jsonl \\
+$pin./build/md_bench --pack frames --model models/yolo11n_toys_int8.rknn --out ${(q)remote_out}/cpp.jsonl \\
   --dump-inputs ${(q)remote_out}/cpp_inputs --dump-n 20 || exit 3
 echo '== Python 跑同样的帧'
-MD_ROOT=\"\$PWD\" PYTHONPATH=\"\$PWD\" ${(q)MD_BOARD_PY} -u -m microduck_toy.stage2.cpp_bench reference \\
+MD_ROOT=\"\$PWD\" PYTHONPATH=\"\$PWD\" $pin${(q)MD_BOARD_PY} -u -m microduck_toy.stage2.cpp_bench reference \\
   --pack frames --model models/yolo11n_toys_int8.rknn --out ${(q)remote_out}/ref.jsonl \\
   --dump-inputs ${(q)remote_out}/ref_inputs --dump-n 20 || exit 4
 exit \$unit"

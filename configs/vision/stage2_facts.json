@@ -1063,7 +1063,15 @@
    "python": "3.12.14",
    "mac": "26.6.2"
   },
-  "note": "Python detector (stage2/deploy.py) on the board, camera frames from the Mac sim over TCP 7901 (640x360 UYVY), robotd s2 on the board standing and turning. Preprocess is 19 ms on the NPU backends vs 6.7 ms on the CPU backend with the same code; likely the scheduler puts the lightly loaded process on the A55 little cores (not yet checked; taskset to cores 4-7 is the test). The 2H C++ version targets this step"
+  "note": "Python detector (stage2/deploy.py) on the board, camera frames from the Mac sim over TCP 7901 (640x360 UYVY), robotd s2 on the board standing and turning, process not pinned to any core. Preprocess is 19 ms on the NPU backends vs 6.7 ms on the CPU backend with the same code: the scheduler put the lightly loaded NPU-backend process on the A55 little cores (checked, see preprocess_cores). The 2H C++ version targets this step",
+  "preprocess_cores": {
+   "checked_utc": "2026-10-26T08:58Z",
+   "how": "on the board, frame_input (UYVY decode of the search window, upright, resize to 320) on a random 640x360 UYVY payload, 20 warm-up + 300 timed calls, code from the 2F bundle, under taskset -c 0-3 and taskset -c 4-7",
+   "little_a55_cores_0_3_p50_ms": 18.3,
+   "big_a76_cores_4_7_p50_ms": 7.0,
+   "result": "the little cores reproduce the NPU backends' 19 ms, the big cores the CPU backend's 6.7 ms; the CPU backend probably stayed on the big cores because its two ONNX Runtime threads kept it busy (not observed directly)",
+   "since": "board launchers pin to env.sh MD_BOARD_CPUS (default 4-7): run_deploy_board.zsh, run_cpp_bench.zsh; Stage 3's board brain should do the same. The 2F rows above are the unpinned run and were not re-measured"
+  }
  },
  "evidence": {
   "sheet": "claude-docs/stage2_facts_20261026/阶段2_证据检查_20帧.png",

@@ -124,6 +124,9 @@ class Stage2LauncherTests(unittest.TestCase):
         self.assertEqual(cpu[cpu.index('--socket') + 1], str(self.board / 'run/robotd.sock'))
         self.assertEqual(cpu[cpu.index('--frames') + 1], '50')
         self.assertEqual(board[2][0][board[2][0].index('--model') + 1], 'models/yolo11n_toys_int8.rknn')
+        pinned = [a for a, _ in self.calls('taskset')]
+        self.assertEqual([a[1:4] for a in pinned], [['-c', '4-7', str(self.board / 'bin/board_python')]] * 3)
+        self.assertEqual(board[0][1]['MD_ROOT'], str(self.board / 'bundles' / run.name))
         bundle = self.board / 'bundles' / run.name
         for rel in ('microduck_toy/stage2/deploy.py', 'configs/vision/stage2.json',
                     'configs/control/stage1.json', 'models/yolo11n_toys_fp16.rknn'):
@@ -135,6 +138,16 @@ class Stage2LauncherTests(unittest.TestCase):
         self.assertIn('--place', mac[0])
         self.assertEqual(mac[1][mac[1].index('--table') + 1], str(run))
         self.assertTrue((run / 'layout.json').is_file())
+
+    def test_deploy_pinning_can_be_turned_off(self):
+        put(self.board / 'bin/board_python', BOARD_DEPLOY, 0o755)
+        put(self.stubs / 'sudo', test_launchers.RECORD, 0o755)
+        self.board_socket()
+        result = self.run_script('scripts/board/stage2/run_deploy_board.zsh', str(self.pack),
+                                 '--backends', 'int8', FAKE_LSOF_STATUS='0', MD_BOARD_CPUS='')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(self.calls('taskset'), [])
+        self.assertEqual(len(self.calls('board_python')), 1)
 
     def test_deploy_stops_without_the_camera_or_board_robotd(self):
         self.assertNotEqual(self.run_script('scripts/board/stage2/run_deploy_board.zsh',
@@ -166,6 +179,9 @@ class Stage2LauncherTests(unittest.TestCase):
         self.assertEqual(cmake[0][5], f'-DRKNN_ROOT={bundle}/rknn')
         board = self.calls('board_python')
         self.assertEqual(len(board), 1)
+        pinned = [a for a, _ in self.calls('taskset')]
+        self.assertEqual([a[1:4] for a in pinned], [['-c', '4-7', './build/md_bench'],
+                                                    ['-c', '4-7', str(self.board / 'bin/board_python')]])
         self.assertEqual(board[0][0][3:5], ['microduck_toy.stage2.cpp_bench', 'reference'])
         for name in ('cpp.jsonl', 'ref.jsonl', 'unit_tests.log', 'build.log'):
             self.assertTrue((run / 'board' / name).is_file(), name)

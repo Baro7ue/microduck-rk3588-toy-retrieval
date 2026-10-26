@@ -11,6 +11,8 @@
 # on and the table says the load was not read. Output: runs/<UTC>_s2f_board_deploy/{bundle/,
 # board/<backend>/{summary.json, frames.jsonl, resources.csv, events.jsonl}, deploy_table.md,
 # deploy_table.json, layout.json, mac_versions.json, console.log}.
+# The board Python runs on cores $MD_BOARD_CPUS (env.sh: 4-7, the big cores; MD_BOARD_CPUS= turns
+# pinning off, as in the first 2F run, where the NPU backends' preprocess landed on the little cores).
 set -uo pipefail
 source "${0:A:h}/../../../env.sh"
 source "$MD_ROOT/scripts/lib.zsh"
@@ -52,6 +54,7 @@ done
 md_sha256sums "$bundle" || md_die "生成 SHA256SUMS 失败。"
 remote_bundle=$MD_BOARD_ROOT/bundles/${run:t}
 remote_out=$MD_BOARD_ROOT/run/${run:t}
+pin=${MD_BOARD_CPUS:+taskset -c ${(q)MD_BOARD_CPUS} }
 remote="set -o pipefail
 cd ${(q)remote_bundle} &&
 sha256sum -c --quiet SHA256SUMS &&
@@ -63,7 +66,7 @@ sudo -n true 2>/dev/null || {
 for b in ${(s:,:)backends}; do
   remote+="
 echo '== $b'
-MD_ROOT=\"\$PWD\" PYTHONPATH=\"\$PWD\" ${(q)MD_BOARD_PY} -u -m microduck_toy.stage2.deploy \\
+MD_ROOT=\"\$PWD\" PYTHONPATH=\"\$PWD\" $pin${(q)MD_BOARD_PY} -u -m microduck_toy.stage2.deploy \\
   --backend $b --model models/${model[$b]} --camera ${(q)MD_SIM_HOST}:7901 \\
   --socket ${(q)MD_BOARD_ROOT}/run/robotd.sock ${frames:+--frames $frames} --out ${(q)remote_out}/$b || exit 1"
 done
