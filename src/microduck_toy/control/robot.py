@@ -65,9 +65,10 @@ def _notification(method: str, params: dict) -> bytes:
 
 class Robot:
     def __init__(self, path: str, directory: Path | None, events: Events | None,
-                 fall_guard: bool = True):
+                 fall_guard: bool = True, on_state=None):
         self.path, self.events = path, events
         self.fall_guard = fall_guard
+        self.on_state = on_state          # called as on_state(state, received) for every tick
         self.cond = threading.Condition()
         self.send_lock = threading.Lock()
         self.state = None
@@ -137,6 +138,8 @@ class Robot:
                         self.labels.append((received, state['policy']))
                     self.state, self.received = state, received
                     self.cond.notify_all()
+                if self.on_state is not None:
+                    self.on_state(state, received)
         except Exception as error:
             if not self.stopped.is_set():
                 with self.cond:

@@ -1,0 +1,93 @@
+{
+  "about": "Stage 2 (detection) parameters, plan claude-docs/stage2_plan_20261023/ (revision 1). Numbers measured in Stage 2 go to stage2_facts.json, not here.",
+  "classes": ["bus", "henry", "ketchup", "croc", "thomas", "tray"],
+  "targets": ["bus", "henry", "ketchup"],
+  "input": {
+    "size_px": 320,
+    "window_px": 360,
+    "window_margin_rows": 30,
+    "note": "search view: 360x360 window of the upright 360x640 frame, top edge window_margin_rows above the horizon, scaled to 320; approach view (H1): whole frame letterboxed to 320 (plan section 2, Ethan's answer 1A)"
+  },
+  "detect": {"conf": 0.25, "iou": 0.45},
+  "datagen": {
+    "splits": {
+      "train": {"seed_base": 100000, "count": 3500, "floors": ["grid", "wood"]},
+      "val": {"seed_base": 200000, "count": 500, "floors": ["grid", "wood"]},
+      "test": {"seed_base": 300000, "count": 1500, "floors": ["grid", "wood"]},
+      "test_unseen": {"seed_base": 400000, "count": 500, "floors": ["carpet"]},
+      "test_far": {"seed_base": 500000, "count": 600, "floors": ["grid", "wood"], "p_search": 1.0, "p_empty_in_search": 0.0, "p_tray_focus": 0.0, "p_far": 1.0},
+      "test_walk": {"seed_base": 600000, "episodes": 30, "floors": ["grid", "wood"], "p_search": 1.0, "p_empty_in_search": 0.0, "p_tray_focus": 0.0, "note": "not rendered by datagen: stage2.walkrec records it from robotd walking in the sim body; a seed gives the layout, the head and the toy to walk to"}
+    },
+    "p_search": 0.5,
+    "p_empty_in_search": 0.2,
+    "toys_per_frame": [3, 5],
+    "search": {
+      "head_pitch_rad": [0.0, 0.3],
+      "p_tray_focus": 0.15,
+      "p_far": 0.5,
+      "far_m": [1.2, 2.0],
+      "any_m": [0.45, 2.0],
+      "yaw_off_rad": 0.3,
+      "window_jitter_rows": 15,
+      "p_extra_in_view": 0.9,
+      "extra_bearing_deg": 20.0,
+      "note": "the robot is placed so the focus object is d metres ahead of the trunk and inside the 45 deg view; p_far of the focus distances come from far_m (Ethan's answer 4B: search radius >= 1.6 m). Each other toy moves into the view with p_extra_in_view (distance drawn like the focus), so frames carry more labels"
+    },
+    "approach": {
+      "head_pitch_rad": [0.57, 0.63],
+      "forward_m": [0.15, 0.7],
+      "left_m": [-0.15, 0.15],
+      "robot_wall_clear_m": 0.15,
+      "p_extra_in_view": 0.8,
+      "extra_dist_m": [0.22, 0.9],
+      "extra_bearing_deg": 20.0
+    },
+    "robot": {"wall_clear_m": 0.3, "toy_clear_m": 0.2, "tray_extra_m": 0.15},
+    "jitter": {"pitch_deg": 3.0, "roll_deg": 2.0, "height_m": 0.01, "note": "walking sway of the trunk; to be checked against Stage 1 safety.gravity logs"},
+    "light": {
+      "p_default": 0.2,
+      "headlight_diffuse": [0.35, 0.8],
+      "headlight_ambient": [0.15, 0.4],
+      "sun_diffuse": [0.3, 0.9],
+      "sun_tilt_deg": [0.0, 35.0],
+      "note": "upstream scene.xml default: headlight diffuse 0.6 ambient 0.3, one directional light straight down (diffuse 0.7)"
+    },
+    "walk": {
+      "spin_deg": 120.0,
+      "spin_frames": 6,
+      "walk_frames": 4,
+      "stop_short_m": 0.3,
+      "settle_s": 1.0,
+      "note": "test_walk episode (plan 2A step 7): at the search head, turn spin_deg/2 right, then sweep spin_deg left (approach.turn speed) taking spin_frames window frames evenly by odometry yaw; then turn to the focus toy, head H1, walk (approach.walk gait and heading PI) to stop_short_m before it, taking walk_frames letterbox frames evenly by odometry distance. Frames come from the arena body's camera while robotd turns or walks, so they carry the real sway and the real head posture. The nets, not robotd, set the neck/head angles (the head command is an observation input, duck-control/src/obs.rs), so they differ from datagen's STAND keyframe + offset. Measured 2026-10-23 (camera pitch below level, cloud twin): datagen head 0 / 0.3 / 0.6 -> 0 / 17.2 / 34.4 deg; walk net while turning at head ~0.16 -> 10.9 deg median (datagen ~9); walk net walking at H1 -> 40.9 deg median (datagen 34.4); velstand standing still at head 0 / 0.3 / 0.6 -> 13.4 / 25.8 / 37.9 deg (neck 0.219/0.302/0.349, head 0.448/0.750/1.011 rad). So Stage 3 search frames should be taken while turning, not standing still, or standing frames need their own check"
+    },
+    "label": {"min_side_px": 2.0, "min_area_px": 6.0, "note": "input pixels; smaller visible boxes are dropped and counted in meta"},
+    "carpet": {"rgb1": [0.52, 0.49, 0.45], "markrgb": [0.38, 0.35, 0.32], "random": 0.35, "note": "the floor only test_unseen uses"},
+    "note": "train 3500 (plan: 3000) to reach >= 1500 instances per toy class; test 1500 (plan: 500) and test_far (search views with the focus toy 1.2-2.0 m away; not in the plan) so each 0.1 m bin out to 2.0 m holds enough toys for the search radius. Distances beyond 1.5 m exist only along the field diagonal, so the focus toy is placed together with the robot (datagen._face_toy)"
+  },
+  "deploy": {
+    "frames": 1000,
+    "warmup_frames": 10,
+    "head": [0.0, 0.15],
+    "view": "search",
+    "motion": [["stand", 4.0], ["left", 8.0], ["stand", 4.0], ["right", 8.0]],
+    "camera_port": 7901,
+    "cpu_threads": 2,
+    "e2e_p99_ms_max": 66.0,
+    "stage0_robotd": {"missed": 6, "ticks": 90000},
+    "layout_seed": 600002,
+    "note": "plan 2F: the board's live detector (stage2/deploy.py) on the Mac sim's head camera while robotd s2 on the board stands and turns in place (motion repeats: seconds standing, turning left, standing, turning right, at stage1 approach.turn_wz_radps), head at the middle of the search range, window view. frames are counted after warmup_frames. Pass: end-to-end P99 <= e2e_p99_ms_max (keeps up with the 15 fps camera) and robotd missed ticks no more than Stage 0 (6 in about 90,000; a run of ~3,500 ticks passes with at most 1). layout_seed is a test_walk seed: its toys stand around the start heading"
+  },
+  "baselines": {
+    "coco_map": {"bus": "bus", "henry": "train", "thomas": "train", "ketchup": "bottle", "note": "plan 2B: the COCO classes the pretrained model is scored in; croc and tray have none"},
+    "colour": {
+      "score_half_px": 20.0,
+      "classes": {
+        "bus": {"ranges_hsv": [[[17, 140, 40], [31, 255, 255]]], "min_area_px": 4},
+        "henry": {"ranges_hsv": [[[49, 20, 25], [87, 255, 255]]], "min_area_px": 4},
+        "ketchup": {"ranges_hsv": [[[0, 150, 20], [8, 255, 255]], [[180, 150, 20], [180, 255, 255]]], "min_area_px": 4},
+        "thomas": {"ranges_hsv": [[[90, 0, 20], [113, 255, 255]]], "min_area_px": 4}
+      },
+      "note": "tuned on the first 400 train frames only by stage2.tune_colour (runs/20261023T145906Z_s2b_baselines, dataset runs/20261023T141328Z_s2a_dataset), from the Stage 1 ranges + a guess for blue Thomas; train AP50 bus 0.9882 -> 0.9885, henry 0.8752 -> 0.9048, ketchup 0.9699 -> 0.9797, thomas 0.0827 -> 0.0854. Thomas is the same blue as the checker floor"
+    }
+  }
+}

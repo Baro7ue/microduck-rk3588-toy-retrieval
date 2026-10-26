@@ -21,6 +21,9 @@ __pycache__/
 /runs/*
 !/runs/README.md
 
+# C++ benchmark build folder (cpp/board_bench).
+/cpp/board_bench/build/
+
 # Models: small final ONNX/RKNN files are tracked; training checkpoints and .pt weights are not.
 /models/checkpoints/
 /models/**/*.pt
