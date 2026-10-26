@@ -28,6 +28,7 @@ Test port ops added to probe_body.py's (info, truth, record, mark, push, pose, o
     {"op": "grasp_seed", "seed": 7}                                   reseed the grasp draw
     {"op": "release"}                                                 let go of a held toy
     {"op": "view", "after": -1, "rgb": false, "timeout": 1.0}         next oracle frame after seq
+    {"op": "reach"}                       feet, beak tip and held toy in the trunk heading frame
 """
 from __future__ import annotations
 
@@ -60,7 +61,8 @@ MOUTH_OPEN = math.radians(30.0)
 PORTRAIT_K = 3                      # np.rot90 turns from the raw frame to the upright one
 
 TOY_COLUMNS = [f'{toy_lib.SHORT[n]}_{k}' for n in toy_lib.SHORT for k in ('x', 'y', 'z', 'yaw')]
-COLUMNS = list(metrics.COLUMNS) + ['mouth_open', 'mouth_q', 'holding'] + TOY_COLUMNS
+COLUMNS = list(metrics.COLUMNS) + ['mouth_open', 'mouth_q', 'holding'] + TOY_COLUMNS + [
+    'tray_contact', 'wall_contact']
 
 
 def load_config(path: str | None = None) -> dict:
@@ -102,6 +104,7 @@ class ArenaCamera(sim_camera.Camera):
     """
 
     fps = 15.0
+    threaded = False     # --render-thread: draw off the physics thread (slow software renderer)
 
     def __init__(self, model, name, *args, **kwargs):
         super().__init__(model, name, *args, **kwargs)
@@ -112,12 +115,16 @@ class ArenaCamera(sim_camera.Camera):
         self.cond = threading.Condition()
         self.wanted = False
         self.last = -math.inf
+        self.busy = threading.Event()
+        self.jobs: list = []
+        if self.threaded:
+            threading.Thread(target=self._worker, name='camera-render', daemon=True).start()
 
     def render(self, world) -> None:
         now = time.monotonic()
         with self.cond:
             due = self.wanted or (self.fps > 0 and now - self.last >= 1.0 / self.fps - 1e-3)
-        if not due:
+        if not due or self.busy.is_set():
             return
         self.last = now
         with world.lock:
@@ -125,10 +132,33 @@ class ArenaCamera(sim_camera.Camera):
             self.seg.update_scene(world.data, camera=self.camera)
             truth = world.view_truth()
             truth['camera'] = self.pose_truth(world.data)
+        truth['mono'] = now
+        if self.threaded:
+            # The scene is copied (above, under the lock); the drawing, about 0.3 s with OSMesa,
+            # happens on the worker so the physics keeps stepping in real time meanwhile.
+            with self.cond:
+                self.busy.set()
+                self.jobs.append((world, truth))
+                self.cond.notify_all()
+            return
+        self._draw(world, truth)
+
+    def _worker(self) -> None:
+        while True:
+            with self.cond:
+                self.cond.wait_for(lambda: self.jobs)
+                world, truth = self.jobs.pop()
+            try:
+                self._draw(world, truth)
+            finally:
+                self.busy.clear()
+
+    def _draw(self, world, truth: dict) -> None:
         rgb = self.renderer.render()
         seg = self.seg.render()
         boxes = world.oracle_boxes(seg)
         packed = sim_camera.to_uyvy(rgb)
+        truth['drawn_mono'] = time.monotonic()
         with self.lock:
             self.latest = packed
         with self.cond:
@@ -185,6 +215,8 @@ class ArenaWorld(probe_body.ProbeWorld):
         cam = self.model.camera('head_camera').id
         self.fovy = float(self.model.cam_fovy[cam])
         self.geom_owner = scene_render.owners(self.model, self.arena)
+        self.tray_geoms = set(self.arena.tray_geoms)
+        self.wall_geoms = {self.model.geom(f'wall_{k}').id for k in ('px', 'nx', 'py', 'ny')}
 
     # ── the beak ──────────────────────────────────────────────────────────
 
@@ -311,6 +343,40 @@ class ArenaWorld(probe_body.ProbeWorld):
         self._release('asked')
         return {'released': toy_lib.SHORT[held] if held else None}
 
+    def reach(self) -> dict:
+        """Stage 3 (3P): how far the feet's collision geoms reach ahead of the trunk, and where the
+        beak tip and a held toy are, in the trunk's heading frame (forward, left, z), metres."""
+        model, data, body = self.model, self.data, self.bodies[0]
+        with self.lock:
+            pos = data.qpos[body.trunk: body.trunk + 3].copy()
+            yaw = probe_body.quat_yaw(data.qpos[body.trunk + 3: body.trunk + 7])
+            c, s = math.cos(yaw), math.sin(yaw)
+
+            def frame(w):
+                return [round(float(c * (w[0] - pos[0]) + s * (w[1] - pos[1])), 4),
+                        round(float(-s * (w[0] - pos[0]) + c * (w[1] - pos[1])), 4), round(float(w[2]), 4)]
+
+            out = {'trunk_z': round(float(pos[2]), 4)}
+            for side in ('left', 'right'):
+                best = None
+                for g in self.ids[side]:
+                    if not (model.geom_contype[g] or model.geom_conaffinity[g]):
+                        continue
+                    centre, half = model.geom_aabb[g, :3], model.geom_aabb[g, 3:]
+                    rot, at = data.geom_xmat[g].reshape(3, 3), data.geom_xpos[g]
+                    for sx in (-1, 1):
+                        for sy in (-1, 1):
+                            for sz in (-1, 1):
+                                p = frame(at + rot @ (centre + half * np.array([sx, sy, sz])))
+                                if best is None or p[0] > best[0]:
+                                    best = p
+                out[f'{side}_toe'] = best
+            out['tip'] = frame(data.site_xpos[self.arena.tip])
+            if self.holding is not None:
+                out['held'] = toy_lib.SHORT[self.holding]
+                out['toy'] = frame(data.xpos[self.arena.toys[self.holding]['body']])
+        return out
+
     # ── oracle boxes ─────────────────────────────────────────────────────
 
     def oracle_boxes(self, seg: np.ndarray) -> list[dict]:
@@ -377,6 +443,12 @@ class ArenaWorld(probe_body.ProbeWorld):
         }
         for short, (x, y, z, yaw) in toys.items():
             row.update({f'{short}_x': x, f'{short}_y': y, f'{short}_z': z, f'{short}_yaw': yaw})
+        # Stage 3: the robot touching the tray (a toe on the rim) or a wall.
+        robot = ids['robot']
+        row['tray_contact'] = int(any((a in robot and b in self.tray_geoms) or
+                                      (b in robot and a in self.tray_geoms) for a, b in pairs))
+        row['wall_contact'] = int(any((a in robot and b in self.wall_geoms) or
+                                      (b in robot and a in self.wall_geoms) for a, b in pairs))
         row = {k: (round(float(v), 6) if isinstance(v, (float, np.floating)) else v)
                for k, v in row.items()}
         with self.rec_lock:
@@ -438,6 +510,8 @@ class ArenaHandler(probe_body.ProbeHandler):
                     with world.lock:
                         answer = {'grasps': world.grasp_log[since:], 'count': len(world.grasp_log),
                                   'holding': toy_lib.SHORT[world.holding] if world.holding else None}
+                elif op == 'reach':
+                    answer = world.reach()
                 elif op == 'grasp_seed':
                     with world.lock:
                         world.rng = np.random.default_rng(int(request['seed']))
@@ -495,6 +569,9 @@ def main() -> None:
     parser.add_argument('--stage1-config', default=None)
     parser.add_argument('--oracle-fps', type=float, default=15.0,
                         help='head-camera renders per second; 0 = only when a view op asks')
+    parser.add_argument('--render-thread', action='store_true',
+                        help='draw camera frames on their own thread (the cloud twin: a software '
+                             'renderer takes ~0.3 s a frame and would stall the physics)')
     own, rest = parser.parse_known_args()
     sys.argv = [sys.argv[0], *rest]
     if '--scene' in rest:
@@ -502,6 +579,7 @@ def main() -> None:
     ArenaWorld.probe_address = (own.probe_host, own.probe_port)
     install(own.floor, load_config(own.stage1_config))
     ArenaCamera.fps = own.oracle_fps
+    ArenaCamera.threaded = own.render_thread
     print(f'== Stage 1 arena ({own.floor} floor); startup assistance enabled', flush=True)
     sim.main()
 

@@ -114,18 +114,24 @@ def turn(robot, angle: float, cfg: dict) -> dict:
             'turned_deg': math.degrees(wrap(odom_of(robot.snapshot())[2] - yaw0))}
 
 
-def walk(robot, distance: float, bearing: float, cfg: dict) -> dict:
+def walk(robot, distance: float, bearing: float, cfg: dict, stop=None) -> dict:
     """Walk about `distance` m towards `bearing` (rad, from the current heading) with the
-    heading PI on the odometry yaw; stop walk_slide_m early, robotd coasts the rest."""
+    heading PI on the odometry yaw; stop walk_slide_m early, robotd coasts the rest.
+    `stop(state)` (optional, Stage 3: ToF, fall, episode clock) is asked every tick; a truthy
+    answer ends the walk at once and is returned as 'stopped'."""
     x0, y0, yaw0 = odom_of(robot.snapshot())
     ref = yaw0 + bearing
     ux, uy = math.cos(ref), math.sin(ref)
     goal = max(0.0, distance - cfg['walk_slide_m'])
     kp, ki, cap = cfg['heading_kp'], cfg['heading_ki'], cfg['heading_max_radps']
-    integral, last_t, travelled = 0.0, None, 0.0
+    integral, last_t, travelled, stopped = 0.0, None, 0.0, None
     deadline = time.monotonic() + goal / 0.08 + 2.0
     while travelled < goal and time.monotonic() < deadline:
         state = robot.next_states(1)[0]
+        if stop is not None:
+            stopped = stop(state)
+            if stopped:
+                break
         x, y, yaw = odom_of(state)
         travelled = (x - x0) * ux + (y - y0) * uy
         t = float(state['t'])
@@ -136,11 +142,15 @@ def walk(robot, distance: float, bearing: float, cfg: dict) -> dict:
         wz = max(-cap, min(cap, kp * err + ki * integral))
         robot.move(cfg['walk_vx_mps'], 0.0, wz)
     robot.move(0.0, 0.0, 0.0)
-    return {'move': 'walk', 'distance_m': distance, 'bearing_deg': math.degrees(bearing),
-            'commanded_until_m': travelled, 'reached': travelled >= goal}
+    out = {'move': 'walk', 'distance_m': distance, 'bearing_deg': math.degrees(bearing),
+           'commanded_until_m': travelled, 'reached': travelled >= goal}
+    if stopped:
+        out['stopped'] = stopped
+    return out
 
 
-def b_segment(robot, eyes: Eyes, toy: str, plane_z: float, stage1: dict, aim: float | None = None) -> dict:
+def b_segment(robot, eyes: Eyes, toy: str, plane_z: float, stage1: dict, aim: float | None = None,
+              stop=None) -> dict:
     cfg, inch = stage1['approach'], stage1['inching']
     aim = inch['aim_right_of_toy_m'] if aim is None else aim
     robot.head(cfg['b_head'])
@@ -158,12 +168,37 @@ def b_segment(robot, eyes: Eyes, toy: str, plane_z: float, stage1: dict, aim: fl
         if abs(bearing) > math.radians(cfg['turn_tol_deg']):
             step.update(turn(robot, bearing, cfg))
         elif x > cfg['c_start_m'] + cfg['walk_min_m']:
-            step.update(walk(robot, x - cfg['c_start_m'], bearing, cfg))
+            step.update(walk(robot, x - cfg['c_start_m'], bearing, cfg, stop))
+            if step.get('stopped'):
+                return {'end': 'stopped', 'steps': steps, 'stopped': step['stopped']}
         else:
             robot.head(cfg['c_head'])
             return {'end': 'ready', 'steps': steps}
     robot.head(cfg['c_head'])
     return {'end': 'b_budget', 'steps': steps}
+
+
+def blind_move(robot, toy_at, stage1: dict, stop=None) -> dict:
+    """The blind last segment (1F f_blind, Stage 3's LAST): from the B segment's last look, turn and
+    walk on odometry so the toy should end at the pick target; no more looks; head H2."""
+    cfg, inch = stage1['approach'], stage1['inching']
+    tx, ty = inch['target_m']
+    x, y = toy_at
+    r = math.hypot(x, y)
+    side = math.sqrt(max(0.0, r * r - ty * ty))
+    beta = math.atan2(y, x) - math.atan2(ty, side)
+    moves = []
+    out = {'from': list(toy_at), 'moves': moves}
+    if abs(beta) > math.radians(cfg['turn_tol_deg']):
+        moves.append(turn(robot, beta, cfg))
+        beta = 0.0
+    moves.append(walk(robot, side - tx, beta, cfg, stop))
+    if moves[-1].get('stopped'):
+        out['stopped'] = moves[-1]['stopped']
+        return out
+    robot.head(cfg['c_head'])
+    time.sleep(inch['settle_s'])
+    return out
 
 
 def c_segment(robot, eyes: Eyes, toy: str, plane_z: float, ctl, stage1: dict) -> dict:

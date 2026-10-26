@@ -132,21 +132,8 @@ def after_fall(s) -> None:
 
 def blind_move(s, kit: Kit, toy_at) -> dict:
     """Lab-style last part: from one look, turn and walk on odometry so the toy should end at the
-    target; no more looks."""
-    cfg = s.cfg['approach']
-    tx, ty = s.cfg['inching']['target_m']
-    x, y = toy_at
-    r = math.hypot(x, y)
-    side = math.sqrt(max(0.0, r * r - ty * ty))
-    beta = math.atan2(y, x) - math.atan2(ty, side)
-    moves = []
-    if abs(beta) > math.radians(cfg['turn_tol_deg']):
-        moves.append(approach.turn(s.robot, beta, cfg))
-        beta = 0.0
-    moves.append(approach.walk(s.robot, side - tx, beta, cfg))
-    s.robot.head(cfg['c_head'])
-    time.sleep(s.cfg['inching']['settle_s'])
-    return {'from': list(toy_at), 'moves': moves}
+    target; no more looks (control/approach.py blind_move, shared with Stage 3)."""
+    return approach.blind_move(s.robot, toy_at, s.cfg)
 
 
 def run_start(s, kit: Kit, start: dict, blind: bool) -> dict:
