@@ -16,7 +16,7 @@ from microduck_toy.stage0.metrics import (  # noqa: F401  (re-exported for the S
 )
 
 TEXT_COLUMNS = ('mark', 'holding')
-INT_COLUMNS = ('lfoot', 'rfoot', 'other_floor', 'torque', 'released')
+INT_COLUMNS = ('lfoot', 'rfoot', 'other_floor', 'torque', 'released', 'tray_contact', 'wall_contact')
 
 
 def read_truth(path: Path) -> list[dict]:

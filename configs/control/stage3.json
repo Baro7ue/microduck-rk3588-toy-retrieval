@@ -1,0 +1,159 @@
+{
+  "about": "Stage 3 knobs (plan claude-docs/stage3_plan_20261026, revision 1: Ethan answered 1A 2A 3A). Every number is set by the plan or copied from the Stage 0/1/2 fact tables (configs/control/stage0_facts.json, stage1_facts.json, configs/vision/stage2_facts.json) with its source; 3P measurements are under 'measured_3p'. Frozen at the tag stage3-freeze (3G); values Stage 3 measures go to configs/control/stage3_facts.json.",
+  "episode": {
+    "max_s": 180.0,
+    "max_closes": 3,
+    "delivered_half_m": 0.15,
+    "strict_half_m": 0.144,
+    "delivered_max_z_m": 0.06,
+    "judge_after_s": 2.0,
+    "disturbed_m": 0.02,
+    "dev_seed_base": 3000,
+    "dev_seeds": 10,
+    "note": "plan section 2: 180 s and 3 closes per episode (decision 3A, 10-11); falls do not end it (stage0_facts getup.episode_rule). Delivered = 2 s after the end the target's centre is inside the tray's outer square (|dx|, |dy| < 0.15 m) and below 0.06 m (rim 0.01 + 0.05; microduck-lab world/arena.py:2010-2024 in_basket); strict = inside the inner square (0.15 - rim 0.006). Dev layouts = seeds 3000-3009 of scene/layout.py (configs/control/stage3_layouts.json); the formal seeds 1000-1019 are never run in Stage 3"
+  },
+  "search": {
+    "spin_head": [0.0, 0.15],
+    "spin_wz_radps": 0.8,
+    "spin_deg": 380.0,
+    "spin_hits": 2,
+    "max_range_m": 2.0,
+    "max_spins": 2,
+    "relocate_spots": [[0.0, 0.0], [-0.4, 0.0], [0.0, 0.4], [0.0, -0.4], [-0.4, 0.4], [-0.4, -0.4]],
+    "relocate_min_m": 0.4,
+    "look_head": "H0",
+    "look_settle_s": 1.0,
+    "look_frames": 5,
+    "look_min_seen": 3,
+    "look_turn_tol_deg": 15.0,
+    "look_match_m": 0.25,
+    "confirm_m": 1.6,
+    "cluster_m": 0.15,
+    "spin_cluster_per_m": 0.1,
+    "spin_weight": 0.25,
+    "max_misses": 2,
+    "note": "plan 3 SPIN and LOOK. Spin: head 0.15 (stage2.json deploy.head, the middle of the trained 0-0.3 search range; turning camera pitch 10.9 deg, inside the 0-17.2 deg of the training data), window view, wz +0.8 (stage1.json approach.turn_wz_radps; +0.5 does not turn from cold, stage0_facts turn_steady_radps_mac_H1), 380 deg on odometry, a target in >= spin_hits frames ends the spin. Spin frames give bearings (the frame trails robot.state by 30-40 ms, about 2 deg at 0.9 rad/s), so their ground points only seed a candidate: they enter the sighting table at spin_weight and cluster within cluster_m + spin_cluster_per_m x distance. Look: H0 standing (pitch 13.4 deg, also inside 0-17.2), settle 1 s and 5 frames (stage1.json inching.settle_s, frames), turn first only if the candidate is more than look_turn_tol_deg off (the window sees +-22.5 deg); the target in >= 3 of 5 frames within look_match_m of the candidate and <= confirm_m away = confirmed (stage2_facts confirm_distance.zero_confusion_m 1.6); a distractor class there in >= 3 frames = a distractor spot; max_misses looks without the target drop the candidate. Two empty spins (the second from the nearest relocate spot at least relocate_min_m away) = search_fail. Detections beyond max_range_m are ignored (stage2_facts search_radius 1.8 m)"
+  },
+  "goto": {
+    "head": "H0",
+    "vx_mps": 0.3,
+    "leg_max_m": 0.5,
+    "b_start_m": 0.6,
+    "b_start_tol_m": 0.05,
+    "corridor_m": 0.12,
+    "max_approach_tries": 4,
+    "note": "plan 3 GOTO: H0 at vx 0.3 (stage0_facts forward_steady_mps_mac H0: 0.3 -> 0.224 m/s) with the B segment's heading PI and turns (stage1.json approach), legs of min(distance to the B start, leg_max_m), a look after each leg, until the target is within b_start_m (+ tol) = the B segment's start (stage0_facts segment_head_pose B 0.6-0.25 m). The B start is on the side the robot comes from unless a known toy is within corridor_m of the straight line from there to the target"
+  },
+  "route": {
+    "keep_in_m": 0.22,
+    "clear_m": 0.15,
+    "tray_inflate_m": 0.1,
+    "tof_obstacle_m": 0.15,
+    "note": "plan 3 GOTO and CARRY: routes stay clear_m from known toys and tray_inflate_m outside the tray, and keep the trunk keep_in_m from the walls (toys are >= 0.25 m from the walls, stage1.json layout.wall_clear_m). A ToF stop adds an obstacle of tof_obstacle_m at the stop point. Plan fallback: clear_m 0.15 -> 0.2 if non-target toys get pushed"
+  },
+  "carry": {
+    "head": "H1",
+    "vx_mps": 0.25,
+    "leg_max_m": 0.5,
+    "sides": ["x-", "y+", "y-"],
+    "staging_m": 0.45,
+    "lane_half_m": 0.15,
+    "arrive_m": 0.08,
+    "note": "plan 3 CARRY: H1 at 0.25 m/s (stage1_facts carry_1g_mac.stage3_default; 9/9, 0 falls, 0 drops; drift 1-5 cm per 0.5 m), to the staging point staging_m from the tray centre on the side's normal (lab aim_range 0.42 and basket_normal); +x is not used (0.2 m between tray and wall); the side with the shortest route whose lane (staging point -> tray edge, lane_half_m each side) holds no known toy. arrive_m: close enough to square up"
+  },
+  "tray_look": {
+    "head": "H1",
+    "settle_s": 1.0,
+    "frames": 5,
+    "accept_m": 0.3,
+    "cut_margin_px": 3.0,
+    "turn_tol_deg": 10.0,
+    "max_turns": 2,
+    "accept_after_fall_m": 1.0,
+    "min_frames_after_fall": 3,
+    "range_tol_m": 0.12,
+    "max_moves": 1,
+    "scan_after_fall_deg": [45.0, 45.0, -135.0, -45.0],
+    "note": "plan 3 TRAY_LOOK: H1 standing at the staging point (near rim about 0.3 m ahead), 5 frames letterboxed; tray box bottom = near rim (stage1.json arena.tray rim_height_m 0.01); only a tray box within accept_m of the odometry estimate (plan risk table: 47 tray boxes on untrayed ground in 2E); turn first if the centre is more than turn_tol_deg off",
+    "note_fall": "3D cloud pre-run: a fall throws the odometry 0.3-0.4 m off (contact odometry while tumbling), so the robot reaches a wrong staging point and the real tray box (conf 0.95 in 5/5 frames) fell outside accept_m. After a fall the window is accept_after_fall_m, with at least min_frames_after_fall frames; a tray measured by YOLO re-anchors the field position (the tray is a fixed landmark). After a fall, a re-anchor larger than carry.arrive_m sends the robot back to CARRY (looking at the tray from off its normal ranged it 4-6 cm short); otherwise a tray more than range_tol_m beyond staging_m is walked up to and looked at again; at most max_moves of either",
+    "note_scan": "scan_after_fall_deg: cloud 3D, after two falls the staging point was 0.4 m off and the tray 88 deg to the right, outside the picture (fovy 45 deg across the upright 360 px, so +-22.5 deg), and the toy was dropped on odometry. With the pose in doubt and no tray box, the robot turns these steps in turn (looking at +45, +90, -45, -90 deg from where it stood, +-112 deg in all) and looks again; the first tray box ends the scan"
+  },
+  "recover": {
+    "heads": ["H2", "H1"],
+    "settle_s": 1.0,
+    "frames": 5,
+    "backoff_below_m": 0.14,
+    "looks": 2,
+    "note": "RECOVER after the toy came out of the beak: look at H2 first (camera 0.98 rad down, the ground from about 8 cm ahead of the trunk; stage0_facts head_geometry_mac), then H1 (from about 12 cm); cloud 3D: a toy dropped 6 cm ahead was invisible at H1. Seen nearer than backoff_below_m (the park point 8 cm + a margin): back off one retreat pulse (B10, about 10 cm) so the B segment can aim, then APPROACH; not seen: back off one pulse and look again (looks in all; cloud 3D: a toy 5 cm ahead, under the beak, is seen by neither head), then forget the pick spot and search afresh"
+  },
+  "drop": {
+    "head": "H0",
+    "d_m": 0.21,
+    "d_sweep_m": [0.19, 0.21, 0.23],
+    "vx_mps": 0.3,
+    "turn_tol_deg": 10.0,
+    "stand_s": 1.0,
+    "open_s": 0.6,
+    "note": "plan 3 DROP and 3C: H0 (tip 7.9 cm ahead, 0.7 cm more than H1; stage0_facts head_geometry_mac), walk blind until the trunk is d_m from the tray centre, stand 1 s (stopping from 0.3 m/s settles in 0.7-1.0 s, stage0_facts stop_from_0.3mps_mac), open 0.6 s (lab drop_s), close, end (no back-off). d_m = the lab's 0.22 rounded to the sweep's middle until 3C picks one of d_sweep_m. vx 0.3 at H0 because the coast the walk allows for (stage1.json approach.walk_slide_m 0.04) was measured from 0.3 (3.9 cm at H0)"
+  },
+  "fall": {
+    "getup_wait_s": 8.0,
+    "settle_s": 1.0,
+    "note": "plan 3 FALLEN: the fall guard zeroes the move (stage1_facts fall_guard_mac 0.34-0.35 s); wait for velstand to stand (stage0_facts getup: Mac max 4.82 s), then settle. Holding by the mouth angle (stage1.json grasp.held_threshold_deg) -> CARRY; dropped in the fall -> look at the feet (H1), else re-search"
+  },
+  "tof": {
+    "hz": 15.0,
+    "min_height_m": 0.05,
+    "stop_range_m": 0.22,
+    "self_blind_m": 0.08,
+    "frames": 2,
+    "max_tilt_deg": 20.0,
+    "retreat": "B10",
+    "note": "plan 3D: a zone whose return is >= min_height_m above the floor and <= stop_range_m from the trunk axis, ignoring slant ranges < self_blind_m (the beak and a held toy), in `frames` consecutive frames (15 Hz) = stop, back off (stage1_facts pulses_mac B10), route around the stop point. stop_range_m 0.22: stopping from 0.3 m/s slides 3.9-4.9 cm (stage0_facts stop_from_0.3mps_mac), so the trunk ends about 0.16 m from a wall, the toes about 0.12 m; the stop is only checked while a walk is commanded, and walks end walk_slide_m (4 cm) before their goal, so a route ending at the keep-in line (0.22 m) does not trip it. self_blind_m 0.08 (3P, was the lab's hold_blind_m 0.12): the sensor sits 6.5 cm (head 0) to 8.5 cm (H1) ahead of the trunk and no zone ever returned from the beak or a held toy (m_tof), while at 0.12 a wall only counted from 0.22 down to about 0.19 m, 2 frames at 0.224 m/s; 3D measures it",
+    "note_tilt": "max_tilt_deg: cloud 3D false stop mid-fall (a return 0.12 m behind the trunk, 0.26 m up, before safety.fallen was set); zones count only ahead of the trunk and only while it is within 20 deg of upright (cloud 3e upright trunk tilt p99 4 deg, max 16 deg)"
+  },
+  "camera": {
+    "stream_lag_s": 0.0,
+    "note": "the frame's moment = its first byte minus stream_lag_s (Mac and board stream); 3P/3A measure the bearing error of spin frames and decide whether to set it"
+  },
+  "detector": {
+    "models": {
+      "cpu": "models/yolo/yolo11n_toys/yolo11n_toys_split_320.onnx",
+      "fp16": "models/yolo/yolo11n_toys/yolo11n_toys_fp16.rknn",
+      "int8": "models/yolo/yolo11n_toys/yolo11n_toys_int8.rknn"
+    },
+    "cpu_threads": 2,
+    "note": "the frozen Stage 2 models (PR #2, configs/vision/stage2_facts.json); classes, conf 0.25, iou 0.45 and the window margin come from configs/vision/stage2.json. Mac runs use cpu (split FP32 ONNX); the board closed loop uses int8 (stage2_facts precision_choice)"
+  },
+  "plane_z_m": {
+    "bus": 0.0149,
+    "henry": 0.0113,
+    "ketchup": 0.0102,
+    "croc": 0.0124,
+    "thomas": 0.0164,
+    "tray": 0.0,
+    "note": "height of the plane a box centre is cut with: half the toy's collision box height (scene/toys.py rest_z; tests/test_stage3_world.py checks them against the catalogue); for the tray the plane of its box's bottom edge, where the near rim meets the floor (3P: z 0 lands 0.7 cm short of the rim on average over 3 oracle boxes, the rim top 0.01 lands 1.8 cm short)"
+  },
+  "measured_3p": {
+    "where": "cloud twin (MuJoCo 3.10 + robotd s2 debug, frames rendered on request), run 20261026T081237Z_s33p_s2; the Mac repeats them in its first batch (3p) and its numbers replace these",
+    "view_held_toy": "at the x- staging point with a held toy and head H1 the toy is below the picture's lower edge (no segmentation pixels, bus/henry/ketchup); it covers 0 % of the tray box; YOLO finds the tray in 3/3 frames for each toy",
+    "tof_staging": "0 stop frames at the staging point (H0 and H1, with and without a toy): the tray rim (1 cm) is below min_height_m, the held toy and the beak are inside self_blind_m",
+    "tof_wall": "facing a wall: 0.20 m stops at H0 / H1 / search head (nearest return 0.191 m), 0.30 and 0.50 m do not; open field 0 stops",
+    "reach_toe_m": {"H0": 0.0341, "H1": 0.0359, "H2": 0.0368},
+    "reach_tip_m": {"H0": 0.0794, "H1": 0.0717, "H2": 0.0622},
+    "held_toy_forward_m": {
+      "bus": {"H0": 0.0882, "H1": 0.0771},
+      "henry": {"H0": 0.0901, "H1": 0.0794},
+      "ketchup": {"H0": 0.0923, "H1": 0.0805}
+    },
+    "drop_geometry": "with the trunk d from the tray centre the toy leaves the beak d - 0.09 m short of the centre (H0) and the toes are d - 0.034 m from it; the near rim is 0.15 m from the centre, so d 0.19 / 0.21 / 0.23 lands the toy 5 / 3 / 1 cm inside the 0.15 m judge square with the toes 0.6 / 2.6 / 4.6 cm outside the rim: 3C's sweep is the whole usable window. First cloud episode: d 0.2015 m, toy 12.2 cm short of the centre (2.8 cm inside)",
+    "spin_bearing_deg": {
+      "frame_time": {"n": 10, "mean": -0.01, "abs_p50": 0.71, "abs_p90": 2.53},
+      "receipt_time": {"n": 10, "mean": 17.75, "abs_p50": 18.16, "abs_p90": 22.69},
+      "wz_mean_radps": 0.747
+    },
+    "spin_note": "pairing a spin frame with the robot.state nearest its moment leaves 0.7 deg (p50), 2.5 deg (p90): stream_lag_s stays 0 for the cloud's probe frames; the receipt-time error (18 deg) is the cloud's render time and shows why the frame's own moment is used. The Mac's stream frames are measured again in its 3p and 3A",
+    "tof_pose_trunk": "ToF in the trunk frame: head 0 at [0.0645, 0.0225, 0.1269] facing straight ahead; H1 at [0.0846, 0.0218, 0.0777] pitched 42 deg down",
+    "tray_bottom_edge": "the oracle tray box's bottom row, cut with z = 0, lands 0.7 cm short of the near rim on average (3 views: -0.7, +0.8, -2.3 cm), with z = 0.01 (the rim top) 1.8 cm short: plane_z_m.tray = 0. H1 at the staging point sees +-12 cm sideways at the near rim, so the 30 cm tray box is cut at both sides"
+  }
+}
