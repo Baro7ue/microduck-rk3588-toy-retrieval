@@ -66,6 +66,7 @@ class Stage2LauncherTests(unittest.TestCase):
         model = str(self.pack / 'models/yolo11n_toys_split_320.onnx')
         self.assertEqual(cloud_frames[cloud_frames.index('--model') + 1], model)
         self.assertEqual(same[same.index('--rule') + 1], 'mac')
+        self.assertEqual(rendered[rendered.index('--rule') + 1], 'board')
         self.assertEqual(rendered[rendered.index('--new-images') + 1], str(run / 'render/images/test'))
         self.assertIn('offline/vision-export/site-packages', calls[0][1]['PYTHONPATH'])
         self.assertTrue((run / 'console.log').is_file())

@@ -1,0 +1,97 @@
+{
+ "stamp": "20261025T120717Z",
+ "mode": "fp16",
+ "algo": null,
+ "onnx": "/home/claude/microduck-rk3588-toy-retrieval/runs/20261025T120555Z_s2d_export/yolo11n_toys_split_320.onnx",
+ "onnx_sha256": "b492c8ada9c1c51e723db3f2b8c59e603481084079f07ec7ef48449122aa6618",
+ "source_pt_sha256": "1701a32cc50b906caaae13239ef78773f8309ebe196a6155f8f49e5b480ef186",
+ "rknn": "yolo11n_toys_fp16.rknn",
+ "rknn_sha256": "20aded7d763d880cd4950a9b2d5ef4ef36aefb1a879f1efe7ec574f0a333907f",
+ "rknn_bytes": 6737765,
+ "config": {
+  "mean_values": [
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "std_values": [
+   [
+    255,
+    255,
+    255
+   ]
+  ],
+  "target_platform": "rk3588"
+ },
+ "calibration": null,
+ "names": [
+  "bus",
+  "henry",
+  "ketchup",
+  "croc",
+  "thomas",
+  "tray"
+ ],
+ "sim_check": {
+  "frames": 100,
+  "conf": 0.25,
+  "cosine": {
+   "box8": 0.999999,
+   "cls8": 0.999999,
+   "sum8": 0.999999,
+   "box16": 0.999998,
+   "cls16": 1.0,
+   "sum16": 1.0,
+   "box32": 0.999999,
+   "cls32": 1.0,
+   "sum32": 1.0
+  },
+  "max_abs_err": {
+   "box8": 0.12159,
+   "cls8": 0.00734,
+   "sum8": 0.00728,
+   "box16": 0.10063,
+   "cls16": 0.00509,
+   "sum16": 0.00533,
+   "box32": 0.09258,
+   "cls32": 0.00108,
+   "sum32": 0.00104
+  },
+  "boxes": {
+   "onnx": 294,
+   "rknn": 294,
+   "pairs": 294,
+   "worst_box_px": 0.23428401584490643,
+   "worst_conf": 0.0019084811210632324
+  }
+ },
+ "predictions": {
+  "test": {
+   "frames": 1500,
+   "boxes": 4330
+  },
+  "test_far": {
+   "frames": 600,
+   "boxes": 2406
+  },
+  "test_unseen": {
+   "frames": 500,
+   "boxes": 1487
+  },
+  "test_walk": {
+   "frames": 300,
+   "boxes": 609
+  }
+ },
+ "scope": "cloud simulator; the board run (init_runtime + inference on the NPU) is plan 2E/2F",
+ "python": "3.11.17",
+ "versions": {
+  "rknn-toolkit2": "2.3.2",
+  "onnx": "1.16.1",
+  "onnxruntime": "1.18.1",
+  "numpy": "1.26.4",
+  "torch": "2.4.0"
+ }
+}

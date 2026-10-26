@@ -323,5 +323,22 @@ class LauncherTests(unittest.TestCase):
                          f'{root}/src:{root}/offline/vision-export/site-packages')
 
 
+class ExecutableBitTests(unittest.TestCase):
+    """Every launcher is run as scripts/.../x.zsh, so git must store it as 100755 (lib.zsh is
+    only sourced). The tests above run them through zsh, which does not need the bit."""
+
+    def test_launchers_are_executable(self):
+        if (REPO / '.git').exists() and shutil.which('git'):
+            out = subprocess.run(['git', '-C', str(REPO), 'ls-files', '-s', '--', 'scripts'],
+                                 capture_output=True, text=True, check=True).stdout
+            modes = {line.split('\t', 1)[1]: line.split()[0] for line in out.splitlines()}
+        else:
+            modes = {str(p.relative_to(REPO)): '100755' if os.access(p, os.X_OK) else '100644'
+                     for p in (REPO / 'scripts').rglob('*.zsh')}
+        bad = sorted(path for path, mode in modes.items()
+                     if path.endswith('.zsh') and Path(path).name != 'lib.zsh' and mode != '100755')
+        self.assertEqual(bad, [], 'chmod +x these launchers (git update-index --chmod=+x)')
+
+
 if __name__ == '__main__':
     unittest.main()

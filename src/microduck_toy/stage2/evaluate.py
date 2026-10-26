@@ -22,6 +22,9 @@ What it reports (plan section 8):
   recall >= 0.8 (bins with fewer than min_n toys are skipped); the radius is the smallest of the 3.
 - Confusion matrix (truth rows, detected columns; 'missed' and a 'background' row for boxes on no
   object), for near (<= 0.6 m), mid and far (> 1.2 m) toys.
+- Confirmation distance (plan section 8): the far edge of the unbroken run of 0.1 m bins from 0
+  where every target / other-toy pair is confused at most 2% of the time (a toy is confused when
+  a box of the other's class sits on it); beyond it Stage 3 treats a box as a candidate only.
 - Wrong grab: for every frame with toys and every target t, the top-scoring box of class t; wrong
   when it sits on another toy. 'near' counts only frames with a toy within 0.6 m and grabs that
   land on toys within 0.6 m.
@@ -253,6 +256,70 @@ def confusion(frames: list, space: Space) -> dict:
     return out
 
 
+def confusion_by_distance(frames: list, space: Space) -> dict:
+    """{bin_m: {'n': {name: toys}, 'seen_as': {name: {cls: toys}}}} over uncut toys (tray left
+    out), views pooled. Each sure box goes to the toy it covers best (on_toy, then highest IoU);
+    a toy is seen as cls when a box of another class goes to it (counted once per toy and cls)."""
+    out: dict = {}
+    for m, dets in frames:
+        toys = [o for o in m['objects'] if o['name'] != 'tray' and not o['cut_frame']]
+        seen: dict = {}
+        for d in dets:
+            if d['conf'] < CONF:
+                continue
+            under = [i for i, o in enumerate(toys) if on_toy(d['xyxy'], o['xyxy_input'])]
+            if under:
+                best = max(under, key=lambda i: iou(d['xyxy'], toys[i]['xyxy_input']))
+                seen.setdefault(best, set()).add(d['cls'])
+        for i, o in enumerate(toys):
+            b = f"{math.floor(trunk_dist(o) / BIN_M + 1e-9) * BIN_M:.1f}"
+            cell = out.setdefault(b, {'n': {}, 'seen_as': {}})
+            cell['n'][o['name']] = cell['n'].get(o['name'], 0) + 1
+            for c in seen.get(i, ()):
+                if c != space(o['name']):
+                    row = cell['seen_as'].setdefault(o['name'], {})
+                    row[c] = row.get(c, 0) + 1
+    return dict(sorted(out.items(), key=lambda kv: float(kv[0])))
+
+
+def confirm_distance(by_bin: dict, space: Space, need: float = 0.02, min_n: int = 10) -> dict:
+    """Plan 2E: the far edge of the unbroken run of bins from 0 where every target / other-toy
+    pair stays confused at most `need` of the time. A pair's rate in a bin is (a seen as b + b seen
+    as a) / (a + b); a pair with fewer than min_n toys in a bin is skipped there. The named pairs
+    are Henry with its same-colour (croc) and same-shape (Thomas) distractor."""
+    toys = [n for n in space.map if n != 'tray']
+    pairs = list(dict.fromkeys(tuple(sorted((t, u))) for t in space.targets for u in toys if u != t))
+
+    def rate(cell, a, b):
+        n = cell['n'].get(a, 0) + cell['n'].get(b, 0)
+        bad = (cell['seen_as'].get(a, {}).get(space(b), 0) +
+               cell['seen_as'].get(b, {}).get(space(a), 0))
+        return bad, n
+    reach, stop, worst = 0.0, None, {}
+    for b, cell in by_bin.items():
+        rows = [(bad / n, bad, n, f'{p[0]}~{p[1]}') for p in pairs
+                for bad, n in [rate(cell, *p)] if n >= min_n]
+        if not rows:
+            continue
+        r, bad, n, name = max(rows)
+        worst[b] = {'pair': name, 'confused': bad, 'n': n, 'rate': round(r, 4)}
+        if stop is None:
+            if r <= need:
+                reach = round(float(b) + BIN_M, 2)
+            else:
+                stop = {'bin_m': float(b), **worst[b]}
+    named = {}
+    for a, b, why in (('croc', 'henry', 'same colour'), ('henry', 'thomas', 'same shape')):
+        bad = n = 0
+        for cell in by_bin.values():
+            k, m = rate(cell, a, b)
+            bad, n = bad + k, n + m
+        named[f'{a}~{b}'] = {'why': why, 'confused': bad, 'n': n,
+                             'rate': round(bad / n, 4) if n else None}
+    return {'confirm_m': reach, 'stopped_at': stop, 'max_rate': need, 'min_n': min_n,
+            'named_pairs_all_distances': named, 'worst_pair_by_bin': worst}
+
+
 def wrong_grab(frames: list, space: Space) -> dict:
     count = {k: {'pairs': 0, 'right': 0, 'wrong': 0, 'phantom': 0, 'none': 0}
              for k in ('all', 'near')}
@@ -368,6 +435,7 @@ def evaluate(data: Path, split: str, pred: Path, space_kind: str = 'ours') -> di
            'wrong_grab': wrong_grab(frames, space),
            'h1_ranging': h1_ranging(frames, space, stage1, blind),
            'confusion': confusion(frames, space),
+           'confirm_distance': confirm_distance(confusion_by_distance(frames, space), space),
            'recall_by_distance': rec}
     ms = [v for v in ms if v is not None]
     if ms:
@@ -390,7 +458,9 @@ def brief(s: dict) -> str:
              '  recall approach 0.2-0.6 m ' + str({k: v['recall'] for k, v in
                                                    s['recall_bands']['approach_0.2_0.6'].items()}),
              f"  wrong grab all {s['wrong_grab']['all']['wrong_rate']}, "
-             f"near {s['wrong_grab']['near']['wrong_rate']}"]
+             f"near {s['wrong_grab']['near']['wrong_rate']}",
+             f"  confirm distance {s['confirm_distance']['confirm_m']} m (stopped at "
+             f"{s['confirm_distance']['stopped_at']})"]
     h = s['h1_ranging']
     if h.get('n'):
         lines.append(f"  H1 ranging extra RMS {h['extra_rms_cm']} cm (n {h['n']}, missed "
