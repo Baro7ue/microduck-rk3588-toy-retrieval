@@ -1,0 +1,1078 @@
+{
+ "about": "Stage 2 exit facts (plan claude-docs/stage2_plan_20261023/ revision 1, section 10). Stage 3 code reads its detection numbers only from here, configs/vision/stage2.json (knobs) and the Stage 0/1 facts. Units are in the key names. Accuracy numbers are on test + test_far (2100 frames, grid and wood floors) unless the key says otherwise; \"board\" = RK3588 NPU via rknn-toolkit-lite2, \"cloud\" = the x86 twin (pre-run only).",
+ "written_utc": "2026-10-26",
+ "measured_with_commit": "board and Mac runs at ec245ad (PR #1 merge, Ethan's Mac); cloud runs 2026-10-25 with the same Stage 2 code (b2b2f03..df22b12, evaluate.py unchanged); confirm_distance added afterwards (this commit) and computed in the cloud from the board INT8 predictions, which the cloud also re-scored to exactly the Mac's eval_int8_test_far.json",
+ "runs": {
+  "dataset": "runs/20261023T141328Z_s2a_dataset (cloud)",
+  "baselines": "runs/20261023T145906Z_s2b_baselines (cloud)",
+  "train": "Ethan's Colab, Drive My Drive/microduck_stage2; copy in the cloud runs/20261025T115507Z_s2c_train",
+  "export": "runs/20261025T120555Z_s2d_export (cloud)",
+  "rknn_fp16": "runs/20261025T120717Z_s2d_rknn_fp16 (cloud)",
+  "rknn_int8": "runs/20261025T120717Z_s2d_rknn_int8 (cloud)",
+  "cloud_eval": "runs/20261025T120858Z_s2e_cloud (cloud)",
+  "pack": "runs/20261025T121759Z_s2e_pack (cloud and Mac)",
+  "mac_parity": "runs/20261026T025727Z_s2e_mac_parity",
+  "board_npu_eval": "runs/20261026T030813Z_s2e_board_npu",
+  "board_deploy": "runs/20261026T035008Z_s2f_board_deploy"
+ },
+ "model": {
+  "closed_loop": "int8",
+  "dir": "models/yolo/yolo11n_toys",
+  "files": {
+   "pt": {
+    "file": "best.pt (not in git: Colab Drive and the cloud train run)",
+    "sha256": "1701a32cc50b906caaae13239ef78773f8309ebe196a6155f8f49e5b480ef186"
+   },
+   "split_onnx": {
+    "file": "yolo11n_toys_split_320.onnx",
+    "sha256": "b492c8ada9c1c51e723db3f2b8c59e603481084079f07ec7ef48449122aa6618",
+    "use": "board CPU (ONNX Runtime) and the RKNN source"
+   },
+   "rknn_fp16": {
+    "file": "yolo11n_toys_fp16.rknn",
+    "sha256": "20aded7d763d880cd4950a9b2d5ef4ef36aefb1a879f1efe7ec574f0a333907f",
+    "bytes": 6737765
+   },
+   "rknn_int8": {
+    "file": "yolo11n_toys_int8.rknn",
+    "sha256": "32bdb3d9bf47356f5a4fb5e8f871794827ae7c7c7856e4c89aea4209763fb469",
+    "bytes": 4124263
+   },
+   "export_json": {
+    "file": "export.json",
+    "sha256": "3f895e1cfb5b58fea6232413b6cf471fe94a8294d85621138da59e1b628570cc"
+   },
+   "conversion_fp16_json": {
+    "file": "conversion_fp16.json",
+    "sha256": "82ff45aee7ee0627f940708039fdaf30c43957b78346fe37ca00cad7f4013ccb"
+   },
+   "conversion_int8_json": {
+    "file": "conversion_int8.json",
+    "sha256": "9ca79161d8dd8fdbf71a282dd0e3d39a5c929ae16c30de78fc20af3d3ac8a509"
+   }
+  },
+  "classes": [
+   "bus",
+   "henry",
+   "ketchup",
+   "croc",
+   "thomas",
+   "tray"
+  ],
+  "targets": [
+   "bus",
+   "henry",
+   "ketchup"
+  ],
+  "input": "images [1, 3, 320, 320] RGB; ONNX float /255 NCHW, RKNN uint8 NHWC (mean 0, std 255 inside the model)",
+  "outputs": "split9: box/cls/sum for strides 8, 16, 32 (box [1,64,h,w] DFL reg_max 16, cls [1,6,h,w] sigmoid scores, sum [1,1,h,w]); h,w = 40, 20, 10 (airockchip RKOPT layout)",
+  "int8_quantization": {
+   "quantized_dtype": "w8a8",
+   "quantized_method": "channel",
+   "quantized_algorithm": "normal",
+   "kind": "post-training (PTQ), no QAT",
+   "calibration_frames": 300,
+   "calibration": "train frames with targets, stratified by view x floor (seed 0)"
+  },
+  "toolkit": "rknn-toolkit2 2.3.2 (cloud) / rknn-toolkit-lite2 + librknnrt 2.3.2, driver 0.9.8 (board)"
+ },
+ "training": {
+  "gpu": "Tesla T4",
+  "ultralytics": "8.3.200",
+  "torch": "2.11.0+cu130",
+  "epochs": 60,
+  "best_epoch": 59,
+  "minutes": 21.5,
+  "base_weights_sha256": "0ebbc80d4a7680d14987a577cd21342b65ecfd94632bd9a8da63ae6417644ee1",
+  "val_map50": 0.9947,
+  "val_map50_95": 0.9267,
+  "note": "Ultralytics val numbers (its own matching); the table below uses our evaluator"
+ },
+ "dataset": {
+  "dir": "runs/20261023T141328Z_s2a_dataset",
+  "zip": "s2a_dataset_20261023T141328Z.zip",
+  "zip_sha256": "c66b6ef38af40239f1aa2c8eb21ff4496f289fb2144c617c4299f988ecfffc21",
+  "config_sha256": "27692d0d746a28455e4181e40ef914e54286ff4bfea840cbb2bc4432a834dad0",
+  "mujoco": "3.10.0",
+  "splits": {
+   "train": {
+    "seed_base": 100000,
+    "frames": 3500,
+    "floors": [
+     "grid",
+     "wood"
+    ]
+   },
+   "val": {
+    "seed_base": 200000,
+    "frames": 500,
+    "floors": [
+     "grid",
+     "wood"
+    ]
+   },
+   "test": {
+    "seed_base": 300000,
+    "frames": 1500,
+    "floors": [
+     "grid",
+     "wood"
+    ]
+   },
+   "test_unseen": {
+    "seed_base": 400000,
+    "frames": 500,
+    "floors": [
+     "carpet"
+    ]
+   },
+   "test_far": {
+    "seed_base": 500000,
+    "frames": 600,
+    "floors": [
+     "grid",
+     "wood"
+    ]
+   },
+   "test_walk": {
+    "seed_base": 600000,
+    "episodes": 30,
+    "floors": [
+     "grid",
+     "wood"
+    ]
+   }
+  },
+  "train_instances": {
+   "bus": 1812,
+   "henry": 1715,
+   "ketchup": 1618,
+   "croc": 1778,
+   "thomas": 1582,
+   "tray": 1129
+  },
+  "labels_checked": "100 train frames by eye, 0 wrong labels",
+  "note": "a frame depends only on its seed and the datagen config (stage2.json datagen); test_walk = 30 episodes x 10 frames recorded from robotd walking in the sim body"
+ },
+ "views": {
+  "frame_px_w_h": [
+   360,
+   640
+  ],
+  "focal_px": 434.6,
+  "search": "window: 360x360 square of the upright frame, top row = round(horizon_row - 30) clamped to [0, 280], scaled x 320/360 (0.889), no padding; input = (frame - (0, top)) x 0.889; horizon_row from the camera pose (robot.state on the robot)",
+  "approach": "letterbox: whole 360x640 frame x 0.5 -> 180x320, padded 70 px left and right with 114; input = frame x 0.5 + (70, 0)",
+  "which": "search heads 0 to 0.3 -> window; H1 approach -> letterbox; a far toy is 1.78x longer in the window"
+ },
+ "detect": {
+  "conf": 0.25,
+  "nms_iou": 0.45,
+  "nms": "class-aware",
+  "max_det": 100,
+  "eval_match_iou": 0.5,
+  "ap_conf": 0.001
+ },
+ "accuracy_test_far": {
+  "coco": {
+   "targets_map50": 0.0108,
+   "all_map50": 0.0108,
+   "all_map50_95": 0.0077,
+   "search_radius_m": 0.0,
+   "wrong_grab_near": 0.0049,
+   "wrong_grab_all": 0.003,
+   "h1_extra_rms_cm": null
+  },
+  "colour": {
+   "targets_map50": 0.9288,
+   "all_map50": 0.4769,
+   "all_map50_95": 0.3212,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0794,
+   "wrong_grab_all": 0.0706,
+   "h1_extra_rms_cm": 0.258
+  },
+  "fp32_cloud": {
+   "targets_map50": 0.9898,
+   "all_map50": 0.9782,
+   "all_map50_95": 0.8534,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0,
+   "wrong_grab_all": 0.0007,
+   "h1_extra_rms_cm": 0.055
+  },
+  "fp16_board": {
+   "targets_map50": 0.9898,
+   "all_map50": 0.9782,
+   "all_map50_95": 0.8529,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0,
+   "wrong_grab_all": 0.0007,
+   "h1_extra_rms_cm": 0.055
+  },
+  "int8_board": {
+   "targets_map50": 0.9897,
+   "all_map50": 0.978,
+   "all_map50_95": 0.843,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0,
+   "wrong_grab_all": 0.0005,
+   "h1_extra_rms_cm": 0.063
+  }
+ },
+ "accuracy_note": "coco = pretrained YOLO11n scored in COCO names; colour = tuned HSV threshold; fp32_cloud = split ONNX in the cloud; fp16_board / int8_board = RKNN on the RK3588 NPU",
+ "int8_board_ap50_per_class": {
+  "bus": 0.9901,
+  "henry": 0.9893,
+  "ketchup": 0.9898,
+  "croc": 0.9898,
+  "thomas": 0.99,
+  "tray": 0.9192
+ },
+ "unseen_floor_carpet_cloud": {
+  "fp32": {
+   "targets_map50": 0.99,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0,
+   "h1_extra_rms_cm": 0.093
+  },
+  "int8_sim": {
+   "targets_map50": 0.9901,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0,
+   "h1_extra_rms_cm": 0.097
+  },
+  "colour": {
+   "targets_map50": 0.9897,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0516,
+   "h1_extra_rms_cm": 0.253
+  },
+  "note": "carpet floor never seen in training; no board run of this split"
+ },
+ "test_walk_board": {
+  "int8": {
+   "targets_map50": 0.9831,
+   "search_radius_m": 1.3,
+   "wrong_grab_near": 0.0,
+   "h1_extra_rms_cm": 0.043
+  },
+  "fp16": {
+   "targets_map50": 0.9866,
+   "search_radius_m": 1.3,
+   "wrong_grab_near": 0.0044,
+   "h1_extra_rms_cm": 0.048
+  },
+  "note": "frames from robotd walking/turning in the sim (real sway, nets' own head angles); radius 1.3 m is where the episodes' toys run out (stopped_at null for all 3 targets), not a recall drop"
+ },
+ "search_radius": {
+  "radius_m": 1.8,
+  "need_m": 1.6,
+  "pass": true,
+  "per_target": {
+   "bus": {
+    "radius_m": 2.0,
+    "stopped_at": null
+   },
+   "henry": {
+    "radius_m": 1.8,
+    "stopped_at": {
+     "bin_m": 1.8,
+     "n": 44,
+     "recall": 0.773
+    }
+   },
+   "ketchup": {
+    "radius_m": 1.8,
+    "stopped_at": {
+     "bin_m": 1.8,
+     "n": 29,
+     "recall": 0.793
+    }
+   }
+  },
+  "rule": "search view, per target the far edge of the unbroken run of 0.1 m bins from 0.5 m with recall >= 0.8 (bins under 5 toys skipped); radius = smallest of the 3; distance from the trunk",
+  "recall_search_int8_board": {
+   "ketchup": {
+    "0.3": [
+     2,
+     2
+    ],
+    "0.4": [
+     13,
+     13
+    ],
+    "0.5": [
+     15,
+     15
+    ],
+    "0.6": [
+     20,
+     20
+    ],
+    "0.7": [
+     19,
+     19
+    ],
+    "0.8": [
+     15,
+     15
+    ],
+    "0.9": [
+     22,
+     22
+    ],
+    "1.0": [
+     30,
+     30
+    ],
+    "1.1": [
+     28,
+     28
+    ],
+    "1.2": [
+     95,
+     95
+    ],
+    "1.3": [
+     100,
+     99
+    ],
+    "1.4": [
+     72,
+     71
+    ],
+    "1.5": [
+     75,
+     70
+    ],
+    "1.6": [
+     66,
+     62
+    ],
+    "1.7": [
+     53,
+     49
+    ],
+    "1.8": [
+     29,
+     23
+    ],
+    "1.9": [
+     21,
+     17
+    ]
+   },
+   "bus": {
+    "0.3": [
+     2,
+     2
+    ],
+    "0.4": [
+     9,
+     9
+    ],
+    "0.5": [
+     14,
+     14
+    ],
+    "0.6": [
+     11,
+     11
+    ],
+    "0.7": [
+     19,
+     19
+    ],
+    "0.8": [
+     17,
+     17
+    ],
+    "0.9": [
+     24,
+     24
+    ],
+    "1.0": [
+     16,
+     16
+    ],
+    "1.1": [
+     29,
+     29
+    ],
+    "1.2": [
+     100,
+     100
+    ],
+    "1.3": [
+     93,
+     93
+    ],
+    "1.4": [
+     91,
+     90
+    ],
+    "1.5": [
+     64,
+     64
+    ],
+    "1.6": [
+     64,
+     63
+    ],
+    "1.7": [
+     65,
+     63
+    ],
+    "1.8": [
+     47,
+     44
+    ],
+    "1.9": [
+     27,
+     25
+    ]
+   },
+   "henry": {
+    "0.3": [
+     3,
+     3
+    ],
+    "0.4": [
+     7,
+     7
+    ],
+    "0.5": [
+     18,
+     18
+    ],
+    "0.6": [
+     25,
+     25
+    ],
+    "0.7": [
+     13,
+     13
+    ],
+    "0.8": [
+     12,
+     12
+    ],
+    "0.9": [
+     28,
+     28
+    ],
+    "1.0": [
+     21,
+     21
+    ],
+    "1.1": [
+     19,
+     19
+    ],
+    "1.2": [
+     67,
+     65
+    ],
+    "1.3": [
+     93,
+     90
+    ],
+    "1.4": [
+     84,
+     78
+    ],
+    "1.5": [
+     77,
+     73
+    ],
+    "1.6": [
+     77,
+     72
+    ],
+    "1.7": [
+     54,
+     49
+    ],
+    "1.8": [
+     44,
+     34
+    ],
+    "1.9": [
+     26,
+     19
+    ]
+   },
+   "croc": {
+    "0.2": [
+     1,
+     0
+    ],
+    "0.3": [
+     4,
+     4
+    ],
+    "0.4": [
+     10,
+     10
+    ],
+    "0.5": [
+     17,
+     17
+    ],
+    "0.6": [
+     15,
+     15
+    ],
+    "0.7": [
+     19,
+     19
+    ],
+    "0.8": [
+     17,
+     17
+    ],
+    "0.9": [
+     33,
+     33
+    ],
+    "1.0": [
+     16,
+     16
+    ],
+    "1.1": [
+     21,
+     21
+    ],
+    "1.2": [
+     118,
+     118
+    ],
+    "1.3": [
+     100,
+     100
+    ],
+    "1.4": [
+     80,
+     80
+    ],
+    "1.5": [
+     78,
+     76
+    ],
+    "1.6": [
+     60,
+     58
+    ],
+    "1.7": [
+     58,
+     51
+    ],
+    "1.8": [
+     40,
+     31
+    ],
+    "1.9": [
+     17,
+     15
+    ]
+   },
+   "thomas": {
+    "0.3": [
+     2,
+     2
+    ],
+    "0.4": [
+     10,
+     10
+    ],
+    "0.5": [
+     13,
+     13
+    ],
+    "0.6": [
+     19,
+     19
+    ],
+    "0.7": [
+     13,
+     13
+    ],
+    "0.8": [
+     20,
+     20
+    ],
+    "0.9": [
+     32,
+     32
+    ],
+    "1.0": [
+     21,
+     21
+    ],
+    "1.1": [
+     22,
+     22
+    ],
+    "1.2": [
+     98,
+     98
+    ],
+    "1.3": [
+     91,
+     91
+    ],
+    "1.4": [
+     89,
+     89
+    ],
+    "1.5": [
+     75,
+     74
+    ],
+    "1.6": [
+     69,
+     65
+    ],
+    "1.7": [
+     30,
+     29
+    ],
+    "1.8": [
+     35,
+     33
+    ],
+    "1.9": [
+     10,
+     9
+    ]
+   }
+  },
+  "recall_search_int8_board_note": "{bin_m: [toys, found with the right class]}; bins are trunk distance",
+  "recall_bands_int8_board": {
+   "search_0.5_1.2": {
+    "ketchup": 1.0,
+    "bus": 1.0,
+    "henry": 1.0,
+    "croc": 1.0,
+    "thomas": 1.0
+   },
+   "approach_0.2_0.6": {
+    "bus": 1.0,
+    "henry": 1.0,
+    "croc": 1.0,
+    "thomas": 1.0,
+    "ketchup": 1.0
+   }
+  }
+ },
+ "confirm_distance": {
+  "rule_2pct_m": 2.0,
+  "rule_2pct_stopped_at": null,
+  "zero_confusion_m": 1.6,
+  "named_pairs": {
+   "croc~henry": {
+    "why": "same colour",
+    "confused": 2,
+    "n": 1950,
+    "rate": 0.001
+   },
+   "henry~thomas": {
+    "why": "same shape",
+    "confused": 0,
+    "n": 1867,
+    "rate": 0.0
+   }
+  },
+  "confusions_in_2100_frames": [
+   {
+    "id": "test_far_500231",
+    "truth_seen_as": [
+     "croc->henry"
+    ],
+    "toys_m": {
+     "bus": 1.51,
+     "henry": 1.87,
+     "croc": 1.62,
+     "thomas": 1.25
+    }
+   },
+   {
+    "id": "test_far_500270",
+    "truth_seen_as": [
+     "bus->ketchup"
+    ],
+    "toys_m": {
+     "bus": 1.64,
+     "henry": 0.62,
+     "ketchup": 1.87,
+     "thomas": 1.14
+    }
+   },
+   {
+    "id": "test_far_500380",
+    "truth_seen_as": [
+     "henry->ketchup",
+     "henry->croc"
+    ],
+    "toys_m": {
+     "bus": 1.37,
+     "henry": 1.72,
+     "ketchup": 1.93,
+     "croc": 1.33,
+     "thomas": 1.72
+    }
+   },
+   {
+    "id": "test_far_500484",
+    "truth_seen_as": [
+     "bus->ketchup"
+    ],
+    "toys_m": {
+     "bus": 1.74,
+     "henry": 1.36,
+     "ketchup": 1.94,
+     "thomas": 1.61
+    }
+   }
+  ],
+  "rule": "plan section 8: farthest distance where every target / other-toy pair is confused <= 2% (a toy confused when a box of the other class sits on it, per 0.1 m bin, pairs under 10 toys skipped)",
+  "note": "the 2% rule never trips, so 2.0 m is where the data ends; every confusion (4 of 4,782 uncut toys) is beyond 1.6 m, in clusters where two toys overlap in the image. Suggestion for Stage 3: a box first seen beyond zero_confusion_m is a candidate; re-check its class once it is within zero_confusion_m (the walk goes there anyway)"
+ },
+ "confusion_int8_board": {
+  "all": {
+   "bus": {
+    "bus": 965,
+    "missed": 8,
+    "ketchup": 1
+   },
+   "henry": {
+    "henry": 897,
+    "missed": 44
+   },
+   "croc": {
+    "croc": 985,
+    "missed": 24
+   },
+   "thomas": {
+    "thomas": 914,
+    "missed": 12
+   },
+   "ketchup": {
+    "ketchup": 907,
+    "missed": 25
+   },
+   "tray": {
+    "tray": 215
+   },
+   "background": {
+    "ketchup": 3,
+    "tray": 47,
+    "henry": 4,
+    "thomas": 2,
+    "croc": 6,
+    "bus": 1
+   }
+  },
+  "far": {
+   "tray": {
+    "tray": 150
+   },
+   "ketchup": {
+    "ketchup": 489,
+    "missed": 25
+   },
+   "bus": {
+    "bus": 548,
+    "missed": 8,
+    "ketchup": 1
+   },
+   "croc": {
+    "croc": 535,
+    "missed": 23
+   },
+   "henry": {
+    "henry": 484,
+    "missed": 43
+   },
+   "thomas": {
+    "thomas": 498,
+    "missed": 12
+   }
+  }
+ },
+ "wrong_grab_int8_board": {
+  "near": {
+   "pairs": 2658,
+   "right": 833,
+   "wrong": 0,
+   "phantom": 0,
+   "none": 1825,
+   "wrong_rate": 0.0
+  },
+  "all": {
+   "pairs": 5721,
+   "right": 3157,
+   "wrong": 3,
+   "phantom": 0,
+   "none": 2561,
+   "wrong_rate": 0.0005
+  },
+  "by_target": {
+   "bus": {
+    "pairs": 1907,
+    "wrong": 0,
+    "wrong_rate": 0.0
+   },
+   "henry": {
+    "pairs": 1907,
+    "wrong": 0,
+    "wrong_rate": 0.0
+   },
+   "ketchup": {
+    "pairs": 1907,
+    "wrong": 3,
+    "wrong_rate": 0.0016
+   }
+  }
+ },
+ "h1_ranging": {
+  "need_extra_rms_cm_max": 0.7,
+  "int8_board_extra_rms_cm": 0.063,
+  "fp16_board_extra_rms_cm": 0.055,
+  "fp32_cloud_extra_rms_cm": 0.055,
+  "n": 76,
+  "missed": 0,
+  "extra_max_cm": 0.154,
+  "oracle_vs_truth_rms_cm": 0.524,
+  "blind_park_rms_cm": 2.41,
+  "expected_grasp_p": 0.637,
+  "pass": true,
+  "rule": "approach frames, targets 0.18-0.30 m; extra = YOLO box ranged minus seg box ranged (Stage 1 oracle); expected grasp p = 1 - (blind park RMS^2 + extra RMS^2) / 4^2 cm^2",
+  "note": "the YOLO box adds 0.06 cm to a 2.4 cm park scatter, so the grasp chance is the oracle's (0.637 either way)"
+ },
+ "precision_choice": {
+  "chosen": "int8",
+  "rule": "closed loop on INT8 unless its targets mAP50 is more than 2 pp below FP16 on the board",
+  "fp16_board_targets_map50": 0.9898,
+  "int8_board_targets_map50": 0.9897,
+  "drop_pp": 0.01,
+  "speed": "INT8 inference P50 6.9 ms vs FP16 13.6 ms, end-to-end P99 40.0 vs 46.2 ms (deploy below)"
+ },
+ "parity": {
+  "mac_same_frames": {
+   "rule": "same box count in every frame, scores within 0.01",
+   "frames": 200,
+   "worst_conf_diff": 1e-05,
+   "pass": true
+  },
+  "mac_render": {
+   "rule": "\"found\" agrees for >= 95% of target toys (since 54241af; Mac re-renders differ in pixels)",
+   "frames": 200,
+   "found_agree": 1.0,
+   "frames_with_other_box_count": 2,
+   "pixel_mean_abs": 0.199,
+   "pixel_share_over_8": 0.00459,
+   "pass": true
+  },
+  "board_vs_cloud": {
+   "fp16_fp32": {
+    "found_agree": 0.9994,
+    "frames_with_other_box_count": 2,
+    "worst_pair_conf": 0.02012,
+    "pass": true
+   },
+   "fp16_sim": {
+    "found_agree": 0.9994,
+    "frames_with_other_box_count": 2,
+    "worst_pair_conf": 0.01953,
+    "pass": true
+   },
+   "int8_fp32": {
+    "found_agree": 0.9977,
+    "frames_with_other_box_count": 6,
+    "worst_pair_conf": 0.49972,
+    "pass": true
+   },
+   "int8_sim": {
+    "found_agree": 0.9972,
+    "frames_with_other_box_count": 7,
+    "worst_pair_conf": 0.10349,
+    "pass": true
+   }
+  },
+  "board_vs_cloud_note": "test split, 1500 frames, 1759 target toys; *_fp32 = against the cloud split ONNX, *_sim = against the toolkit simulator of the same RKNN",
+  "npu_low_score_floor": "board FP16/INT8 give background cells scores ~0.001-0.01 (100 boxes per frame at conf 0.001), so AP sees a longer tail; at conf >= 0.25 the box count matches the cloud (3959 vs 3961); harmless for detection, but makes the eval-mode decode slow (FP16 66 ms/frame there, not a deployment number)"
+ },
+ "deploy_board": {
+  "rule": "end-to-end P99 <= 66.0 ms and missed <= 1 (Stage 0 rate 6/90000 over 3362 ticks, at least 1)",
+  "view": "search",
+  "head": [
+   0.0,
+   0.15
+  ],
+  "motion": [
+   [
+    "stand",
+    4.0
+   ],
+   [
+    "left",
+    8.0
+   ],
+   [
+    "stand",
+    4.0
+   ],
+   [
+    "right",
+    8.0
+   ]
+  ],
+  "layout_seed": 600002,
+  "backends": {
+   "cpu": {
+    "frames": 1000,
+    "receive_ms_p50_p99": [
+     3.8,
+     4.0
+    ],
+    "preprocess_ms_p50_p99": [
+     6.7,
+     9.1
+    ],
+    "inference_ms_p50_p99": [
+     41.3,
+     42.1
+    ],
+    "postprocess_ms_p50_p99": [
+     0.5,
+     0.7
+    ],
+    "e2e_ms_p50_p99": [
+     52.5,
+     55.3
+    ],
+    "e2e_ms_max": 59.2,
+    "processed_fps": 15.01,
+    "skipped_frames": 0,
+    "self_cpu_pct_of_one_core": 185.56,
+    "system_cpu_pct": 23.56,
+    "robotd_cpu_pct_of_one_core": 5.91,
+    "temp_c_max": 37.923,
+    "robotd_missed": 0,
+    "robotd_ticks": 3363,
+    "robotd_hz_mean": 50.0,
+    "robotd_period_ms_p99": 21.229,
+    "falls": 0,
+    "pass": true
+   },
+   "fp16": {
+    "frames": 1000,
+    "receive_ms_p50_p99": [
+     3.8,
+     5.8
+    ],
+    "preprocess_ms_p50_p99": [
+     19.1,
+     25.1
+    ],
+    "inference_ms_p50_p99": [
+     13.6,
+     23.3
+    ],
+    "postprocess_ms_p50_p99": [
+     0.4,
+     1.8
+    ],
+    "e2e_ms_p50_p99": [
+     37.3,
+     46.2
+    ],
+    "e2e_ms_max": 55.5,
+    "processed_fps": 15.02,
+    "skipped_frames": 0,
+    "self_cpu_pct_of_one_core": 54.63,
+    "system_cpu_pct": 8.64,
+    "robotd_cpu_pct_of_one_core": 6.83,
+    "temp_c_max": 35.153,
+    "robotd_missed": 0,
+    "robotd_ticks": 3363,
+    "robotd_hz_mean": 50.0,
+    "robotd_period_ms_p99": 22.144,
+    "falls": 0,
+    "pass": true,
+    "npu_load_pct_mean_core0_1_2": [
+     11.0,
+     0.0,
+     0.0
+    ]
+   },
+   "int8": {
+    "frames": 1000,
+    "receive_ms_p50_p99": [
+     3.9,
+     6.3
+    ],
+    "preprocess_ms_p50_p99": [
+     18.9,
+     25.5
+    ],
+    "inference_ms_p50_p99": [
+     6.9,
+     14.2
+    ],
+    "postprocess_ms_p50_p99": [
+     0.4,
+     1.7
+    ],
+    "e2e_ms_p50_p99": [
+     30.6,
+     40.0
+    ],
+    "e2e_ms_max": 49.4,
+    "processed_fps": 15.02,
+    "skipped_frames": 0,
+    "self_cpu_pct_of_one_core": 48.48,
+    "system_cpu_pct": 7.86,
+    "robotd_cpu_pct_of_one_core": 7.14,
+    "temp_c_max": 32.384,
+    "robotd_missed": 0,
+    "robotd_ticks": 3362,
+    "robotd_hz_mean": 50.0,
+    "robotd_period_ms_p99": 23.083,
+    "falls": 0,
+    "pass": true,
+    "npu_load_pct_mean_core0_1_2": [
+     6.9,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "versions_board": {
+   "python": "3.11.2",
+   "numpy": "1.26.4",
+   "opencv": "4.11.0",
+   "kernel": "6.1.141",
+   "onnxruntime": "1.28.0",
+   "rknn-toolkit-lite2": "2.3.2",
+   "rknpu_driver": "RKNPU driver: v0.9.8"
+  },
+  "versions_mac_sim": {
+   "mujoco": "3.10.0",
+   "python": "3.12.14",
+   "mac": "26.6.2"
+  },
+  "note": "Python detector (stage2/deploy.py) on the board, camera frames from the Mac sim over TCP 7901 (640x360 UYVY), robotd s2 on the board standing and turning. Preprocess is 19 ms on the NPU backends vs 6.7 ms on the CPU backend with the same code; likely the scheduler puts the lightly loaded process on the A55 little cores (not yet checked; taskset to cores 4-7 is the test). The 2H C++ version targets this step"
+ },
+ "evidence": {
+  "sheet": "claude-docs/stage2_facts_20261026/阶段2_证据检查_20帧.png",
+  "frames": 20,
+  "picked": "the 4 frames where board INT8 and cloud FP32 disagree, all 4 class confusions, the 2 target boxes on no labelled toy, 3 far search frames with Henry + croc + Thomas, 2 approach H1, 4 test_walk (turning and walking), 1 empty frame",
+  "result": "every box sits on its toy with the right class except the listed confusions (far, overlapping toys); the INT8 misses are far toys of 8-15 px; the 2 \"background\" target boxes are a duplicate ketchup box beside the real one and a Henry cut by the frame edge (its label is dropped as cut), not boxes on empty floor; near and approach frames are all right"
+ },
+ "pending": [
+  "2H C++ board detector (optional, Ethan)",
+  "Stage 2 explain-back"
+ ]
+}

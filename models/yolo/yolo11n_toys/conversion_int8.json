@@ -1,0 +1,122 @@
+{
+ "stamp": "20261025T120717Z",
+ "mode": "int8",
+ "algo": "normal",
+ "onnx": "/home/claude/microduck-rk3588-toy-retrieval/runs/20261025T120555Z_s2d_export/yolo11n_toys_split_320.onnx",
+ "onnx_sha256": "b492c8ada9c1c51e723db3f2b8c59e603481084079f07ec7ef48449122aa6618",
+ "source_pt_sha256": "1701a32cc50b906caaae13239ef78773f8309ebe196a6155f8f49e5b480ef186",
+ "rknn": "yolo11n_toys_int8.rknn",
+ "rknn_sha256": "32bdb3d9bf47356f5a4fb5e8f871794827ae7c7c7856e4c89aea4209763fb469",
+ "rknn_bytes": 4124263,
+ "config": {
+  "mean_values": [
+   [
+    0,
+    0,
+    0
+   ]
+  ],
+  "std_values": [
+   [
+    255,
+    255,
+    255
+   ]
+  ],
+  "target_platform": "rk3588",
+  "quantized_dtype": "w8a8",
+  "quantized_method": "channel",
+  "quantized_algorithm": "normal"
+ },
+ "calibration": {
+  "frames": 300,
+  "seed": 0,
+  "strata": {
+   "approach/grid": {
+    "pool": 820,
+    "chosen": 87
+   },
+   "approach/wood": {
+    "pool": 780,
+    "chosen": 82
+   },
+   "search/grid": {
+    "pool": 586,
+    "chosen": 62
+   },
+   "search/wood": {
+    "pool": 651,
+    "chosen": 69
+   }
+  },
+  "sha256": "f9390e7e8d852a7a93d169f929c1bb96bd21ef16bacbb7a8dd3f2f9ffa6c0dc3"
+ },
+ "names": [
+  "bus",
+  "henry",
+  "ketchup",
+  "croc",
+  "thomas",
+  "tray"
+ ],
+ "sim_check": {
+  "frames": 100,
+  "conf": 0.25,
+  "cosine": {
+   "box8": 0.990529,
+   "cls8": 0.998569,
+   "sum8": 0.998567,
+   "box16": 0.992838,
+   "cls16": 0.998525,
+   "sum16": 0.998511,
+   "box32": 0.99694,
+   "cls32": 0.974394,
+   "sum32": 0.8065
+  },
+  "max_abs_err": {
+   "box8": 6.20394,
+   "cls8": 0.30139,
+   "sum8": 0.3017,
+   "box16": 4.93683,
+   "cls16": 0.37275,
+   "sum16": 0.37274,
+   "box32": 3.54768,
+   "cls32": 0.28389,
+   "sum32": 0.66273
+  },
+  "boxes": {
+   "onnx": 294,
+   "rknn": 294,
+   "pairs": 294,
+   "worst_box_px": 2.124355115421338,
+   "worst_conf": 0.15285217761993408
+  }
+ },
+ "predictions": {
+  "test": {
+   "frames": 1500,
+   "boxes": 4212
+  },
+  "test_far": {
+   "frames": 600,
+   "boxes": 2306
+  },
+  "test_unseen": {
+   "frames": 500,
+   "boxes": 1466
+  },
+  "test_walk": {
+   "frames": 300,
+   "boxes": 565
+  }
+ },
+ "scope": "cloud simulator; the board run (init_runtime + inference on the NPU) is plan 2E/2F",
+ "python": "3.11.17",
+ "versions": {
+  "rknn-toolkit2": "2.3.2",
+  "onnx": "1.16.1",
+  "onnxruntime": "1.18.1",
+  "numpy": "1.26.4",
+  "torch": "2.4.0"
+ }
+}

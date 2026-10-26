@@ -1,0 +1,111 @@
+{
+ "stamp": "20261025T120555Z",
+ "weights": "runs/20261025T115507Z_s2c_train/weights/best.pt",
+ "weights_sha256": "1701a32cc50b906caaae13239ef78773f8309ebe196a6155f8f49e5b480ef186",
+ "names": [
+  "bus",
+  "henry",
+  "ketchup",
+  "croc",
+  "thomas",
+  "tray"
+ ],
+ "split": {
+  "file": "yolo11n_toys_split_320.onnx",
+  "sha256": "b492c8ada9c1c51e723db3f2b8c59e603481084079f07ec7ef48449122aa6618",
+  "inputs": {
+   "images": [
+    1,
+    3,
+    320,
+    320
+   ]
+  },
+  "outputs": {
+   "box8": [
+    1,
+    64,
+    40,
+    40
+   ],
+   "cls8": [
+    1,
+    6,
+    40,
+    40
+   ],
+   "sum8": [
+    1,
+    1,
+    40,
+    40
+   ],
+   "box16": [
+    1,
+    64,
+    20,
+    20
+   ],
+   "cls16": [
+    1,
+    6,
+    20,
+    20
+   ],
+   "sum16": [
+    1,
+    1,
+    20,
+    20
+   ],
+   "box32": [
+    1,
+    64,
+    10,
+    10
+   ],
+   "cls32": [
+    1,
+    6,
+    10,
+    10
+   ],
+   "sum32": [
+    1,
+    1,
+    10,
+    10
+   ]
+  },
+  "metadata": {
+   "names": "{\"0\": \"bus\", \"1\": \"henry\", \"2\": \"ketchup\", \"3\": \"croc\", \"4\": \"thomas\", \"5\": \"tray\"}",
+   "stride": "[8, 16, 32]",
+   "imgsz": "[320, 320]",
+   "reg_max": "16",
+   "task": "detect",
+   "layout": "split9 (box, cls, sum) x stride 8/16/32",
+   "source_pt_sha256": "1701a32cc50b906caaae13239ef78773f8309ebe196a6155f8f49e5b480ef186",
+   "reference": "airockchip/ultralytics_yolo11 RKOPT_README.md"
+  }
+ },
+ "single": {
+  "file": "yolo11n_toys_single_320.onnx",
+  "sha256": "e95704a1ddd6a240a6fbaf01bd69c8e6a1546dde7bcf355d0ac8f59252227bf8",
+  "outputs": {
+   "output0": [
+    1,
+    10,
+    2100
+   ]
+  }
+ },
+ "opset": 17,
+ "torch_exporter": "legacy: explicit dynamo=False",
+ "python": "3.12.3",
+ "versions": {
+  "ultralytics": "8.3.200",
+  "torch": "2.9.1",
+  "onnx": "1.22.0",
+  "numpy": "2.5.4"
+ }
+}

@@ -127,5 +127,39 @@ class EvaluateTests(unittest.TestCase):
         self.assertEqual(s['wrong_grab']['by_target']['henry']['wrong'], 1)
 
 
+class ConfirmDistanceTests(unittest.TestCase):
+    SPACE = ev.Space('ours', {'classes': ['bus', 'henry', 'ketchup', 'croc', 'thomas', 'tray'],
+                              'targets': ['bus', 'henry', 'ketchup']})
+
+    def rows(self, croc_dist, croc_seen_as):
+        henry = obj('henry', [10, 10, 30, 20], 0.55)
+        croc = obj('croc', [100, 10, 120, 20], croc_dist)
+        frames = [(frame(0, 'search', [henry, obj('croc', [60, 10, 80, 20], 0.52)]),
+                   [det('henry', henry['xyxy_input']), det('croc', [60, 10, 80, 20])]),
+                  (frame(1, 'search', [croc]), [det(croc_seen_as, croc['xyxy_input'])])]
+        return ev.confusion_by_distance(frames, self.SPACE)
+
+    def test_croc_called_henry_ends_the_run_at_its_bin(self):
+        by_bin = self.rows(0.95, 'henry')
+        self.assertEqual(by_bin['0.9']['seen_as'], {'croc': {'henry': 1}})
+        c = ev.confirm_distance(by_bin, self.SPACE, min_n=1)
+        self.assertEqual(c['confirm_m'], 0.6)
+        self.assertEqual(c['stopped_at']['bin_m'], 0.9)
+        self.assertEqual(c['stopped_at']['pair'], 'croc~henry')
+        self.assertEqual(c['named_pairs_all_distances']['croc~henry']['confused'], 1)
+
+    def test_no_confusion_reaches_the_last_bin_and_thin_bins_are_skipped(self):
+        c = ev.confirm_distance(self.rows(0.95, 'croc'), self.SPACE, min_n=1)
+        self.assertEqual((c['confirm_m'], c['stopped_at']), (1.0, None))
+        c = ev.confirm_distance(self.rows(0.95, 'henry'), self.SPACE, min_n=2)
+        self.assertEqual((c['confirm_m'], c['stopped_at']), (0.6, None))
+
+    def test_a_box_goes_to_the_toy_it_covers_best(self):
+        bus, croc = obj('bus', [10, 10, 30, 20], 0.5), obj('croc', [22, 10, 42, 20], 0.5)
+        by_bin = ev.confusion_by_distance([(frame(0, 'search', [bus, croc]),
+                                            [det('bus', [11, 10, 31, 20])])], self.SPACE)
+        self.assertEqual(by_bin['0.5']['seen_as'], {})
+
+
 if __name__ == '__main__':
     unittest.main()
