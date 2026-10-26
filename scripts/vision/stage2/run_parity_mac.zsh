@@ -1,7 +1,10 @@
 #!/bin/zsh
 # Stage 2 2E on this Mac: the parity check. Renders the pack's 200 parity views again on this Mac,
 # runs the split ONNX on the CPU over them and over the cloud's own frames, and compares both with
-# the cloud's boxes (same box count per frame, scores within 0.01).
+# the cloud's boxes. The cloud's frames must give the same boxes (same count per frame, scores
+# within 0.01). The Mac's own renders differ from the cloud's by a few pixel levels, which moves
+# small far boxes across the 0.25 threshold, so they are judged per target toy instead: "found"
+# agrees for >= 95% (the board rule; first run 2026-10-26: 100%, 2 of 200 frames had another count).
 #   run_parity_mac.zsh runs/<UTC>_s2e_pack
 # Output: runs/<UTC>_s2e_mac_parity/{render/, mac_cloud_frames.jsonl, mac_mac_frames.jsonl,
 #         same_frames.json, mac_render.json, console.log}.
@@ -33,7 +36,7 @@ same=0 render=0
     --ref "$pack/cloud/fp32_test.jsonl" --new "$run/mac_cloud_frames.jsonl" --rule mac \
     --out "$run/same_frames.json" || same=$?
   "$MD_PY" -m microduck_toy.stage2.parity --data "$pack/data" --split test --ids "$pack/parity_ids.txt" \
-    --ref "$pack/cloud/fp32_test.jsonl" --new "$run/mac_mac_frames.jsonl" --rule mac \
+    --ref "$pack/cloud/fp32_test.jsonl" --new "$run/mac_mac_frames.jsonl" --rule board \
     --ref-images "$pack/data/images/test" --new-images "$run/render/images/test" \
     --out "$run/mac_render.json" || render=$?
   print -r -- "同一批画面：$( (( same == 0 )) && print 通过 || print 不通过 )；本机重新渲染：$( (( render == 0 )) && print 通过 || print 不通过 )。结果在 $run"
