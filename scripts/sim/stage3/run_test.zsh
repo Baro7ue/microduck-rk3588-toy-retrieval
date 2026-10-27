@@ -37,7 +37,8 @@ md_port_busy 7901 || md_die "7901 端口没有头部相机；终端 A 要带 --c
 [[ -S $MD_MAC_STATE/robotd.sock ]] || md_die "没有 robotd 控制口；先在终端 B 运行 scripts/sim/stage0/run_robotd.zsh s2。"
 log=$(mktemp "${TMPDIR:-/tmp}/s3console.XXXXXX") || exit 1
 rc=0
-"$MD_PY" -u -m microduck_toy.stage3.episode $test --source stream "$@" 2>&1 | tee "$log" || rc=${pipestatus[1]}
+# tee ignores SIGINT: on Ctrl+C the episode process still prints while it saves (stage3/run_batch.zsh).
+"$MD_PY" -u -m microduck_toy.stage3.episode $test --source stream "$@" 2>&1 | ( trap '' INT; tee "$log" ) || rc=${pipestatus[1]}
 run=$(sed -n 's/^运行目录：//p' "$log" | head -n 1)
 if [[ -n $run && -d $run ]]; then
   mv "$log" "$run/console.log"

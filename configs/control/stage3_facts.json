@@ -1,0 +1,393 @@
+{
+ "about": "Stage 3 exit facts (plan claude-docs/stage3_plan_20261026/, section 10). Stage 4 runs the frozen code (git tag stage3-freeze) and reads its brain numbers only from here, configs/control/stage3.json (knobs, frozen) and the Stage 0-2 facts. Units are in the key names. Mac = Ethan's MacBook Air sim: arena body with the threaded camera, robotd s2, the brain in the runner's process, YOLO FP32 (split ONNX) on the CPU. Board = the brain on the RK3588 (YOLO INT8 on the NPU, robotd on the board, MuJoCo body and truth on the Mac). Cloud twin runs are pre-runs only and appear nowhere below.",
+ "written_utc": "2026-10-27",
+ "measured_with_commit": "3p/3ab/3c/3d at f40dcab + the batch-1 fix uncommitted (committed unchanged as e62b512); 3p rescored at e62b512 (RESET_JUMP_M); 3E and m_spin at e62b512; 3F at d0f395a (robotd on core 7, brain on cores 4-6 at nice 10). The brain, the configs and the models are the same in all of them except the 3F launch (cores) and bd12f25's board-side fixes (--start=, error report, frame clock).",
+ "runs": {
+  "3p": "runs/20261027T025229Z_s33p_s2 (rescored)",
+  "3p_m_spin_after_lag": "runs/20261027T054255Z_s33p_s2",
+  "3ab": "runs/20261027T025521Z_s33ab_s2",
+  "3c": "runs/20261027T031611Z_s33c_s2",
+  "3d": "runs/20261027T032707Z_s33d_s2",
+  "3e": "runs/20261027T054310Z_s33e_s2",
+  "3f": "runs/20261027T101202Z_s33e_s2_board (--mac-run runs/20261027T054310Z_s33e_s2)",
+  "3f_before_core_split": "runs/20261027T083323Z_s33e_s2_board (failed only on robotd missed ticks, kept as evidence)",
+  "3g_board_trial": "pending"
+ },
+ "episode_rule": {
+  "max_s": 180.0,
+  "max_closes": 3,
+  "delivered": "2 s after the end the target's centre is inside the tray's outer square (|dx|, |dy| < 0.15 m) and below 0.06 m; strict = inner square 0.144 m (configs/control/stage3.json episode)",
+  "ends": [
+   "delivered",
+   "drop_missed",
+   "grasp_fail",
+   "search_fail",
+   "wrong_toy",
+   "timeout",
+   "error"
+  ],
+  "falls": "a fall does not end the episode; velstand gets up (stage0_facts getup.episode_rule)",
+  "dev_seeds": "3000-3009 x bus, henry, ketchup (configs/control/stage3_layouts.json)",
+  "formal_seeds": "1000-1019 (configs/control/stage1_layouts.json), Stage 4 only"
+ },
+ "sim_health_mac": {
+  "rule": "<= 2% of 20 ms steps longer than 35 ms; odometry / truth path while walking 0.93-1.07",
+  "3ab": {
+   "stalled": 0.0037,
+   "odom_ratio": 0.992
+  },
+  "3c": {
+   "stalled": 0.0003,
+   "odom_ratio": 0.99
+  },
+  "3d": {
+   "stalled": 0.001,
+   "odom_ratio": 0.984
+  },
+  "3e": {
+   "stalled": 0.0015,
+   "odom_ratio": 0.99
+  },
+  "3e_per_episode": {
+   "stalled_max": 0.0066,
+   "odom_ratio_min": 0.957,
+   "odom_ratio_max": 1.014,
+   "note": "every one of the 30 episodes passes the rule alone, so the batch runner judges each episode folder by it"
+  },
+  "3f_board_body": {
+   "stalled": 0.0001
+  },
+  "camera_draw": "the threaded camera; Mac draw p50 ~41 ms (batch 1 drew on the physics thread: 16.7% stalled, odometry 0.84, discarded)"
+ },
+ "search_3a": {
+  "found_and_handed_over_3ab": "30/30",
+  "distractor_into_b_3ab": 0,
+  "pass_3a": true,
+  "look_seen_rate_3ab": {
+   "k": 57,
+   "n": 59
+  },
+  "look_seen_rate_3e": {
+   "k": 56,
+   "n": 57
+  },
+  "confirm_s_mean_3ab": 7.23,
+  "confirm_s_mean_3e": 7.01,
+  "confirm_s_max_3e": 9.05,
+  "spin_bearing_err_deg": {
+   "3ab_frame_p50": 4.43,
+   "3ab_frame_p90": 6.55,
+   "3e_frame_p50": 0.64,
+   "3e_frame_p90": 1.3,
+   "note": "3ab ran with camera.stream_lag_s 0; 3E with 0.07 (3p m_spin: 3.09 deg mean frame error at 0.757 rad/s = 71 ms late)"
+  },
+  "stream_lag_s": 0.07,
+  "stream_lag_residual_s_after": -0.024,
+  "closed_loop_vision_3e_mac": {
+   "recall_targets": {
+    "k": 301,
+    "n": 303
+   },
+   "precision_targets": {
+    "k": 344,
+    "n": 344
+   },
+   "recall_by_distance_m": {
+    "0.0-0.6": 0.994,
+    "0.6-1.0": 0.983,
+    "1.0-1.4": 0.97,
+    "1.4-1.8": 0.943
+   },
+   "wrong_class_within_1_6m": 0,
+   "spin_range_abs_err_p50_m": {
+    "0.0-0.6": 0.015,
+    "0.6-1.0": 0.02,
+    "1.0-1.4": 0.036,
+    "1.4-1.8": 0.055
+   }
+  },
+  "closed_loop_vision_3ab_mac": {
+   "recall_targets": {
+    "k": 339,
+    "n": 342
+   },
+   "precision_targets": {
+    "k": 347,
+    "n": 347
+   },
+   "wrong_class_within_1_6m": 0
+  },
+  "closed_loop_vision_3f_board_int8": {
+   "recall_targets": {
+    "k": 51,
+    "n": 51
+   },
+   "precision_targets": {
+    "k": 63,
+    "n": 63
+   },
+   "wrong_class_within_1_6m": 0
+  }
+ },
+ "grasp_3b": {
+  "3ab": {
+   "closes": 44,
+   "grasped": 28,
+   "success_per_close": 0.636,
+   "held_within_3": {
+    "k": 28,
+    "n": 30
+   },
+   "wrong_grabs": 0,
+   "park_rms_m": 0.0244,
+   "falls": 0,
+   "pass": true
+  },
+  "3e": {
+   "closes": 49,
+   "grasped": 26,
+   "success_per_close": 0.531,
+   "held_within_3": {
+    "k": 26,
+    "n": 30
+   },
+   "wrong_grabs": 0
+  },
+  "park_err_3e_cm": {
+   "n": 49,
+   "lateral_mean": 1.35,
+   "lateral_sd": 2.17,
+   "forward_mean": 0.27,
+   "forward_sd": 0.92,
+   "sign": "lateral + = the toy left of the 1.5 cm-left target, i.e. the robot parked too far right",
+   "note": "grasped at -2.1..+3.3 cm; 19 of 23 misses at +1.7..+4.7 cm, and retries miss on the same side (known issue 1)"
+  },
+  "last_segment": "blind walk (Stage 1 decision 2026-10-23); visual inching only as the Stage 4 comparison"
+ },
+ "tray_3c": {
+  "chosen_d_m": 0.21,
+  "c_drop": {
+   "0.19": {
+    "delivered": "9/9",
+    "tray_contact": 7,
+    "falls": 0
+   },
+   "0.21": {
+    "delivered": "9/9",
+    "tray_contact": 3,
+    "falls": 0
+   },
+   "0.23": {
+    "delivered": "7/9",
+    "tray_contact": 0,
+    "falls": 0
+   },
+   "rule": "among d with 0 falls, the most deliveries (ties: fewer stumbles, then larger d); the chosen d needs >= 8/9"
+  },
+  "c_route": {
+   "delivered": "9/9",
+   "drops_on_way": 0,
+   "falls": 0,
+   "tray_contact": 4
+  },
+  "tray_ranging_err_cm_3e": {
+   "n": 26,
+   "source": "yolo 26/26 (5 frames each)",
+   "forward_mean": -1.2,
+   "forward_abs_max": 2.42,
+   "left_mean": -0.34,
+   "left_abs_max": 2.16,
+   "rms": 1.73
+  },
+  "tray_ranging_err_cm_3c_d021": {
+   "forward_mean": -1.02,
+   "forward_abs_max": 2.13,
+   "left_mean": 0.17,
+   "left_abs_max": 1.25
+  },
+  "staging_arrival_err_cm_3e": {
+   "mean": 5.3,
+   "max": 12.0,
+   "yaw_abs_mean_deg": 4.5,
+   "yaw_abs_max_deg": 12.0
+  },
+  "trunk_to_tray_centre_at_drop_m_3e": {
+   "mean": 0.202,
+   "min": 0.171,
+   "max": 0.225
+  },
+  "tray_contact_3e": "11 of 26 drops touched the rim, 0 stumbles, 0 falls"
+ },
+ "falls_3d": {
+  "d_fall": {
+   "pushed": 9,
+   "fell": 8,
+   "ended_with_reason": 9,
+   "delivered": 7,
+   "getup_s": [
+    0.961,
+    0.785,
+    0.68,
+    1.04,
+    0.303,
+    0.575,
+    0.679,
+    0.76
+   ],
+   "by_state": {
+    "GOTO": [
+     "delivered",
+     "delivered",
+     "drop_missed"
+    ],
+    "APPROACH": [
+     "delivered",
+     "grasp_fail",
+     "delivered"
+    ],
+    "CARRY": [
+     "delivered",
+     "delivered",
+     "delivered"
+    ]
+   },
+   "not_felled": [
+    "d_fall_carry_3002_bus (pushes 1.05 and 1.26 m/s while carrying)"
+   ],
+   "verdict": "false only because one push did not fell the robot: a fixture problem, rule unchanged (known issue 2)"
+  },
+  "fall_signal": "the brain zeroes the move on robot.state safety.fallen only (no truth); velstand gets up by itself"
+ },
+ "tof_3d": {
+  "d_tof": {
+   "walks": 6,
+   "stopped": 6,
+   "min_trunk_to_wall_m": [
+    0.148,
+    0.106,
+    0.14,
+    0.174,
+    0.13,
+    0.167
+   ],
+   "pass": true
+  },
+  "false_stops": "0 in 3c (27 drops + 9 carries), 3d, 3E (30 episodes) and 3F",
+  "m_tof_3p": "a wall 0.20 m ahead stops in H0, H1 and the search pose; 0.30 m and 0.50 m and the tray staging poses do not"
+ },
+ "reach_3p_cm": {
+  "tip_forward": {
+   "H0": 7.95,
+   "H1": 7.17,
+   "H2": 6.22
+  },
+  "held_toy_forward": {
+   "H0": "8.8-9.2",
+   "H1": "7.7-8.1"
+  },
+  "held_toy_in_view": "never (0 rows in 3/3 toys): the tray look is not blocked"
+ },
+ "e_3e_mac": {
+  "episodes": 30,
+  "delivered": 25,
+  "delivered_strict": 25,
+  "wrong_toy": 0,
+  "gate": ">= 21/30",
+  "pass": true,
+  "ends": {
+   "delivered": 25,
+   "grasp_fail": 4,
+   "drop_missed": 1
+  },
+  "not_delivered": [
+   "3004 bus grasp_fail",
+   "3006 bus grasp_fail",
+   "3006 ketchup grasp_fail",
+   "3007 ketchup drop_missed",
+   "3008 henry grasp_fail"
+  ],
+  "mean_s": 40.5,
+  "falls": 0,
+  "tof_stops": 0,
+  "disturbed_toys": 0,
+  "tray_contact": 11,
+  "stumbles": 0,
+  "state_s_mean": {
+   "SPIN": 5.43,
+   "LOOK": 3.27,
+   "GOTO": 2.02,
+   "APPROACH": 7.82,
+   "LAST": 3.44,
+   "PICK": 7.37,
+   "CARRY": 6.61,
+   "TRAY_LOOK": 1.36,
+   "DROP": 3.19
+  }
+ },
+ "f_3f_board": {
+  "episodes": "first 9 of 3E (3000-3002 x 3 targets)",
+  "backend": "int8 (NPU)",
+  "delivered": 9,
+  "mac_delivered_same": 9,
+  "ends": {
+   "delivered": 9
+  },
+  "mean_s": 37.3,
+  "falls": 0,
+  "e2e_p99_ms": [
+   42.666,
+   44.269,
+   45.983,
+   45.545,
+   51.724,
+   42.615,
+   45.233,
+   48.801,
+   46.028
+  ],
+  "e2e_p99_ms_max_rule": 66.0,
+  "robotd": {
+   "ticks": 17032,
+   "missed": 0,
+   "allowed": 2,
+   "hz_min": 49.87,
+   "rule": "missed <= max(1, Stage 0 rate 6/90k x ticks)"
+  },
+  "cores": "robotd taskset -c 7 (MD_BOARD_ROBOTD_CPUS); brain nice 10, taskset -c 4-6 (MD_BOARD_CPUS); neither runs on the A55 cores 0-3",
+  "before_core_split": {
+   "robotd_missed": 12,
+   "ticks": 16275,
+   "brain_cores": "4-7, nice 0",
+   "note": "4 misses at brain start (model load), 4 in early SPIN, the rest single; same 9/9 delivered"
+  },
+  "pass": true
+ },
+ "batch_runner_3g": {
+  "script": "scripts/stage3/run_batch.zsh --target mac|board [--layouts FILE] [--seeds A-B] [--targets ...] [--backend ...] [--out ...] [--formal]",
+  "folders": "runs/batch_<target>_<backend>_<layouts>[_<A-B>][_<targets>]/episodes/<seed>_<target>/ (one episode process and run folder each)",
+  "resume": "the same command again; only episodes whose folder is a result are skipped (summary.json, no interruption or runner/scorer/brain error, sim health ok, brain log and, on the board, latency and robotd logs present)",
+  "failed_attempts": "renamed <seed>_<target>.<interrupted|infra|incomplete><n>, kept, counted in summary.json, rerun next time; 3 in a row stop the batch",
+  "same_code": "batch.json keeps the sha256 of the bundle's SHA256SUMS (package + 4 configs + 3 models) and of the layouts file; a resume with others is refused",
+  "board_trial": "pending"
+ },
+ "freeze": {
+  "tag": "stage3-freeze",
+  "commit": "pending",
+  "bundle_sha256": "pending",
+  "stage3_json": "frozen: no change after the tag (camera.stream_lag_s 0.07, tray d 0.21 and the rest as committed)",
+  "formal_seed_check": "pending (python -m microduck_toy.stage3.batch formal-check)"
+ },
+ "known_issues": [
+  "1. Lateral park bias in the blind last segment: the robot parks +1.35 cm (sd 2.17) too far right of the target spot; 19 of 23 misses at +1.7..+4.7 cm and retries repeat the side. Not tuned: the 3E gate passed and Stage 4 runs frozen code. Report it with the Stage 4 inching comparison; a candidate fix is aiming ~1 cm further left.",
+  "2. 3D d_fall: one of the 9 pushes (carrying, 3002 bus) did not fell the robot at 1.05 and 1.26 m/s; the 8 falls all got up (0.30-1.04 s) and ended with a reason. A push-fixture limit, not a brain failure.",
+  "3. robotd missed ticks on the Mac sim with the camera running (14.3 per 10k ticks in the 3ab rerun, 6.3 in 3E) come from the Mac drawing frames beside robotd; the board had 0 in 3F after the core split. Mac robotd timing is not a deployment number.",
+  "4. The cloud twin draws a frame in ~450 ms, so its streamed search sees ~2 frames/s with ~0.5 s lag: cloud pre-runs use --source probe and are never evidence.",
+  "5. 3E's one drop_missed (3007 ketchup): the second close held the toy off-centre (6.0 cm forward, 2.1 cm left in the beak, against ~9 cm and ~0 cm on clean grips); it touched the rim and landed 0.20 m behind and 0.17 m left of the tray centre. 11 of 26 drops touched the rim without a stumble; the strict inner-square count equals the main one (25)."
+ ],
+ "pending": [
+  "3g_board_trial",
+  "freeze.commit",
+  "freeze.bundle_sha256",
+  "freeze.formal_seed_check"
+ ]
+}

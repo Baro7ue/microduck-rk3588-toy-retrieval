@@ -90,8 +90,25 @@ def make_layouts() -> dict:
     return doc
 
 
-def load_layouts() -> list[dict]:
-    return json.loads(layouts_path().read_text())['layouts']
+def load_layouts(path: str | Path | None = None) -> list[dict]:
+    """The layouts in `path` (relative to the repo; default configs/control/stage3_layouts.json)."""
+    path = Path(path) if path else layouts_path()
+    if not path.is_absolute():
+        path = repo_root() / path
+    return json.loads(path.read_text())['layouts']
+
+
+def formal_seeds() -> range:
+    """Stage 4's 20 formal layouts (configs/control/stage1.json layout): Stage 3 never runs them."""
+    lay = common.stage1_config()['layout']
+    return range(int(lay['formal_seed_base']), int(lay['formal_seed_base']) + int(lay['formal_seeds']))
+
+
+def check_not_formal(seeds, formal: bool) -> None:
+    hit = sorted({int(s) for s in seeds} & set(formal_seeds()))
+    if hit and not formal:
+        raise SystemExit(f'seeds {hit} are formal Stage 4 layouts; Stage 3 does not run them '
+                         '(pass --formal in Stage 4)')
 
 
 def episode_layout(lay: dict, target: str) -> dict:
@@ -101,14 +118,20 @@ def episode_layout(lay: dict, target: str) -> dict:
     return {'robot': lay['robot'], 'toys': toys}
 
 
-def dev_episodes(spec: str | None, quick: bool) -> list[dict]:
-    lays = {l['seed']: l for l in load_layouts()}
+def dev_episodes(spec: str | None, quick: bool, path: str | None = None, formal: bool = False) -> list[dict]:
+    lays = {l['seed']: l for l in load_layouts(path)}
     if spec:
         out = []
         for item in spec.split(','):
             seed, target = item.split(':')
+            if int(seed) not in lays:
+                raise SystemExit(f'seed {seed} is not in {path or layouts_path()}')
+            if target not in TARGETS:
+                raise SystemExit(f'target {target!r} is not one of {TARGETS}')
             out.append({'seed': int(seed), 'target': target, 'layout': lays[int(seed)]})
+        check_not_formal([e['seed'] for e in out], formal)
         return out
+    check_not_formal(lays, formal)
     if quick:
         seeds = sorted(lays)[:3]
         return [{'seed': s, 'target': t, 'layout': lays[s]} for s, t in zip(seeds, TARGETS)]
@@ -142,7 +165,8 @@ class Runner(common.Session):
             args.socket = (os.environ.get('MD_STARTUP_SOCKET', '/private/tmp/md-rk-startup-ethan.sock')
                            if self.board else common.default_socket())
         stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-        self.dir = runs_dir() / f'{stamp}_s3{test}_{args.config}{"_board" if self.board else ""}'
+        self.dir = (Path(args.out) if args.out else      # --out: the batch runner's one folder per episode
+                    runs_dir() / f'{stamp}_s3{test}_{args.config}{"_board" if self.board else ""}')
         self.dir.mkdir(parents=True, exist_ok=False)
         print(f'运行目录：{self.dir}', flush=True)
         self.configs = brain_lib.load_configs()
@@ -171,6 +195,7 @@ class Runner(common.Session):
                      'toys': info.get('toys'), 'tray_centre': info.get('tray_centre'),
                      'stage1_config': self.cfg, 'stage3_config': self.s3, 'started_utc': stamp,
                      'mac_run': str(Path(args.mac_run).resolve()) if args.mac_run else None,
+                     'layouts': args.layouts or str(layouts_path().relative_to(repo_root())),
                      'board_cpus': (args.board_cpus or None) if self.board else None}
 
     def start(self) -> None:
@@ -279,18 +304,22 @@ class Runner(common.Session):
         offsets = []
         proc = subprocess.Popen(['ssh', a.board_host, cmd], stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, bufsize=1)
-        with (self.ep_dir(label) / 'console.log').open('w') as console:
-            for line in proc.stdout:
-                now = time.monotonic()
-                console.write(line)
-                try:
-                    msg = json.loads(line)
-                except ValueError:
-                    continue
-                if isinstance(msg, dict) and 'sync' in msg:
-                    offsets.append(now - float(msg['sync']))
-                    if msg.get('event') == 'state':
-                        print(f'  {label}: {msg.get("state")}', flush=True)
+        try:
+            with (self.ep_dir(label) / 'console.log').open('w') as console:
+                for line in proc.stdout:
+                    now = time.monotonic()
+                    console.write(line)
+                    try:
+                        msg = json.loads(line)
+                    except ValueError:
+                        continue
+                    if isinstance(msg, dict) and 'sync' in msg:
+                        offsets.append(now - float(msg['sync']))
+                        if msg.get('event') == 'state':
+                            print(f'  {label}: {msg.get("state")}', flush=True)
+        except KeyboardInterrupt:
+            stop_board_brain(a.board_host)
+            raise
         status = proc.wait()
         rec['offset'] = min(offsets) if offsets else None
         rec['board_status'] = status
@@ -419,6 +448,20 @@ class Pusher:
 
 
 BOARD_NICE = 10       # the board brain yields to robotd (nice 0) when they meet on a core
+# pkill -f matches whole command lines, its own shell's too; '[m]' matches the brain but not this text.
+BOARD_BRAIN_PATTERN = '[m]icroduck_toy.stage3.brain'
+
+
+def stop_board_brain(host: str) -> None:
+    """Ctrl+C on the Mac ends the local ssh, not the brain on the board, which would walk on until it
+    next prints. SIGINT it there: it stops like a Ctrl+C at its own terminal (robotd zeroes the walk
+    500 ms after the last command)."""
+    print('  让板上的大脑停下……', flush=True)
+    try:
+        subprocess.run(['ssh', host, f'pkill -INT -f {shlex.quote(BOARD_BRAIN_PATTERN)}'], check=False,
+                       timeout=15, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f'  没能让板上的大脑停下（{error}）；下一批开始前运行器会再清一次。', flush=True)
 
 
 def board_command(a, remote_out: str, target: str, start, until: str) -> str:
@@ -440,7 +483,7 @@ def board_command(a, remote_out: str, target: str, start, until: str) -> str:
 # ── parts ───────────────────────────────────────────────────────────────────
 
 def part_ab(r: Runner) -> None:
-    eps = dev_episodes(r.args.episodes, r.args.quick)
+    eps = dev_episodes(r.args.episodes, r.args.quick, r.args.layouts, r.args.formal)
     for k, ep in enumerate(eps):
         rec = r.full(ep, 'ab', 'held')
         r.trial(rec)
@@ -450,7 +493,7 @@ def part_ab(r: Runner) -> None:
 
 
 def part_e(r: Runner) -> None:
-    eps = dev_episodes(r.args.episodes, r.args.quick)
+    eps = dev_episodes(r.args.episodes, r.args.quick, r.args.layouts, r.args.formal)
     for k, ep in enumerate(eps):
         rec = r.full(ep, 'e', 'delivered')
         r.trial(rec)
@@ -1246,6 +1289,12 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument('--quick', action='store_true')
     p.add_argument('--parts', default=None)
     p.add_argument('--episodes', default=None, help='e.g. 3000:bus,3001:henry (default: all 30)')
+    p.add_argument('--layouts', default=None,
+                   help='layouts file for --episodes (default configs/control/stage3_layouts.json)')
+    p.add_argument('--formal', action='store_true',
+                   help='allow the formal seeds 1000-1019 (Stage 4 only)')
+    p.add_argument('--out', default=None, help='this run folder instead of runs/<UTC>_s3<test>_... '
+                   '(must not exist yet; scripts/stage3/run_batch.zsh gives one per episode)')
     p.add_argument('--drop-d', type=float, default=None, help='c_drop: one d instead of the sweep')
     p.add_argument('--no-frames', action='store_true',
                    help="don't save the robot's-eye pictures (episodes/<label>/frames/)")
@@ -1342,6 +1391,8 @@ def print_health(h: dict | None) -> None:
 def print_traces(run_dir: Path, rows: list[dict]) -> None:
     """The bird's-eye trace of every episode (stage3/trace.py); a missing matplotlib only skips them."""
     from microduck_toy.stage3 import trace
+    if not (run_dir / 'trials.jsonl').exists():     # interrupted before its first episode ended
+        return
     try:
         paths = trace.plot_run(run_dir, rows=rows)
     except Exception as error:

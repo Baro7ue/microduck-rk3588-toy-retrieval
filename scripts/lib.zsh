@@ -50,3 +50,26 @@ md_sha256sums() {
     shasum -a 256 -- ${(o)files} > SHA256SUMS
   )
 }
+
+# The Stage 3 brain's bundle: the package, the four configs the brain reads and the frozen Stage 2 models.
+MD_STAGE3_FILES=(configs/control/stage1.json configs/control/stage1_facts.json configs/control/stage3.json
+                 configs/vision/stage2.json models/yolo/yolo11n_toys/yolo11n_toys_split_320.onnx
+                 models/yolo/yolo11n_toys/yolo11n_toys_fp16.rknn models/yolo/yolo11n_toys/yolo11n_toys_int8.rknn)
+
+# md_stage3_check: stop unless every file of the Stage 3 bundle is in the repo.
+md_stage3_check() {
+  local f
+  for f in $MD_STAGE3_FILES; do
+    [[ -f $MD_ROOT/$f ]] || md_die "缺 $f；先把仓库更新到阶段 3 的提交（PR #2 冻结的模型也要在）。"
+  done
+}
+
+# md_stage3_bundle DIR: the package and MD_STAGE3_FILES in DIR, with DIR/SHA256SUMS.
+md_stage3_bundle() {
+  local f
+  md_bundle "$1" || return 1
+  for f in $MD_STAGE3_FILES; do
+    mkdir -p "$1/${f:h}" && cp "$MD_ROOT/$f" "$1/$f" || return 1
+  done
+  md_sha256sums "$1"
+}

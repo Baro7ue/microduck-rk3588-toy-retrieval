@@ -30,13 +30,7 @@ args=("$@")
 if (( ! ${args[(I)--episodes]} && ! ${args[(I)--quick]} )); then
   args+=(--episodes 3000:bus,3000:henry,3000:ketchup,3001:bus,3001:henry,3001:ketchup,3002:bus,3002:henry,3002:ketchup)
 fi
-models=(models/yolo/yolo11n_toys/yolo11n_toys_split_320.onnx models/yolo/yolo11n_toys/yolo11n_toys_fp16.rknn
-        models/yolo/yolo11n_toys/yolo11n_toys_int8.rknn)
-configs=(configs/control/stage1.json configs/control/stage1_facts.json configs/control/stage3.json
-         configs/vision/stage2.json)
-for f in $models $configs; do
-  [[ -f $MD_ROOT/$f ]] || md_die "缺 $f；先把仓库更新到阶段 3 的提交（PR #2 冻结的模型也要在）。"
-done
+md_stage3_check
 md_port_busy 7811 || md_die "7811 端口没有测试端口；先在终端 A 运行 scripts/sim/stage1/run_arena_body.zsh --camera --board。"
 md_port_busy 7901 || md_die "7901 端口没有头部相机；终端 A 要带 --camera --board 启动。"
 ssh "$MD_BOARD_HOST" "test -S ${(q)MD_BOARD_ROOT}/run/robotd.sock" ||
@@ -45,11 +39,7 @@ ssh "$MD_BOARD_HOST" "test -S ${(q)MD_BOARD_ROOT}/run/robotd.sock" ||
 export PYTHONPATH="$PYTHONPATH:$MD_VISION_SITE"
 run=$(md_run_dir s3_board_bundle) || exit 1
 bundle=$run/bundle
-md_bundle "$bundle" || md_die "打包代码失败。"
-for f in $models $configs; do
-  mkdir -p "$bundle/${f:h}" && cp "$MD_ROOT/$f" "$bundle/$f" || md_die "复制 $f 失败。"
-done
-md_sha256sums "$bundle" || md_die "生成 SHA256SUMS 失败。"
+md_stage3_bundle "$bundle" || md_die "打包代码失败。"
 remote_bundle=$MD_BOARD_ROOT/bundles/${run:t}
 remote_out=$MD_BOARD_ROOT/run/${run:t}
 
@@ -64,5 +54,5 @@ remote_out=$MD_BOARD_ROOT/run/${run:t}
     --board-bundle "$remote_bundle" --board-out "$remote_out" --board-py "$MD_BOARD_PY" \
     --board-socket "$MD_BOARD_ROOT/run/robotd.sock" --board-host "$MD_BOARD_HOST" --sim-host "$MD_SIM_HOST" \
     --board-cpus "${MD_BOARD_CPUS-4-6}" --socket "$MD_STARTUP_SOCKET" $args
-} 2>&1 | tee "$run/console.log"
+} 2>&1 | ( trap '' INT; tee "$run/console.log" )     # tee outlives a Ctrl+C, so the save is logged
 exit ${pipestatus[1]}
