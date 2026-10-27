@@ -254,12 +254,13 @@ class BoardCommandTests(unittest.TestCase):
 
     def test_pinned_to_the_big_cores(self):
         cmd = episode.board_command(self.args('4-7'), '/b/run/x/episodes/e', 'bus', (0.1, 0.2, 0.3), 'delivered')
-        self.assertIn('taskset -c 4-7 /b/venv/bin/python -u -m microduck_toy.stage3.brain --target bus', cmd)
+        self.assertIn('nice -n 10 taskset -c 4-7 /b/venv/bin/python -u -m microduck_toy.stage3.brain --target bus', cmd)
         self.assertTrue(cmd.startswith('cd /b/bundle && '))
 
     def test_empty_means_not_pinned(self):
         cmd = episode.board_command(self.args(''), '/b/out', 'bus', (0.0, 0.0, 0.0), 'held')
         self.assertNotIn('taskset', cmd)
+        self.assertIn('nice -n 10 /b/venv/bin/python', cmd)            # below robotd even unpinned
         self.assertIn('--until held', cmd)
 
     def test_the_board_brain_reads_a_start_with_a_minus_sign(self):

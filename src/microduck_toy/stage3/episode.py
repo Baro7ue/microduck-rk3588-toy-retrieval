@@ -418,15 +418,19 @@ class Pusher:
                 self.armed.clear()
 
 
+BOARD_NICE = 10       # the board brain yields to robotd (nice 0) when they meet on a core
+
+
 def board_command(a, remote_out: str, target: str, start, until: str) -> str:
-    """The shell line ssh runs on the board for one episode. With --board-cpus the brain is pinned
-    (taskset -c; the A76 big cores 4-7 preprocess a frame in 7.0 ms against 18.3 ms on the A55s,
-    configs/vision/stage2_facts.json deploy_board.preprocess_cores). --start=X,Y,YAW with '=': a pose
+    """The shell line ssh runs on the board for one episode. The brain runs at nice 10, below robotd, and
+    with --board-cpus it is pinned (taskset -c; the A76 big cores preprocess a frame in 7.0 ms against
+    18.3 ms on the A55s, configs/vision/stage2_facts.json deploy_board.preprocess_cores; the launcher
+    keeps it to 4-6 and gives robotd core 7). --start=X,Y,YAW with '=': a pose
     starting with a minus sign is otherwise read as an option (Mac 3F 2026-10-27: every board episode
     with x < 0 stopped at argparse)."""
     pin = f'taskset -c {shlex.quote(a.board_cpus)} ' if a.board_cpus else ''
     return (f'cd {shlex.quote(a.board_bundle)} && MD_ROOT="$PWD" PYTHONPATH="$PWD" '
-            f'{pin}{shlex.quote(a.board_py)} -u -m microduck_toy.stage3.brain --target {target} '
+            f'nice -n {BOARD_NICE} {pin}{shlex.quote(a.board_py)} -u -m microduck_toy.stage3.brain --target {target} '
             f'--start={",".join(f"{v:.5f}" for v in start)} '
             f'--socket {shlex.quote(a.board_socket)} --camera {a.sim_host}:7901 '
             f'--tof {a.sim_host}:7801 --backend {a.backend} --until {until} '

@@ -12,8 +12,8 @@
 # The code, the four configs and the frozen Stage 2 models go to the board as a checksummed bundle
 # ($MD_BOARD_ROOT/bundles/<run>/, checked with sha256sum -c as in 2F). Episode logs come back per
 # episode. Output: runs/<UTC>_s3_board_bundle/{bundle/, console.log} and runs/<UTC>_s3e_s2_board/.
-# The brain is pinned with taskset -c $MD_BOARD_CPUS (env.sh: the big cores 4-7; empty = not pinned;
-# unset, e.g. an env.sh from before the big-core change, also means 4-7).
+# The brain runs at nice 10, pinned with taskset -c $MD_BOARD_CPUS (unset = the big cores 4-6; empty = not
+# pinned); core 7 is robotd's (scripts/board/stage0/run_board_robotd.zsh, MD_BOARD_ROBOTD_CPUS).
 set -uo pipefail
 source "${0:A:h}/../../../env.sh"
 source "$MD_ROOT/scripts/lib.zsh"
@@ -63,6 +63,6 @@ remote_out=$MD_BOARD_ROOT/run/${run:t}
   "$MD_PY" -u -m microduck_toy.stage3.episode $test --target board --source stream \
     --board-bundle "$remote_bundle" --board-out "$remote_out" --board-py "$MD_BOARD_PY" \
     --board-socket "$MD_BOARD_ROOT/run/robotd.sock" --board-host "$MD_BOARD_HOST" --sim-host "$MD_SIM_HOST" \
-    --board-cpus "${MD_BOARD_CPUS-4-7}" --socket "$MD_STARTUP_SOCKET" $args
+    --board-cpus "${MD_BOARD_CPUS-4-6}" --socket "$MD_STARTUP_SOCKET" $args
 } 2>&1 | tee "$run/console.log"
 exit ${pipestatus[1]}

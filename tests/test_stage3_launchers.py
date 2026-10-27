@@ -95,9 +95,9 @@ class Stage3LauncherTests(unittest.TestCase):
         (_, args), = self.modules()
         self.assertEqual(args[args.index('--board-cpus') + 1], '4-7')
 
-    def test_board_pins_to_the_big_cores_when_md_board_cpus_is_unset(self):
+    def test_board_pins_to_three_big_cores_when_md_board_cpus_is_unset(self):
         self.unix_socket(self.board / 'run/robotd.sock')
-        for given, want in ((None, '4-7'), ('', '')):
+        for given, want in ((None, '4-6'), ('', '')):            # core 7 is robotd's
             extra = {} if given is None else {'MD_BOARD_CPUS': given}
             result = self.run_script('scripts/board/stage3/run_board_brain.zsh', '3e', FAKE_LSOF_STATUS='0', **extra)
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)

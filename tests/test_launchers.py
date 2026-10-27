@@ -39,6 +39,7 @@ exec bash -c "$1"
     'scp': RECORD + '''while [ $# -gt 0 ]; do case $1 in -*) shift ;; *) break ;; esac; done
 exec cp -R "${1#*:}" "${2#*:}"
 ''',
+    'taskset': RECORD + 'shift 2\nexec "$@"\n',     # taskset -c LIST CMD...: run CMD (macOS has none)
 }
 MAC_PY = RECORD + 'cat > "$f.stdin"\necho fake-python\nexit "${FAKE_PY_STATUS:-0}"\n'
 MJPYTHON = RECORD + 'echo "== startup assistance: fake"\n'

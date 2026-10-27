@@ -121,7 +121,16 @@ class Stage0LauncherTests(unittest.TestCase):
         (args, _), = self.calls('robotd')
         self.assertEqual(args[1:5], ['--sim', '192.168.50.1:7801', '--params',
                                      f'{remote}/robotd.toml'])
+        (pin, _), = self.calls('taskset')                 # robotd on a big core of its own
+        self.assertEqual(pin[1:4], ['-c', '7', str(self.board / 'bin/robotd')])
         self.assertNotEqual(self.run_script('scripts/board/stage0/run_board_robotd.zsh').returncode, 0)
+
+    @unittest.skipUnless(shutil.which('sha256sum') and shutil.which('bash'), 'needs GNU sha256sum')
+    def test_board_robotd_unpinned_when_asked(self):
+        result = self.run_script('scripts/board/stage0/run_board_robotd.zsh', 's2', MD_BOARD_ROBOTD_CPUS='')
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertEqual(self.calls('taskset'), [])
+        self.assertEqual(len(self.calls('robotd')), 1)
 
 
 if __name__ == '__main__':

@@ -24,6 +24,12 @@ for policy in $policies; do
   [[ -f $MD_MODELS/policies/$policy ]] || md_die "缺少策略文件 models/policies/$policy。"
 done
 
+# robotd gets a big core of its own (MD_BOARD_ROBOTD_CPUS, default 7; empty = not pinned) and the Stage 3
+# brain keeps to 4-6 (scripts/board/stage3/run_board_brain.zsh): 3F 2026-10-27 with the brain on 4-7 and
+# robotd unpinned, robotd overran 12 ticks in 9 episodes against 2 on the Mac for the same 9.
+robotd_cpus=${MD_BOARD_ROBOTD_CPUS-7}
+pin=''
+[[ -n $robotd_cpus ]] && pin="taskset -c ${(q)robotd_cpus} "
 run=$(md_run_dir s0_board_robotd_$1) || exit 1
 remote_bundle=$MD_BOARD_ROOT/bundles/${run:t}
 remote_out=$MD_BOARD_ROOT/run/${run:t}
@@ -40,7 +46,7 @@ cd ${(q)remote_bundle} &&
 sha256sum -c --quiet SHA256SUMS &&
 mkdir -p ${(q)remote_out} &&
 export ORT_DYLIB_PATH=${(q)MD_BOARD_ORT} DUCK_RUNTIME_DIR=${(q)MD_BOARD_ROOT}/run &&
-${(q)MD_BOARD_ROBOTD} --sim ${(q)MD_SIM_HOST}:7801 --params ${(q)remote_bundle}/robotd.toml \\
+${pin}${(q)MD_BOARD_ROBOTD} --sim ${(q)MD_SIM_HOST}:7801 --params ${(q)remote_bundle}/robotd.toml \\
   --socket \"\$DUCK_RUNTIME_DIR/robotd.sock\" \\
   2>&1 | tee ${(q)remote_out}/robotd.log"
 ssh "$MD_BOARD_HOST" "mkdir -p ${(q)MD_BOARD_ROOT}/bundles" &&
