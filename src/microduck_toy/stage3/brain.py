@@ -822,9 +822,7 @@ def make_eyes(args, configs: dict, history, probe=None, log=None):
     return eyes_lib.Eyes(source, detector, history, cam, configs['facts1']['ranging'], log=log)
 
 
-def main(argv=None) -> int:
-    from microduck_toy.stage3.eyes import StateHistory
-    from microduck_toy.stage3.tof import TofReader
+def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--target', required=True, choices=TARGETS)
     ap.add_argument('--start', required=True, help='known start pose X,Y,YAW (field frame, rad)')
@@ -841,7 +839,13 @@ def main(argv=None) -> int:
     ap.add_argument('--out', required=True)
     ap.add_argument('--frames', action='store_true',
                     help="save the robot's-eye pictures to OUT/frames (needs Pillow)")
-    args = ap.parse_args(argv)
+    return ap
+
+
+def main(argv=None) -> int:
+    from microduck_toy.stage3.eyes import StateHistory
+    from microduck_toy.stage3.tof import TofReader
+    args = parser().parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     configs = load_configs()

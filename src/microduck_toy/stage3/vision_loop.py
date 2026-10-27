@@ -223,7 +223,7 @@ def print_table(s: dict) -> None:
           f"凭空多框 {s['phantom']}；重复框 {s['duplicates']}")
     b = s['spin_bearing_err_deg']
     if b['n']:
-        print(f"  转圈方位误差：中位 {b['p50']:+.1f}°（正 = 画面比日期晚），|误差| p90 {b['abs_p90']:.1f}°")
+        print(f"  转圈方位误差：中位 {b['p50']:+.1f}°（正 = 画面比机器人状态晚），|误差| p90 {b['abs_p90']:.1f}°")
         print('  转圈测距 |误差| 中位/p90：' + '；'.join(
             f"{r['m']} m {r['abs_p50']}/{r['abs_p90']} m" for r in s['spin_range_err_m'] if r['n']))
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+import shlex
 import threading
 import time
 from types import SimpleNamespace
@@ -260,6 +261,14 @@ class BoardCommandTests(unittest.TestCase):
         cmd = episode.board_command(self.args(''), '/b/out', 'bus', (0.0, 0.0, 0.0), 'held')
         self.assertNotIn('taskset', cmd)
         self.assertIn('--until held', cmd)
+
+    def test_the_board_brain_reads_a_start_with_a_minus_sign(self):
+        from microduck_toy.stage3 import brain
+        cmd = episode.board_command(self.args('4-7'), '/b/out', 'bus', (-0.0889, -0.2407, -0.4955), 'delivered')
+        words = shlex.split(cmd.split(' && ', 1)[1])
+        args = brain.parser().parse_args(words[words.index('microduck_toy.stage3.brain') + 1:])
+        self.assertEqual(args.start, '-0.08890,-0.24070,-0.49550')     # seed 3000 (Mac 3F 2026-10-27)
+        self.assertEqual(args.out, '/b/out')
 
 
 class WallTests(unittest.TestCase):

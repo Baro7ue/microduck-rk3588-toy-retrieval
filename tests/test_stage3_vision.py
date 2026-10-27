@@ -12,7 +12,7 @@ from unittest import mock
 
 import numpy as np
 
-from microduck_toy.stage3 import shots, vision_loop as vl
+from microduck_toy.stage3 import episode, shots, vision_loop as vl
 from microduck_toy.stage3.eyes import Sight
 from test_stage3_brain import FakeRobot, StubbedMotion, make_brain
 from test_stage3_judge import row
@@ -80,6 +80,19 @@ class VisionLoopTests(unittest.TestCase):
                {'event': 'b_segment', 'mono': 6.0}]
         self.assertEqual([(f['kind'], f['mono']) for f in vl.frames_of(log)],
                          [('spin', 1.9), ('look', 4.5), ('look', 5.0)])
+
+    def test_board_frames_are_moved_onto_the_mac_clock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            (run / 'episodes' / 'e_1').mkdir(parents=True)
+            (run / 'episodes' / 'e_1' / 'brain.jsonl').write_text(
+                json.dumps({'event': 'spin_frame', 'mono': 2.0, 'mono_frame': 1.9, 'seen': [], 'view': 'window'}) + '\n'
+                + json.dumps({'event': 'look', 'mono': 5.0, 'view': 'window',
+                              'frames_seen': [{'mono': 4.5, 'seen': []}]}) + '\n')
+            log = episode.read_brain_log(run, {'label': 'e_1', 'offset': 100.0})   # board clock + offset
+            monos = [f['mono'] for f in vl.frames_of(log)]
+            self.assertAlmostEqual(monos[0], 101.9)
+            self.assertAlmostEqual(monos[1], 104.5)
 
 
 @unittest.skipIf(trace is None, 'matplotlib not installed')

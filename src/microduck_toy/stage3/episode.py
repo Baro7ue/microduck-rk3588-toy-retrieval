@@ -297,8 +297,14 @@ class Runner(common.Session):
         local = self.ep_dir(label)
         subprocess.run(['scp', '-q', f'{a.board_host}:{remote_out}/*', str(local)], check=False)
         path = local / 'result.json'
-        return json.loads(path.read_text()) if path.exists() else {'end': 'error',
-                                                                     'error': f'board exit {status}'}
+        if path.exists():
+            return json.loads(path.read_text())
+        tail = (local / 'console.log').read_text(errors='replace').strip().splitlines()[-5:]
+        print(f'  {label}: 板上大脑没有给出结果（退出码 {status}），最后几行：', flush=True)
+        for line in tail:
+            print(f'    {line}', flush=True)
+        return {'end': 'error', 'error': f'board exit {status}: {" | ".join(tail)[-300:]}',
+                'closes': 0, 'elapsed_s': 0.0}
 
     # ── 3C fixtures ─────────────────────────────────────────────────────
 
@@ -415,11 +421,13 @@ class Pusher:
 def board_command(a, remote_out: str, target: str, start, until: str) -> str:
     """The shell line ssh runs on the board for one episode. With --board-cpus the brain is pinned
     (taskset -c; the A76 big cores 4-7 preprocess a frame in 7.0 ms against 18.3 ms on the A55s,
-    configs/vision/stage2_facts.json deploy_board.preprocess_cores)."""
+    configs/vision/stage2_facts.json deploy_board.preprocess_cores). --start=X,Y,YAW with '=': a pose
+    starting with a minus sign is otherwise read as an option (Mac 3F 2026-10-27: every board episode
+    with x < 0 stopped at argparse)."""
     pin = f'taskset -c {shlex.quote(a.board_cpus)} ' if a.board_cpus else ''
     return (f'cd {shlex.quote(a.board_bundle)} && MD_ROOT="$PWD" PYTHONPATH="$PWD" '
             f'{pin}{shlex.quote(a.board_py)} -u -m microduck_toy.stage3.brain --target {target} '
-            f'--start {",".join(f"{v:.5f}" for v in start)} '
+            f'--start={",".join(f"{v:.5f}" for v in start)} '
             f'--socket {shlex.quote(a.board_socket)} --camera {a.sim_host}:7901 '
             f'--tof {a.sim_host}:7801 --backend {a.backend} --until {until} '
             f'--out {shlex.quote(remote_out)}')
@@ -647,6 +655,9 @@ def read_brain_log(run_dir: Path, rec: dict) -> list[dict]:
             for key in ('mono_frame',):
                 if key in row and row[key] is not None:
                     row[key] += off
+            for frame in row.get('frames_seen') or []:        # a look's frames carry their own moments
+                if isinstance(frame, dict) and frame.get('mono') is not None:
+                    frame['mono'] += off
             rows.append(row)
     return rows
 
