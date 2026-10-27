@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 import threading
+import time
 import unittest
 
 try:
@@ -116,6 +117,33 @@ class ArenaBodyTests(unittest.TestCase):
         self.op('pose', kind='stand')
         self.assertIsNone(self.world.holding)
         self.assertEqual(self.world.grasp_log[-1]['result'], 'released_reset')
+
+    def copy_cost(self, camera) -> float:
+        """One render() call from the physics thread, in milliseconds."""
+        start = time.perf_counter()
+        camera.render(self.world)
+        return (time.perf_counter() - start) * 1000.0
+
+    def drawn(self, camera, after: int) -> dict:
+        with camera.cond:
+            self.assertTrue(camera.cond.wait_for(
+                lambda: camera.view is not None and camera.view['seq'] > after, timeout=60.0))
+            return camera.view
+
+    def test_the_camera_draws_on_a_worker_and_segments_only_for_a_view(self):
+        camera = arena_body.ArenaCamera(self.world.model, f'{self.body.prefix}head_camera')
+        camera.fps = 0.0                     # draw only when a "view" op is waiting
+        camera.wanted = True                 # a view op: this frame needs the oracle boxes too
+        held = self.copy_cost(camera)
+        view = self.drawn(camera, -1)
+        self.assertIsNotNone(view['boxes'])
+        self.assertFalse(camera.wanted)
+        draw_ms = camera.draw_stats()['draw_ms_p50']
+        # The physics thread only copies the scene; the drawing itself happens on the worker.
+        self.assertLess(held, draw_ms / 2.0, f'copy {held:.1f} ms vs draw {draw_ms:.1f} ms')
+        camera.fps = 1000.0                  # a stream frame: RGB only, no segmentation
+        self.copy_cost(camera)
+        self.assertIsNone(self.drawn(camera, view['seq'])['boxes'])
 
     def test_info_names_the_floor_and_toys(self):
         info = self.world.info()

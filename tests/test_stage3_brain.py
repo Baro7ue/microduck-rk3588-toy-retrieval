@@ -180,6 +180,13 @@ class LookTests(StubbedMotion):
         b.s_look()
         self.assertAlmostEqual(robot.yaw, math.pi / 2)
 
+    def test_a_candidate_below_the_window_goes_to_the_b_segment_without_a_look(self):
+        robot = FakeRobot()
+        b = make_brain(robot)                    # nothing in any frame: the window cannot see it
+        spot = self.candidate(b, (0.26, 0.0))    # Mac 3ab: a GOTO leg ended 0.26 m from the target
+        self.assertEqual(b.s_look(), 'APPROACH')
+        self.assertEqual((b.eyes.seq, spot.misses, spot.status), (0, 0, 'seen'))
+
     def test_needs_spin_hits_to_be_a_candidate(self):
         robot = FakeRobot()
         b = make_brain(robot)
@@ -432,6 +439,36 @@ class CarryTests(StubbedMotion):
         with mock.patch.object(Brain, 'walk', coast):        # walks shorter than the coast never start
             b, states = self.carry(robot)
         self.assertEqual(states[-1], 'TRAY_LOOK')
+
+    def test_tof_stops_that_wall_in_every_side_are_dropped(self):
+        robot = FakeRobot(-0.2, 0.0, 0.0)
+        b = make_brain(robot, start_state='CARRY', holding=True)
+        b.extra = [((-0.2, 0.0), 0.5)]           # post-fall ToF points (Mac 3D) stood in for a wall
+        logged = []
+        b.log = lambda event, **f: logged.append((event, f))
+        real = tray_lib.choose_side
+
+        def walled(start, obstacles, fld, cfg):
+            # every side is blocked while any ToF point is still in the list
+            if b.extra:
+                return {'side': None, 'options': []}
+            return real(start, obstacles, fld, cfg)
+        states = []
+        with mock.patch.object(tray_lib, 'choose_side', walled):
+            for _ in range(20):
+                states.append(b.s_carry())
+                if states[-1] != 'CARRY':
+                    break
+        self.assertEqual(states[-1], 'TRAY_LOOK')
+        self.assertEqual(b.extra, [])
+        self.assertIn(('no_route', {'dropped_tof_obstacles': 1}), logged)
+
+    def test_with_no_route_at_all_the_nearest_side_is_walked_to_straight(self):
+        robot = FakeRobot(-0.2, -0.5, 0.0)
+        with mock.patch.object(tray_lib, 'choose_side', lambda *a, **k: {'side': None, 'options': []}):
+            b, states = self.carry(robot)
+        self.assertEqual(states[-1], 'TRAY_LOOK')
+        self.assertEqual(b.side['side'], 'x-')          # staging (0.2, 0) is the nearest from (-0.2, -0.5)
 
     def test_dropped_on_the_way_recovers(self):
         robot = FakeRobot(-0.6, 0.0, 0.0)

@@ -41,7 +41,7 @@ from microduck_toy.control.inching import load_pulses
 from microduck_toy.control.pick import ground_pick, mouth_angle
 from microduck_toy.control.robot import Events, Robot, UPRIGHT
 from microduck_toy.paths import repo_root
-from microduck_toy.stage3 import tray as tray_lib
+from microduck_toy.stage3 import shots as shots_lib, tray as tray_lib
 from microduck_toy.stage3.world import (Field, FieldPose, Sightings, approach_point, bearing_to,
                                         plan_route, to_field, wrap)
 
@@ -74,11 +74,17 @@ def load_configs(root: Path | None = None) -> dict:
             'stage2': read('configs/vision/stage2.json')}
 
 
+def points_of(obstacles: list) -> list:
+    """Route obstacles as choose_side wants them: toy entries as they are, ToF ((x, y), r) as (x, y)."""
+    return [o for o in obstacles if not isinstance(o[0], (tuple, list))] + \
+           [o[0] for o in obstacles if isinstance(o[0], (tuple, list))]
+
+
 class Brain:
     def __init__(self, robot, eyes, tof, configs: dict, target: str, start, odom0=None,
                  log_path: Path | None = None, until: str = 'delivered', start_state: str = 'SPIN',
                  holding: bool = False, known=(), drop_d: float | None = None, side: str | None = None,
-                 on_state=None, echo=None):
+                 on_state=None, echo=None, frames_dir: Path | None = None):
         if target not in TARGETS:
             raise ValueError(f'{target!r} is not a target toy')
         if start_state not in STATES:
@@ -124,8 +130,28 @@ class Brain:
         self.tof_stops: list = []
         self.picks: list = []
         self.t0 = None
+        self.frames_dir = Path(frames_dir) if frames_dir else None
+        self.shots = 0
+        if self.frames_dir is not None and eyes is not None:
+            eyes.shoot = self.shot
 
     # ── bookkeeping ─────────────────────────────────────────────────────
+
+    def shot(self, sight, tag: str) -> None:
+        """Save the picture a decision rested on, with its boxes (stage3/shots.py); never fatal."""
+        if self.frames_dir is None or self.shots >= shots_lib.MAX_PER_EPISODE:
+            return
+        try:
+            got = self.eyes.picture(sight)
+            if got is None:
+                return
+            rgb, y0 = got
+            name = f'{self.shots:02d}_{tag}_s{sight.seq}.jpg'
+            title = f'{self.state or "-"} {tag}  target {self.target}  seq {sight.seq}'
+            shots_lib.save(self.frames_dir / name, rgb, sight.boxes, title, self.target, y0)
+            self.shots += 1
+        except Exception as error:          # a picture is evidence, not control: carry on
+            self.log('shot_error', tag=tag, error=f'{type(error).__name__}: {error}')
 
     def log(self, event: str, **fields) -> None:
         now = time.monotonic()
@@ -345,6 +371,7 @@ class Brain:
                          turned_deg=round(math.degrees(turned), 1), seen=seen, view=sight.view, ms=sight.ms)
                 found = self.next_candidate()
                 if found is not None:
+                    self.shot(sight, 'spin_found')
                     break
         finally:
             self.robot.move(0.0, 0.0, 0.0)
@@ -386,6 +413,12 @@ class Brain:
         if spot is None:
             return 'SPIN'
         pose = self.here()
+        # The search window starts about 0.33 m from the trunk at H0 (its bottom edge): a nearer spot
+        # (a GOTO leg that went long) is not in the picture, so the B segment's H1 looks take it.
+        near = math.dist(spot.xy, pose[:2])
+        if near < float(cfg['look_near_m']):
+            self.log('look', spot=spot.id, result='near', dist=near)
+            return 'APPROACH'
         b = bearing_to(pose, spot.xy)
         if abs(b) > math.radians(cfg['look_turn_tol_deg']):
             self.turn(b)
@@ -394,10 +427,12 @@ class Brain:
         self.check()
         self.eyes.frame('search', fresh=True)
         hits, others, frames = [], {}, []
+        view = None
         for _ in range(int(cfg['look_frames'])):
             sight = self.eyes.frame('search')
+            view = sight.view
             seen = self.note(sight, 1.0)
-            frames.append({'seq': sight.seq, 'pose': self.pose.of(sight.state), 'seen': seen})
+            frames.append({'seq': sight.seq, 'mono': sight.mono, 'pose': self.pose.of(sight.state), 'seen': seen})
             near_t = [r for r in seen if r['cls'] == self.target and 'xy' in r
                       and math.dist(r['xy'], spot.xy) <= float(cfg['look_match_m'])]
             if near_t:
@@ -408,7 +443,7 @@ class Brain:
         spot.looks += 1
         pose = self.here()
         need = int(cfg['look_min_seen'])
-        verdict = {'spot': spot.id, 'hits': len(hits), 'others': others, 'frames': len(frames)}
+        verdict = {'spot': spot.id, 'hits': len(hits), 'others': others, 'frames': len(frames), 'view': view}
         if len(hits) >= need:
             spot.x = sum(p[0] for p in hits) / len(hits)
             spot.y = sum(p[1] for p in hits) / len(hits)
@@ -417,11 +452,13 @@ class Brain:
             if dist <= float(cfg['confirm_m']):
                 spot.status = 'target'
                 verdict['result'] = 'confirmed'
+                self.shot(sight, 'look_confirmed')
                 self.log('look', **verdict, frames_seen=frames)
                 self.log('confirmed', spot=spot.as_dict(), dist=dist)
                 near = dist <= float(self.cfg['goto']['b_start_m']) + float(self.cfg['goto']['b_start_tol_m'])
                 return 'APPROACH' if near else 'GOTO'
             verdict['result'] = 'far'
+            self.shot(sight, 'look_far')
             self.log('look', **verdict, frames_seen=frames)
             return 'GOTO'
         dist = math.dist(spot.xy, pose[:2])
@@ -437,6 +474,7 @@ class Brain:
             if spot.misses >= int(cfg['max_misses']):
                 spot.status = 'dropped'
                 verdict['result'] = 'dropped'
+        self.shot(sight, 'look_' + verdict['result'])
         self.log('look', **verdict, dist=dist, frames_seen=frames)
         self.candidate = self.next_candidate()
         return 'LOOK' if self.candidate is not None else 'SPIN'
@@ -467,7 +505,7 @@ class Brain:
         self.eyes.prefer = lambda st: self.pose.body(st, spot.xy)
         b = approach.b_segment(self.robot, self.eyes, self.target, self.plane[self.target], self.s1,
                                stop=self.walk_stop)
-        self.log('b_segment', end=b['end'], steps=b['steps'], spot=spot.as_dict())
+        self.log('b_segment', end=b['end'], steps=b['steps'], spot=spot.as_dict(), pose=self.here())
         stopped = b.get('stopped')
         if stopped == 'fallen':
             raise Fallen()
@@ -537,16 +575,30 @@ class Brain:
         x, y, yaw = self.here()
         skip = self.candidate
         obstacles = self.obstacles(skip=skip)
-        plain = [o for o in obstacles if not isinstance(o[0], (tuple, list))] + \
-                [o[0] for o in obstacles if isinstance(o[0], (tuple, list))]
+        plain = points_of(obstacles)
         if self.side_forced:
             point = tray_lib.staging_point(self.side_forced, self.fld, float(cfg['staging_m']))
             side = {'side': self.side_forced, 'staging': point, 'face_yaw': tray_lib.facing(self.side_forced),
                     'route': plan_route((x, y), point, obstacles, self.fld) or [point]}
         else:
             side = tray_lib.choose_side((x, y), plain, self.fld, cfg)
+            if side['side'] is None and self.extra:
+                # Every ToF stop is a wall (hits under 5 cm do not stop) and walls are in the keep-in
+                # square already; on post-fall odometry their field points are wrong and can wall in
+                # every side (Mac 3D: 15 stops in 80 s, then no route), so they are dropped.
+                self.log('no_route', dropped_tof_obstacles=len(self.extra))
+                self.extra = []
+                obstacles = self.obstacles(skip=skip)
+                plain = points_of(obstacles)
+                side = tray_lib.choose_side((x, y), plain, self.fld, cfg)
             if side['side'] is None:
-                self.end('error', error='no route to any tray side')
+                # Still none: the nearest side straight, the ToF guarding the walk.
+                name = min(cfg['sides'], key=lambda k: math.dist(
+                    (x, y), tray_lib.staging_point(k, self.fld, float(cfg['staging_m']))))
+                point = tray_lib.staging_point(name, self.fld, float(cfg['staging_m']))
+                self.log('no_route', straight_to=name)
+                side = {'side': name, 'staging': point, 'face_yaw': tray_lib.facing(name),
+                        'route': [point]}
         if self.side is None or self.side['side'] != side['side']:
             self.log('side', **{k: v for k, v in side.items() if k != 'route'}, route=side['route'])
         self.side = side
@@ -584,6 +636,7 @@ class Brain:
         if doubt and m['source'] == 'yolo' and m['used'] < int(cfg['min_frames_after_fall']):
             m.update(centre=list(expected), source='odometry', too_few=True)
         m['boxes'] = [[b for b in boxes if b['cls'] == 'tray'] for _, boxes in looks]
+        self.shot(sight, 'tray_' + m['source'])
         m['pose_doubt'] = doubt
         # After a fall the tray may be well off to the side (cloud 3D: 88 deg right after two falls,
         # out of the +-22.5 deg picture, and the toy went down on odometry 0.4 m away): look around.
@@ -704,6 +757,7 @@ class Brain:
                     if body is not None:
                         body = self.eyes.corrections[head].apply(body)
                         hits.append((body, self.pose.point(sight.state, body)))
+            self.shot(sight, f'recover_{head}')
             self.log('recover_look', head=head, hits=[xy for _, xy in hits])
             if len(hits) >= int(self.cfg['search']['look_min_seen']):
                 break
@@ -785,6 +839,8 @@ def main(argv=None) -> int:
     ap.add_argument('--until', choices=('held', 'delivered'), default='delivered')
     ap.add_argument('--drop-d', type=float, default=None)
     ap.add_argument('--out', required=True)
+    ap.add_argument('--frames', action='store_true',
+                    help="save the robot's-eye pictures to OUT/frames (needs Pillow)")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -814,7 +870,8 @@ def main(argv=None) -> int:
             tof.start()
         echo({'mono': time.monotonic(), 'event': 'ready'})
         brain = Brain(robot, eyes, tof, configs, args.target, start, log_path=out / 'brain.jsonl',
-                      until=args.until, drop_d=args.drop_d, echo=echo)
+                      until=args.until, drop_d=args.drop_d, echo=echo,
+                      frames_dir=out / 'frames' if args.frames else None)
         result = brain.run()
         result['latency'] = eyes.latency()
         (out / 'result.json').write_text(json.dumps(result, indent=1, default=_jsonable))

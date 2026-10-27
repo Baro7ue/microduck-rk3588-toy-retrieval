@@ -282,5 +282,90 @@ class WallTests(unittest.TestCase):
                                0.2 / math.sin(edge) * math.cos(math.radians(episode.TOF_HALF_FOV_DEG)))
 
 
+def truth_rows(n=600, stall_every=0, walk_mps=0.0):
+    """Truth rows of 20 ms sim steps; with stall_every, every so many steps waits 70 ms and the next
+    ones catch up (the Mac with the camera on the physics thread)."""
+    rows, mono = [], 100.0
+    for k in range(n):
+        if stall_every and k % stall_every == 0 and k:
+            mono += 0.07
+        elif stall_every and k % stall_every in (1, 2):
+            mono += 0.001
+        else:
+            mono += 0.02
+        rows.append({'t': 0.02 * k, 'mono': mono, 'x': walk_mps * 0.02 * k, 'y': 0.0})
+    return rows
+
+
+class SimHealthTests(unittest.TestCase):
+    def state_file(self, rows, scale):
+        import tempfile
+        d = Path(tempfile.mkdtemp())
+        with (d / 'state.jsonl').open('w') as f:
+            for r in rows:
+                f.write(json.dumps({'mono': r['mono'], 'odom': {'position': [r['x'] * scale, 0.0, 0.12]}}) + '\n')
+        return d / 'state.jsonl'
+
+    def test_steady_steps_are_healthy(self):
+        h = episode.sim_health(truth_rows())
+        self.assertEqual(h['stalled'], 0.0)
+        self.assertTrue(h['ok'])
+
+    def test_mac_camera_stalls_are_not(self):
+        h = episode.sim_health(truth_rows(stall_every=6))
+        self.assertGreater(h['stalled'], 0.15)
+        self.assertFalse(h['ok'])
+
+    def test_odometry_short_by_30_percent_is_not(self):
+        rows = truth_rows(1200, walk_mps=0.25)
+        h = episode.sim_health(rows, self.state_file(rows, 0.7))
+        self.assertAlmostEqual(h['odom_ratio']['ratio'], 0.7, places=2)
+        self.assertFalse(h['ok'])
+        good = episode.sim_health(rows, self.state_file(rows, 1.0))
+        self.assertTrue(good['ok'])
+
+    def test_a_reset_jump_is_not_walking(self):
+        rows = truth_rows(600, walk_mps=0.125)      # Mac 3p: slow steps and resets of 10-20 cm
+        state = self.state_file(rows, 1.0)          # odometry never sees a reset
+        for k, r in enumerate(rows):
+            r['x'] += 0.15 * sum(k >= j for j in (155, 305, 455))
+        h = episode.sim_health(rows, state)
+        self.assertAlmostEqual(h['odom_ratio']['ratio'], 1.0, places=2)
+        self.assertTrue(h['ok'])
+        with mock.patch.object(episode, 'RESET_JUMP_M', 1.0):
+            self.assertLess(episode.sim_health(rows, state)['odom_ratio']['ratio'], 0.8)
+
+    def test_no_gate_passes_on_an_unhealthy_sim(self):
+        v = episode.gate_on_health({'3b': {'pass': True, 'rule': 'r'}, '3a': {'pass': False, 'rule': 'r'}},
+                                   {'ok': False})
+        self.assertEqual((v['3b']['pass'], v['3b']['sim_ok'], v['3a']['pass']), (False, False, False))
+        v = episode.gate_on_health({'3b': {'pass': True, 'rule': 'r'}}, {'ok': True})
+        self.assertTrue(v['3b']['pass'])
+
+
+def cam_row(toy_from_trunk, pitch=0.246, cam_ahead=0.08, cam_z=0.232):
+    """H0 standing (truth: camera 8 cm ahead of the trunk, 0.232 m up, 14 deg down), bus ahead."""
+    r = row(bus=(toy_from_trunk, 0.0, 0.015))
+    r.update(cam_x=cam_ahead, cam_y=0.0, cam_z=cam_z, cam_pitch=pitch)
+    return r
+
+
+class PictureTests(unittest.TestCase):
+    def test_a_toy_at_the_feet_is_below_the_search_window(self):
+        self.assertFalse(episode.in_picture(cam_row(0.26), 'bus'))      # Mac 3ab: four looks at 0.26 m
+        self.assertTrue(episode.in_picture(cam_row(0.45), 'bus'))
+        self.assertTrue(episode.in_picture(cam_row(1.5), 'bus'))
+
+    def test_the_whole_frame_reaches_nearer(self):
+        self.assertFalse(episode.in_picture(cam_row(0.30), 'bus', 'window'))
+        self.assertTrue(episode.in_picture(cam_row(0.30), 'bus', 'letterbox'))
+
+    def test_handover_seen_from_the_robot_ignores_odometry_drift(self):
+        b_event = {'pose': [0.0, 0.0, 0.0], 'spot': {'xy': [0.5, 0.0]}}
+        truth = row(bus=(1.0, 1.5, 0.015))
+        truth.update(x=1.0, y=1.0, yaw=math.pi / 2)                     # 1.4 m from where the brain thinks
+        self.assertAlmostEqual(episode.relative_error(b_event, truth, 'bus'), 0.0, places=6)
+
+
 if __name__ == '__main__':
     unittest.main()

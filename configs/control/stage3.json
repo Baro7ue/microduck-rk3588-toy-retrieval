@@ -27,12 +27,13 @@
     "look_min_seen": 3,
     "look_turn_tol_deg": 15.0,
     "look_match_m": 0.25,
+    "look_near_m": 0.4,
     "confirm_m": 1.6,
     "cluster_m": 0.15,
     "spin_cluster_per_m": 0.1,
     "spin_weight": 0.25,
     "max_misses": 2,
-    "note": "plan 3 SPIN and LOOK. Spin: head 0.15 (stage2.json deploy.head, the middle of the trained 0-0.3 search range; turning camera pitch 10.9 deg, inside the 0-17.2 deg of the training data), window view, wz +0.8 (stage1.json approach.turn_wz_radps; +0.5 does not turn from cold, stage0_facts turn_steady_radps_mac_H1), 380 deg on odometry, a target in >= spin_hits frames ends the spin. Spin frames give bearings (the frame trails robot.state by 30-40 ms, about 2 deg at 0.9 rad/s), so their ground points only seed a candidate: they enter the sighting table at spin_weight and cluster within cluster_m + spin_cluster_per_m x distance. Look: H0 standing (pitch 13.4 deg, also inside 0-17.2), settle 1 s and 5 frames (stage1.json inching.settle_s, frames), turn first only if the candidate is more than look_turn_tol_deg off (the window sees +-22.5 deg); the target in >= 3 of 5 frames within look_match_m of the candidate and <= confirm_m away = confirmed (stage2_facts confirm_distance.zero_confusion_m 1.6); a distractor class there in >= 3 frames = a distractor spot; max_misses looks without the target drop the candidate. Two empty spins (the second from the nearest relocate spot at least relocate_min_m away) = search_fail. Detections beyond max_range_m are ignored (stage2_facts search_radius 1.8 m)"
+    "note": "plan 3 SPIN and LOOK. Spin: head 0.15 (stage2.json deploy.head, the middle of the trained 0-0.3 search range; turning camera pitch 10.9 deg, inside the 0-17.2 deg of the training data), window view, wz +0.8 (stage1.json approach.turn_wz_radps; +0.5 does not turn from cold, stage0_facts turn_steady_radps_mac_H1), 380 deg on odometry, a target in >= spin_hits frames ends the spin. Spin frames give bearings (the frame trails robot.state by 30-40 ms, about 2 deg at 0.9 rad/s), so their ground points only seed a candidate: they enter the sighting table at spin_weight and cluster within cluster_m + spin_cluster_per_m x distance. Look: H0 standing (pitch 13.4 deg, also inside 0-17.2), settle 1 s and 5 frames (stage1.json inching.settle_s, frames), turn first only if the candidate is more than look_turn_tol_deg off (the window sees +-22.5 deg); the target in >= 3 of 5 frames within look_match_m of the candidate and <= confirm_m away = confirmed (stage2_facts confirm_distance.zero_confusion_m 1.6); a distractor class there in >= 3 frames = a distractor spot; max_misses looks without the target drop the candidate. A candidate nearer than look_near_m goes to the B segment without a look: the window's bottom edge is about 0.33 m from the trunk at H0 standing (Mac 3ab 2026-10-26: four looks at a target 0.26 m away saw nothing). Two empty spins (the second from the nearest relocate spot at least relocate_min_m away) = search_fail. Detections beyond max_range_m are ignored (stage2_facts search_radius 1.8 m)"
   },
   "goto": {
     "head": "H0",
@@ -49,7 +50,7 @@
     "clear_m": 0.15,
     "tray_inflate_m": 0.1,
     "tof_obstacle_m": 0.15,
-    "note": "plan 3 GOTO and CARRY: routes stay clear_m from known toys and tray_inflate_m outside the tray, and keep the trunk keep_in_m from the walls (toys are >= 0.25 m from the walls, stage1.json layout.wall_clear_m). A ToF stop adds an obstacle of tof_obstacle_m at the stop point. Plan fallback: clear_m 0.15 -> 0.2 if non-target toys get pushed"
+    "note": "plan 3 GOTO and CARRY: routes stay clear_m from known toys and tray_inflate_m outside the tray, and keep the trunk keep_in_m from the walls (toys are >= 0.25 m from the walls, stage1.json layout.wall_clear_m). A ToF stop adds an obstacle of tof_obstacle_m at the stop point; if those leave CARRY no route to any side they are dropped (every stop is a wall, already in keep_in_m; after a fall their points are wrong), and with still none the nearest side is walked to straight. Plan fallback: clear_m 0.15 -> 0.2 if non-target toys get pushed"
   },
   "carry": {
     "head": "H1",
@@ -113,8 +114,8 @@
     "note_tilt": "max_tilt_deg: cloud 3D false stop mid-fall (a return 0.12 m behind the trunk, 0.26 m up, before safety.fallen was set); zones count only ahead of the trunk and only while it is within 20 deg of upright (cloud 3e upright trunk tilt p99 4 deg, max 16 deg)"
   },
   "camera": {
-    "stream_lag_s": 0.0,
-    "note": "the frame's moment = its first byte minus stream_lag_s (Mac and board stream); 3P/3A measure the bearing error of spin frames and decide whether to set it"
+    "stream_lag_s": 0.07,
+    "note": "the frame's moment = its first byte minus stream_lag_s (Mac and board stream); 3P/3A measure the bearing error of spin frames and decide whether to set it. Mac 3P 2026-10-26: 118 ms late (spin bearing p50 4.8 deg), with frames drawn on the physics thread and sent on their own 15 Hz clock. Mac 3p rerun 2026-10-27 (camera on a worker, each frame sent when drawn, stream_lag_s 0): 71 ms late (39 spin boxes, mean +3.09 deg at 0.757 rad/s, |err| p50 3.07 deg), about the Mac's draw time (p50 41 ms) plus the UYVY packing and the send, so 0.07. measure.score_spin reports what is left after it (lag_s_from_frame_err); the board's 3F stream adds the Ethernet hop and is read there"
   },
   "detector": {
     "models": {
@@ -152,7 +153,7 @@
       "receipt_time": {"n": 10, "mean": 17.75, "abs_p50": 18.16, "abs_p90": 22.69},
       "wz_mean_radps": 0.747
     },
-    "spin_note": "pairing a spin frame with the robot.state nearest its moment leaves 0.7 deg (p50), 2.5 deg (p90): stream_lag_s stays 0 for the cloud's probe frames; the receipt-time error (18 deg) is the cloud's render time and shows why the frame's own moment is used. The Mac's stream frames are measured again in its 3p and 3A",
+    "spin_note": "pairing a spin frame with the robot.state nearest its moment leaves 0.7 deg (p50), 2.5 deg (p90): stream_lag_s stays 0 for the cloud's probe frames; the receipt-time error (18 deg) is the cloud's render time and shows why the frame's own moment is used. The Mac's stream frames: 71 ms late in the 3p rerun, see camera.stream_lag_s",
     "tof_pose_trunk": "ToF in the trunk frame: head 0 at [0.0645, 0.0225, 0.1269] facing straight ahead; H1 at [0.0846, 0.0218, 0.0777] pitched 42 deg down",
     "tray_bottom_edge": "the oracle tray box's bottom row, cut with z = 0, lands 0.7 cm short of the near rim on average (3 views: -0.7, +0.8, -2.3 cm), with z = 0.01 (the rim top) 1.8 cm short: plane_z_m.tray = 0. H1 at the staging point sees +-12 cm sideways at the near rim, so the 30 cm tray box is cut at both sides"
   }

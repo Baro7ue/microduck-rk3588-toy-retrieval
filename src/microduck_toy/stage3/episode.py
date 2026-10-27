@@ -25,6 +25,7 @@ summary.json the scores against the plan. Scoring reads only truth.csv and the b
 from __future__ import annotations
 
 import argparse
+import bisect
 import datetime as dt
 import json
 import math
@@ -47,6 +48,7 @@ from microduck_toy.stage3 import brain as brain_lib, measure
 from microduck_toy.stage3.eyes import StateHistory
 from microduck_toy.stage3.tof import TofReader
 from microduck_toy.stage3.world import odom_of, wrap
+from microduck_toy.vision import views
 
 TARGETS = list(brain_lib.TARGETS)
 DISTRACTORS = ['croc', 'thomas']
@@ -202,6 +204,10 @@ class Runner(common.Session):
         return self.probe.truth()
 
     def close(self) -> list[dict]:
+        try:                        # how long the body took to draw each frame (the camera lag)
+            self.meta['camera_draw'] = self.probe.call('info').get('camera_draw')
+        except Exception:
+            pass
         for thing in (self.tof, self.eyes):
             if thing is not None:
                 try:
@@ -222,8 +228,9 @@ class Runner(common.Session):
         return d
 
     def brain(self, label: str, target: str, start, **kw) -> brain_lib.Brain:
+        frames = None if self.args.no_frames else self.ep_dir(label) / 'frames'
         return brain_lib.Brain(self.robot, self.eyes, self.tof, self.configs, target, start,
-                               log_path=self.ep_dir(label) / 'brain.jsonl', **kw)
+                               log_path=self.ep_dir(label) / 'brain.jsonl', frames_dir=frames, **kw)
 
     def finish(self, rec: dict, label: str) -> dict:
         """Stamp the end, wait judge_after_s, keep the truth row the episode is judged on."""
@@ -648,6 +655,23 @@ def truth_bearing(row: dict, toy: str) -> float:
     return wrap(math.atan2(row[f'{toy}_y'] - row['y'], row[f'{toy}_x'] - row['x']) - row['yaw'])
 
 
+def in_picture(row: dict, toy: str, view: str = 'window', margin_deg: float = 2.0) -> bool:
+    """Is the toy's centre above the bottom edge of the picture a look uses, by the true camera pose?
+    The search window is the 360 rows from 30 above the horizon (configs/vision/stage2.json), so the
+    floor nearer than its bottom edge is out of it: with H0 standing that is about 0.33 m from the
+    trunk (Mac 3ab: 7 of the 10 looks that "missed" had the toy 0.10-0.26 m away)."""
+    pitch = row['cam_pitch']
+    if view == 'window':
+        horizon = views.FRAME_H / 2 - views.FOCAL_PX * math.tan(pitch)
+        bottom = views.window_top(horizon) + views.WINDOW
+    else:
+        bottom = views.FRAME_H
+    edge = pitch + math.atan((bottom - views.FRAME_H / 2) / views.FOCAL_PX)
+    toy_dep = math.atan2(row['cam_z'] - row[f'{toy}_z'],
+                         math.hypot(row[f'{toy}_x'] - row['cam_x'], row[f'{toy}_y'] - row['cam_y']))
+    return toy_dep <= edge - math.radians(margin_deg)
+
+
 def score_stops(log: list[dict], rows: list[dict], b: dict, s1: dict) -> list[dict]:
     """Each ToF stop with the walls in the truth: straight ahead, and the nearest one the sensor's
     +-22.5 deg could see (as forward distance, the stop rule's measure); false = none within 0.3 m."""
@@ -769,6 +793,22 @@ def wall_in_view(row: dict, s1: dict) -> float:
     return best
 
 
+def relative_error(b_event: dict, row: dict, target: str) -> float | None:
+    """The handed-over spot against the true toy, both seen from the robot (brain pose vs true pose):
+    what the B segment acts on, without the odometry drift that to_target_m also holds."""
+    pose = b_event.get('pose')
+    if not pose:
+        return None
+    sx, sy = b_event['spot']['xy']
+    bx, by = sx - pose[0], sy - pose[1]
+    c, s = math.cos(pose[2]), math.sin(pose[2])
+    brain = (c * bx + s * by, -s * bx + c * by)
+    tx, ty = row[f'{target}_x'] - row['x'], row[f'{target}_y'] - row['y']
+    c, s = math.cos(row['yaw']), math.sin(row['yaw'])
+    true = (c * tx + s * ty, -s * tx + c * ty)
+    return round(math.dist(brain, true), 3)
+
+
 def score_search(log: list[dict], rows: list[dict], rec: dict, target: str) -> dict:
     out = {}
     toys = list((rec.get('layout') or {}).get('toys', {}))
@@ -779,6 +819,7 @@ def score_search(log: list[dict], rows: list[dict], rec: dict, target: str) -> d
         xy = e['spot']['xy']
         dists = {t: math.dist(xy, (row[f'{t}_x'], row[f'{t}_y'])) for t in toys}
         out['handover'] = {'to_target_m': round(dists.get(target, math.inf), 3),
+                           'relative_m': relative_error(e, row, target),
                            'correct': dists.get(target, math.inf) <= 0.15,
                            'distractor': any(d <= 0.15 for t, d in dists.items() if t != target)
                            and dists.get(target, math.inf) > 0.15,
@@ -792,9 +833,10 @@ def score_search(log: list[dict], rows: list[dict], rec: dict, target: str) -> d
         row = metrics.at_mark(rows, e['mono'])
         d = math.hypot(row[f'{target}_x'] - row['x'], row[f'{target}_y'] - row['y'])
         brg = math.degrees(truth_bearing(row, target))
-        should = d <= 1.6 and abs(brg) <= 20.0 and row[f'{target}_z'] < 0.06
+        seen_by_view = in_picture(row, target, e.get('view', 'window'))
+        should = d <= 1.6 and abs(brg) <= 20.0 and row[f'{target}_z'] < 0.06 and seen_by_view
         looks.append({'result': e.get('result'), 'hits': e.get('hits'), 'truth_m': round(d, 3),
-                      'truth_bearing_deg': round(brg, 1), 'should_see': should,
+                      'truth_bearing_deg': round(brg, 1), 'in_picture': seen_by_view, 'should_see': should,
                       'saw': (e.get('hits') or 0) >= 3})
     out['looks'] = looks
     errs = []
@@ -1083,10 +1125,88 @@ def verdict_d_tof(rs: list[dict], everything: list[dict]) -> dict:
     return out
 
 
+SIM_STALL_S = 0.035          # a 20 ms step that waited longer than this
+SIM_MAX_STALLED = 0.02       # share of such steps a usable run may have
+ODOM_RATIO_OK = (0.93, 1.07)  # robotd's odometry path over the true path while walking
+RESET_JUMP_M = 0.05           # one 20 ms truth row moving further is a reset, not a step (walks and
+                              # pushes stay under 3 cm a row; Mac 3p resets moved 10-20 cm)
+
+
+def sim_health(rows: list[dict], state_path: Path | None = None) -> dict:
+    """Did the sim body keep real 20 ms steps, and did robotd's odometry measure the walks right?
+
+    The Mac body used to draw camera frames on the physics thread: 17% of its steps waited ~70 ms and
+    the next ones ran back to back, and robotd's contact odometry counted ~30% short (3ab 2026-10-26).
+    A run like that does not measure the brain, so the verdicts need `ok`."""
+    gaps = sorted(b['mono'] - a['mono'] for a, b in zip(rows, rows[1:]) if 0.0 < b['t'] - a['t'] < 0.03)
+    out: dict = {'steps': len(gaps)}
+    if gaps:
+        out.update(stalled=round(sum(g > SIM_STALL_S for g in gaps) / len(gaps), 4),
+                   step_ms_p50=round(gaps[len(gaps) // 2] * 1000, 1),
+                   step_ms_p99=round(gaps[int(len(gaps) * 0.99)] * 1000, 1))
+    out['odom_ratio'] = odom_ratio(rows, state_path) if state_path and state_path.exists() else None
+    ratio = out['odom_ratio']
+    out['ok'] = (out.get('stalled', 0.0) <= SIM_MAX_STALLED
+                 and (ratio is None or ODOM_RATIO_OK[0] <= ratio['ratio'] <= ODOM_RATIO_OK[1]))
+    out['rule'] = (f'<= {SIM_MAX_STALLED:.0%} of steps longer than {SIM_STALL_S * 1000:.0f} ms; odometry / '
+                   f'truth path while walking within {ODOM_RATIO_OK[0]}-{ODOM_RATIO_OK[1]}')
+    return out
+
+
+def gate_on_health(verdict: dict, health: dict) -> dict:
+    """No gate passes on a sim that did not keep real time (each verdict gets sim_ok)."""
+    for v in verdict.values():
+        v['sim_ok'] = health['ok']
+        if not health['ok'] and v.get('pass'):
+            v['pass'] = False
+            v['rule'] += ' (and a sim that kept real time: sim_health.ok)'
+    return verdict
+
+
+def odom_ratio(rows: list[dict], state_path: Path, every: int = 10) -> dict | None:
+    """robotd's odometry path over the true trunk path, on 0.2 s pieces where the trunk moved
+    2-20 cm (walking: not standing sway, not a fall) and no single row jumped (a reset: Mac 3p moved the
+    robot 10-20 cm twice, which odometry never sees, and read 0.71 for a run that walked at 0.98)."""
+    monos = [r['mono'] for r in rows]
+    jumps = [k for k, (a, b) in enumerate(zip(rows, rows[1:]))
+             if math.hypot(b['x'] - a['x'], b['y'] - a['y']) > RESET_JUMP_M]
+    odo, true = 0.0, 0.0
+    pieces = 0
+    last = None
+    with state_path.open() as f:
+        for i, line in enumerate(f):
+            if i % every:
+                continue
+            try:
+                state = json.loads(line)
+                pos = state['odom']['position']
+                now = (float(state['mono']), float(pos[0]), float(pos[1]))
+            except (ValueError, KeyError, TypeError):
+                continue
+            if last is not None:
+                ia = min(bisect.bisect_left(monos, last[0]), len(rows) - 1)
+                ib = min(bisect.bisect_left(monos, now[0]), len(rows) - 1)
+                a, b = rows[ia], rows[ib]
+                d_true = math.hypot(b['x'] - a['x'], b['y'] - a['y'])
+                k = bisect.bisect_left(jumps, ia)
+                if 0.02 < d_true < 0.2 and not (k < len(jumps) and jumps[k] < ib):
+                    odo += math.hypot(now[1] - last[1], now[2] - last[2])
+                    true += d_true
+                    pieces += 1
+            last = now
+    if pieces < 20:
+        return None
+    return {'ratio': round(odo / true, 3), 'pieces': pieces, 'true_m': round(true, 2)}
+
+
 def score(s, rows) -> dict:
     episodes = [rec for rec in s.trials if not rec['part'].startswith('m_')]
     results = [score_episode(s.dir, rec, rows, s.meta) for rec in episodes]
-    out = {'results': results, 'verdict': verdicts(results, s.meta)}
+    health = sim_health(rows, s.dir / 'state.jsonl')
+    from microduck_toy.stage3 import vision_loop        # it imports this module's geometry
+    out = {'sim_health': health, 'results': results,
+           'verdict': gate_on_health(verdicts(results, s.meta), health),
+           'vision_loop': vision_loop.summarise(vision_loop.judge_run(s.dir, episodes, rows))}
     if len(episodes) < len(s.trials):
         out['measured_3p'] = measure.summarise(s.trials, rows)
     return out
@@ -1112,6 +1232,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument('--parts', default=None)
     p.add_argument('--episodes', default=None, help='e.g. 3000:bus,3001:henry (default: all 30)')
     p.add_argument('--drop-d', type=float, default=None, help='c_drop: one d instead of the sweep')
+    p.add_argument('--no-frames', action='store_true',
+                   help="don't save the robot's-eye pictures (episodes/<label>/frames/)")
     p.add_argument('--rescore', metavar='RUN_DIR', default=None)
     p.add_argument('--mac-run', metavar='RUN_DIR', default=None,
                    help='board 3e: the Mac 3E run whose same episodes the board is compared with')
@@ -1140,7 +1262,11 @@ def main(argv=None) -> int:
         if args.mac_run:
             done.meta['mac_run'] = str(Path(args.mac_run).resolve())
         rows = metrics.read_truth(done.dir / 'truth.csv')
-        done.write_summary({'truth': metrics.continuity(rows), **score(done, rows)})
+        scored = score(done, rows)
+        done.write_summary({'truth': metrics.continuity(rows), **scored})
+        print_health(scored.get('sim_health'))
+        print_vision(scored.get('vision_loop'))
+        print_traces(done.dir, rows)
         return 0
     if args.target == 'board':
         missing = [n for n in ('board_bundle', 'board_out') if getattr(args, n) is None]
@@ -1181,7 +1307,44 @@ def main(argv=None) -> int:
         print(f'计分出错（数据已保存，修好后用 --rescore 重算）：{scored["score_error"]}', flush=True)
         status = status or 1
     session.write_summary({'truth': metrics.continuity(rows), **scored})
+    print_health(scored.get('sim_health'))
+    print_vision(scored.get('vision_loop'))
+    print_traces(session.dir, rows)
     return status
+
+
+def print_health(h: dict | None) -> None:
+    if not h or 'stalled' not in h:
+        return
+    ratio = h['odom_ratio']['ratio'] if h.get('odom_ratio') else None
+    line = (f"仿真节拍：{h['stalled']:.1%} 的 20 ms 拍子超过 {SIM_STALL_S * 1000:.0f} ms（p99 {h['step_ms_p99']} ms）"
+            + (f"；里程计/真值路程 {ratio}" if ratio is not None else ''))
+    print(line, flush=True)
+    if not h['ok']:
+        print('警告：这次仿真没有按真实时间稳定运行，或里程计量错了路程；判定一律不算通过，先查仿真身体。', flush=True)
+
+
+def print_traces(run_dir: Path, rows: list[dict]) -> None:
+    """The bird's-eye trace of every episode (stage3/trace.py); a missing matplotlib only skips them."""
+    from microduck_toy.stage3 import trace
+    try:
+        paths = trace.plot_run(run_dir, rows=rows)
+    except Exception as error:
+        print(f'俯视轨迹图没画成（{type(error).__name__}: {error}）；数据不受影响。', flush=True)
+        return
+    if paths:
+        print(f'俯视轨迹图：每回合 episodes/<回合>/trace.png；总览 {paths[-1]}', flush=True)
+
+
+def print_vision(v: dict | None) -> None:
+    if not v or not v.get('frames'):
+        return
+    t, p = v['recall_targets'], v['precision_targets']
+    if t['rate'] is None or p['rate'] is None:
+        return
+    print(f"闭环视觉（转圈和站着看的帧对真值）：目标召回 {t['rate']:.1%}（{t['k']}/{t['n']}），"
+          f"精确 {p['rate']:.1%}；1.6 m 内认错类 {v['wrong_class_within_1_6m']} 个；"
+          f"详表：python -m microduck_toy.stage3.vision_loop <运行目录>", flush=True)
 
 
 if __name__ == '__main__':

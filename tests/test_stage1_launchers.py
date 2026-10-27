@@ -38,6 +38,9 @@ class Stage1LauncherTests(unittest.TestCase):
         self.assertEqual(args[args.index('--cameras'):args.index('--cameras') + 6],
                          ['--cameras', 'a', '--frame-port', '7901', '--oracle-fps', '0'])
         self.assertEqual(env['MD_STARTUP_SOCKET'], self.env['MD_STARTUP_SOCKET'])
+        self.assertNotIn('--render-inline', args)              # threaded drawing is the default
+        self.run_script('scripts/sim/stage1/run_arena_body.zsh', '--camera', '--render-inline')
+        self.assertIn('--render-inline', self.calls('mjpython')[-1][0])
         for bad in (('--floor', 'carpet'), ('--scene', 'x.xml')):
             self.assertNotEqual(self.run_script('scripts/sim/stage1/run_arena_body.zsh',
                                                 *bad).returncode, 0, bad)

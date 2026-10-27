@@ -32,7 +32,7 @@ import numpy as np
 from microduck_toy.control import ranging
 from microduck_toy.control.approach import Correction
 from microduck_toy.stage2 import deploy
-from microduck_toy.vision import uyvy
+from microduck_toy.vision import uyvy, views
 
 
 class StateHistory:
@@ -157,6 +157,8 @@ class Eyes:
         self.log = log
         self.timings: list[dict] = []   # per frame: the detector's ms (receive .. e2e), view
         self.prefer = None          # state -> (forward, left) where the B segment expects the target
+        self.last: Frame | None = None  # the last frame taken, for picture()
+        self.shoot = None           # (sight, tag) -> None: the brain's picture saver (Brain.shot)
 
     def frame(self, view: str, fresh: bool = False, timeout: float = 5.0) -> Sight:
         """The next frame after the last one taken (fresh: after this call), with its boxes."""
@@ -169,11 +171,26 @@ class Eyes:
             if frame is None:
                 raise TimeoutError(f'no camera frame after {self.seq} within {timeout} s')
         self.seq = frame.seq
+        self.last = frame
         state = self.history.at(frame.mono) or self.history.latest()
         boxes, kind, ms = self.detector.boxes(frame, state, view)
         if ms:
             self.timings.append({**ms, 'view': kind})
         return Sight(frame.seq, state, boxes, kind, ms, frame.mono, time.monotonic())
+
+    def picture(self, sight: Sight) -> tuple[np.ndarray, int | None] | None:
+        """The upright RGB of the frame `sight` came from (it must be the last one taken) and, for a
+        window frame, the window's top row; None without the pixels (a probe source run with rgb off)."""
+        f = self.last
+        if f is None or f.seq != sight.seq or not f.payload:
+            return None
+        pairs = np.frombuffer(f.payload, np.uint8).reshape(deploy.RAW_H, deploy.RAW_W // 2, 4)
+        rgb = np.ascontiguousarray(np.rot90(uyvy.decode(pairs), 3))
+        y0 = None
+        if sight.view == 'window':
+            m = deploy.mapping_for(sight.state, 'search', getattr(self.detector, 'margin', views.MARGIN_ROWS))
+            y0 = int(m.y0) if m.kind == 'window' else None
+        return rgb, y0
 
     def latency(self, since: int = 0) -> dict:
         """Percentiles of the detector's times over the frames taken since index `since`."""
@@ -218,6 +235,8 @@ class Eyes:
                 continue
             raw.append(best)
             points.append(self.corrections[head].apply(best) if head in self.corrections else best)
+        if self.shoot is not None:
+            self.shoot(sight, f'b_look_{head}')
         toy_at = None
         if points:
             toy_at = (sum(p[0] for p in points) / len(points), sum(p[1] for p in points) / len(points))

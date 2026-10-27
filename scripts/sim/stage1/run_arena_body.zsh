@@ -3,17 +3,21 @@
 # beak weld and the oracle boxes (src/microduck_toy/sim/arena_body.py). Truth log and test port
 # on 127.0.0.1:7811 as in Stage 0.
 #   run_arena_body.zsh [--floor grid|wood] [--camera [--oracle-fps N]] [--board] [--viewer]
+#                      [--render-inline]
 # --camera   head camera on 127.0.0.1:7901 plus the oracle boxes (needed by 1D and the 1A
 #            image checks); N renders per second (default 15, upstream's rate; 0 = only when a
-#            test asks for a frame).
+#            test asks for a frame). Frames are drawn on their own thread, so drawing no longer
+#            holds up the physics (Stage 3 Mac batch 1: inline drawing stalled 17% of the 20 ms
+#            steps and robotd's contact odometry then under-counted 16-35%).
+# --render-inline  draw on the physics thread as before (debugging only; the physics stalls).
 # --board    body on $MD_SIM_HOST:7801 for robotd on the RK3588 (as Stage 0's --board).
 # Log: runs/<UTC>_s1_arena_body/body.log.
 set -euo pipefail
 source "${0:A:h}/../../../env.sh"
 source "$MD_ROOT/scripts/lib.zsh"
 
-usage='用法：run_arena_body.zsh [--floor grid|wood] [--camera [--oracle-fps N]] [--board] [--viewer]'
-floor=grid host=127.0.0.1 startup=$MD_MAC_STATE/robotd.sock camera=0 fps=15 viewer=0
+usage='用法：run_arena_body.zsh [--floor grid|wood] [--camera [--oracle-fps N]] [--board] [--viewer] [--render-inline]'
+floor=grid host=127.0.0.1 startup=$MD_MAC_STATE/robotd.sock camera=0 fps=15 viewer=0 inline=0
 while (( $# )); do
   case $1 in
     --floor) (( $# >= 2 )) || md_die "$usage"; floor=$2; shift 2 ;;
@@ -21,6 +25,7 @@ while (( $# )); do
     --oracle-fps) (( $# >= 2 )) || md_die "$usage"; fps=$2; shift 2 ;;
     --board) host=$MD_SIM_HOST; startup=$MD_STARTUP_SOCKET; shift ;;
     --viewer) viewer=1; shift ;;
+    --render-inline) inline=1; shift ;;
     *) md_die "$usage" ;;
   esac
 done
@@ -36,6 +41,7 @@ done
 args=(--floor $floor --stage1-config "$MD_ROOT/configs/control/stage1.json"
       --probe-port 7811 --ducks 1 --host "$host" --port 7801 --keyframe HOME)
 (( camera )) && args+=(--cameras a --frame-port 7901 --oracle-fps $fps)
+(( inline )) && args+=(--render-inline)
 (( viewer )) || args+=(--headless)
 
 run=$(md_run_dir s1_arena_body) || exit 1

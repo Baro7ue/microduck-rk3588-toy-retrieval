@@ -15,9 +15,11 @@ body_server unchanged. What this adds to probe_body.py:
   It is let go when the mouth opens or the robot falls. While a toy is held, the mouth angle sent
   back to robotd is the angle the toy blocks it at, so code can check a grasp from robot.state
   joints the way it would read a stalled servo. Every close is logged (op "grasps").
-* The oracle detector (with --cameras a): every rendered head-camera frame also gets a segmentation
-  render; each toy's and the tray's box in the upright 360x640 image is kept with the frame number
-  (op "view"). Boxes only, as a detector gives them; the truth beside them is for scoring.
+* The oracle detector (with --cameras a): a head-camera frame asked for by op "view" also gets a
+  segmentation render; each toy's and the tray's box in the upright 360x640 image is kept with the
+  frame number. Boxes only, as a detector gives them; the truth beside them is for scoring.
+* Camera frames are drawn on their own thread and streamed as soon as they are drawn, so the physics
+  keeps 20 ms steps while the camera is on (ArenaCamera; --render-inline for the upstream way).
 
 Test port ops added to probe_body.py's (info, truth, record, mark, push, pose, object):
 
@@ -34,10 +36,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+from collections import deque
 import csv
 import json
 import math
 from pathlib import Path
+import socket
+import struct
 import sys
 import threading
 import time
@@ -97,19 +102,27 @@ class ArenaBody(bootstrap_body.StartupBody):
 class ArenaCamera(sim_camera.Camera):
     """The head camera, plus a segmentation render of the same scene for the oracle boxes.
 
-    The upstream loop calls render() 15 times a second on the physics thread. `fps` thins that out:
-    15 renders every call (the upstream rate), 0 renders only when a "view" op is waiting. A
-    software renderer (OSMesa in the cloud) takes about half a second per frame, during which the
-    physics does not step; on the Mac a frame is about 12 ms.
+    The upstream loop calls render() every third 20 ms step (16.7 Hz) on the physics thread. `fps`
+    thins that out: 15 renders at every call, 0 renders only when a "view" op is waiting.
+
+    Drawing on the physics thread stops the physics while the frame is drawn. On the Mac with the
+    camera on, 17% of the 20 ms steps waited about 70 ms and the steps after them ran back to back,
+    so robotd read one sample twice and then missed two, and its contact odometry counted about 30%
+    short (Mac 3ab 2026-10-26: walks of 0.5 m on odometry went 0.66-0.72 m; 1G without the camera
+    1.00, the cloud 1.02). So `threaded` (the default; --render-inline for the old way) copies the
+    scene on the physics thread, a millisecond, and draws it on a worker. The worker makes its own
+    renderers: on macOS a CGL context stays locked by the thread that made it current (mujoco's
+    cgl make_current locks and never unlocks), so a renderer made here could not draw on the worker.
+
+    The segmentation render is drawn only for frames a "view" op is waiting for (the oracle boxes,
+    the 3P checks); the stream only needs the RGB.
     """
 
     fps = 15.0
-    threaded = False     # --render-thread: draw off the physics thread (slow software renderer)
+    threaded = True      # --render-inline: draw on the physics thread (Stage 1 and 2 runs did)
 
     def __init__(self, model, name, *args, **kwargs):
         super().__init__(model, name, *args, **kwargs)
-        self.seg = mujoco.Renderer(model, height=self.height, width=self.width)
-        self.seg.enable_segmentation_rendering()
         self.seq = -1
         self.view = None
         self.cond = threading.Condition()
@@ -117,55 +130,93 @@ class ArenaCamera(sim_camera.Camera):
         self.last = -math.inf
         self.busy = threading.Event()
         self.jobs: list = []
+        self.draw_ms: deque = deque(maxlen=300)
         if self.threaded:
-            threading.Thread(target=self._worker, name='camera-render', daemon=True).start()
+            made = threading.Event()
+            self.worker_error = None
+            threading.Thread(target=self._worker, args=(model, made), name='camera-render',
+                             daemon=True).start()
+            if not made.wait(60.0):
+                raise SystemExit('the camera worker did not make its renderers within 60 s')
+            if self.worker_error is not None:
+                raise SystemExit(f'the camera worker could not make its renderers: {self.worker_error!r}'
+                                 ' (try run_arena_body.zsh --render-inline)')
+        else:
+            self.rgb_r = self.renderer
+            self.seg_r = self._seg_renderer(model)
+
+    def _seg_renderer(self, model):
+        seg = mujoco.Renderer(model, height=self.height, width=self.width)
+        seg.enable_segmentation_rendering()
+        return seg
 
     def render(self, world) -> None:
         now = time.monotonic()
         with self.cond:
-            due = self.wanted or (self.fps > 0 and now - self.last >= 1.0 / self.fps - 1e-3)
+            # 10 ms of slack: the calls come every 60 ms, and 15 fps (66.7 ms) must not mean every other one
+            due = self.wanted or (self.fps > 0 and now - self.last >= 1.0 / self.fps - 0.010)
+            with_seg = self.wanted
         if not due or self.busy.is_set():
             return
         self.last = now
         with world.lock:
-            self.renderer.update_scene(world.data, camera=self.camera)
-            self.seg.update_scene(world.data, camera=self.camera)
+            self.rgb_r.update_scene(world.data, camera=self.camera)
+            if with_seg:
+                self.seg_r.update_scene(world.data, camera=self.camera)
             truth = world.view_truth()
             truth['camera'] = self.pose_truth(world.data)
         truth['mono'] = now
         if self.threaded:
-            # The scene is copied (above, under the lock); the drawing, about 0.3 s with OSMesa,
-            # happens on the worker so the physics keeps stepping in real time meanwhile.
+            # The scene is copied (above, under the lock); the drawing happens on the worker so the
+            # physics keeps stepping in real time meanwhile.
             with self.cond:
                 self.busy.set()
-                self.jobs.append((world, truth))
+                self.jobs.append((world, truth, with_seg))
                 self.cond.notify_all()
             return
-        self._draw(world, truth)
+        self._draw(world, truth, with_seg)
 
-    def _worker(self) -> None:
+    def _worker(self, model, made: threading.Event) -> None:
+        try:
+            self.rgb_r = mujoco.Renderer(model, height=self.height, width=self.width)
+            self.seg_r = self._seg_renderer(model)
+        except Exception as error:
+            self.worker_error = error
+            return
+        finally:
+            made.set()
         while True:
             with self.cond:
                 self.cond.wait_for(lambda: self.jobs)
-                world, truth = self.jobs.pop()
+                world, truth, with_seg = self.jobs.pop()
             try:
-                self._draw(world, truth)
+                self._draw(world, truth, with_seg)
+            except Exception as error:      # keep drawing; one bad frame must not end the camera
+                print(f'== camera: a frame failed to draw: {error!r}', flush=True)
             finally:
                 self.busy.clear()
 
-    def _draw(self, world, truth: dict) -> None:
-        rgb = self.renderer.render()
-        seg = self.seg.render()
-        boxes = world.oracle_boxes(seg)
+    def _draw(self, world, truth: dict, with_seg: bool) -> None:
+        rgb = self.rgb_r.render()
+        boxes = world.oracle_boxes(self.seg_r.render()) if with_seg else None
         packed = sim_camera.to_uyvy(rgb)
         truth['drawn_mono'] = time.monotonic()
+        self.draw_ms.append((truth['drawn_mono'] - truth['mono']) * 1000.0)
         with self.lock:
             self.latest = packed
         with self.cond:
             self.seq += 1
-            self.wanted = False
+            if with_seg:
+                self.wanted = False
             self.view = {'seq': self.seq, 'rgb': rgb, 'boxes': boxes, 'truth': truth}
             self.cond.notify_all()
+
+    def draw_stats(self) -> dict:
+        ms = sorted(self.draw_ms)
+        if not ms:
+            return {'frames': self.seq + 1}
+        return {'frames': self.seq + 1, 'threaded': self.threaded,
+                'draw_ms_p50': round(ms[len(ms) // 2], 1), 'draw_ms_p95': round(ms[int(len(ms) * 0.95)], 1)}
 
     def pose_truth(self, data) -> dict:
         """The camera at render time: world position, and the upright-image row of the horizon
@@ -185,13 +236,38 @@ class ArenaCamera(sim_camera.Camera):
     def next_view(self, after: int, timeout: float) -> dict | None:
         deadline = time.monotonic() + timeout
         with self.cond:
-            while self.view is None or self.view['seq'] <= after:
+            while self.view is None or self.view['seq'] <= after or self.view['boxes'] is None:
                 self.wanted = True
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     return None
                 self.cond.wait(remaining)
             return self.view
+
+
+class ArenaFrameHandler(sim_camera.FrameHandler):
+    """Each frame leaves as soon as it is drawn. Upstream sends the latest frame on its own 15 Hz
+    clock, so a frame waited 0-67 ms before leaving, unmeasured: the brain takes a frame's moment
+    as its first byte less camera.stream_lag_s (Mac 3P spin frames: 118 ms late on average; sent when
+    drawn, 71 ms, about the draw time)."""
+
+    def handle(self) -> None:
+        camera: ArenaCamera = self.server.camera
+        self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        print(f'== camera: a reader connected from {self.client_address}', flush=True)
+        sent = camera.seq
+        try:
+            while True:
+                with camera.cond:
+                    if not camera.cond.wait_for(lambda: camera.seq > sent, timeout=1.0):
+                        continue
+                    sent = camera.seq
+                frame = camera.frame()
+                if frame is not None:
+                    self.request.sendall(struct.pack('<I', len(frame)) + frame)
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        print('== camera: the reader went away', flush=True)
 
 
 class ArenaWorld(probe_body.ProbeWorld):
@@ -483,6 +559,8 @@ class ArenaWorld(probe_body.ProbeWorld):
                    toys={toy_lib.SHORT[n]: {'half': list(t['half']), 'rest_z': t['rest_z']}
                          for n, t in self.arena.toys.items()},
                    camera=bool(self.bodies and self.bodies[0].camera is not None))
+        if self.bodies and self.bodies[0].camera is not None:
+            out['camera_draw'] = self.bodies[0].camera.draw_stats()
         return out
 
 
@@ -559,6 +637,7 @@ def install(floor: str, config: dict) -> None:
     sim.Body = ArenaBody
     sim.World = ArenaWorld
     sim.Camera = ArenaCamera
+    sim.FrameHandler = ArenaFrameHandler
 
 
 def main() -> None:
@@ -569,9 +648,10 @@ def main() -> None:
     parser.add_argument('--stage1-config', default=None)
     parser.add_argument('--oracle-fps', type=float, default=15.0,
                         help='head-camera renders per second; 0 = only when a view op asks')
-    parser.add_argument('--render-thread', action='store_true',
-                        help='draw camera frames on their own thread (the cloud twin: a software '
-                             'renderer takes ~0.3 s a frame and would stall the physics)')
+    parser.add_argument('--render-inline', action='store_true',
+                        help='draw camera frames on the physics thread, as Stage 1 and 2 did (it '
+                             'stalls the physics; the default draws them on their own thread)')
+    parser.add_argument('--render-thread', action='store_true', help='the default; kept for old commands')
     own, rest = parser.parse_known_args()
     sys.argv = [sys.argv[0], *rest]
     if '--scene' in rest:
@@ -579,7 +659,7 @@ def main() -> None:
     ArenaWorld.probe_address = (own.probe_host, own.probe_port)
     install(own.floor, load_config(own.stage1_config))
     ArenaCamera.fps = own.oracle_fps
-    ArenaCamera.threaded = own.render_thread
+    ArenaCamera.threaded = not own.render_inline
     print(f'== Stage 1 arena ({own.floor} floor); startup assistance enabled', flush=True)
     sim.main()
 
