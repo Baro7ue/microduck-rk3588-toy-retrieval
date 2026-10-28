@@ -1,7 +1,7 @@
 {
  "about": "Stage 3 exit facts (plan claude-docs/stage3_plan_20261026/, section 10). Stage 4 runs the frozen code (git tag stage3-freeze) and reads its brain numbers only from here, configs/control/stage3.json (knobs, frozen) and the Stage 0-2 facts. Units are in the key names. Mac = Ethan's MacBook Air sim: arena body with the threaded camera, robotd s2, the brain in the runner's process, YOLO FP32 (split ONNX) on the CPU. Board = the brain on the RK3588 (YOLO INT8 on the NPU, robotd on the board, MuJoCo body and truth on the Mac). Cloud twin runs are pre-runs only and appear nowhere below.",
  "written_utc": "2026-10-27",
- "measured_with_commit": "3p/3ab/3c/3d at f40dcab + the batch-1 fix uncommitted (committed unchanged as e62b512); 3p rescored at e62b512 (RESET_JUMP_M); 3E and m_spin at e62b512; 3F at d0f395a (robotd on core 7, brain on cores 4-6 at nice 10). The brain, the configs and the models are the same in all of them except the 3F launch (cores) and bd12f25's board-side fixes (--start=, error report, frame clock).",
+ "measured_with_commit": "3p/3ab/3c/3d at f40dcab + the batch-1 fix uncommitted (committed unchanged as e62b512); 3p rescored at e62b512 (RESET_JUMP_M); 3E and m_spin at e62b512; 3F at d0f395a (robotd on core 7, brain on cores 4-6 at nice 10). The brain, the configs and the models are the same in all of them except the 3F launch (cores) and bd12f25's board-side fixes (--start=, error report, frame clock); the 3G board trial at a065302 (tree clean).",
  "runs": {
   "3p": "runs/20261027T025229Z_s33p_s2 (rescored)",
   "3p_m_spin_after_lag": "runs/20261027T054255Z_s33p_s2",
@@ -11,7 +11,8 @@
   "3e": "runs/20261027T054310Z_s33e_s2",
   "3f": "runs/20261027T101202Z_s33e_s2_board (--mac-run runs/20261027T054310Z_s33e_s2)",
   "3f_before_core_split": "runs/20261027T083323Z_s33e_s2_board (failed only on robotd missed ticks, kept as evidence)",
-  "3g_board_trial": "pending"
+  "3g_board_trial": "runs/batch_board_int8_stage3_layouts_3003-3004 (one invocation at a065302, tree clean)",
+  "3g_board_ctrl_c": "runs/batch_board_int8_stage3_layouts_3005_bus (two invocations at a065302, tree clean)"
  },
  "episode_rule": {
   "max_s": 180.0,
@@ -368,14 +369,44 @@
   "resume": "the same command again; only episodes whose folder is a result are skipped (summary.json, no interruption or runner/scorer/brain error, sim health ok, brain log and, on the board, latency and robotd logs present)",
   "failed_attempts": "renamed <seed>_<target>.<interrupted|infra|incomplete><n>, kept, counted in summary.json, rerun next time; 3 in a row stop the batch",
   "same_code": "batch.json keeps the sha256 of the bundle's SHA256SUMS (package + 4 configs + 3 models) and of the layouts file; a resume with others is refused",
-  "board_trial": "pending"
+  "board_trial": {
+   "run": "runs/batch_board_int8_stage3_layouts_3003-3004",
+   "episodes": "3003-3004 x 3 targets (the dev seeds after 3F's 3000-3002), int8 on the NPU",
+   "commit": "a065302, tree clean, one invocation 2026-10-27 12:55Z",
+   "planned": 6,
+   "delivered": 5,
+   "delivered_strict": 5,
+   "ends": {
+    "delivered": 5,
+    "grasp_fail": 1
+   },
+   "wrong_toy": 0,
+   "falls": 0,
+   "tof_stops": 0,
+   "mean_s": 49.4,
+   "grasp_fail": "3004 henry: 3 closes, none held. On the Mac (3E) the same layout missed bus and delivered henry, so this is the last-segment park scatter of known_issues 1, not a board fault.",
+   "robotd_ticks": 14981,
+   "robotd_missed": 0,
+   "robotd_missed_allowed": 1,
+   "robotd_hz_min": 49.88,
+   "e2e_p99_ms_per_episode": [
+    46.775,
+    46.836,
+    44.727,
+    44.369,
+    42.387,
+    44.886
+   ],
+   "e2e_p99_ms_worst": 46.836,
+   "ctrl_c_resume": "passed 2026-10-27 on the board (runs/batch_board_int8_stage3_layouts_3005_bus, 3005 bus): Ctrl-C during PICK at 13:27Z; the episode printed its board-brain stop line with no ssh error, saved and exited, and the folder was set aside as 3005_bus.interrupted1; Ethan checked with pgrep on the board afterwards (no brain left); the same command again ran it: delivered, 1 close, 30.8 s, robotd 0/1565 missed, P99 41.2 ms, the interrupted attempt listed in summary.json."
+  }
  },
  "freeze": {
   "tag": "stage3-freeze",
-  "commit": "pending",
-  "bundle_sha256": "pending",
+  "commit": "a065302 (the code; the tag sits on the next commit, which changes only this file, and this file is not in the bundle)",
+  "bundle_sha256": "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a (sha256 of the bundle's SHA256SUMS, as batch.json code_sha256 records it; the board trial ran this bundle). Recompute it on the Mac: zsh sorts the SHA256SUMS lines by the locale, and the cloud's C locale puts stage1.json before stage1_facts.json, which gives cae76233... for the same 82 file hashes.",
   "stage3_json": "frozen: no change after the tag (camera.stream_lag_s 0.07, tray d 0.21 and the rest as committed)",
-  "formal_seed_check": "pending (python -m microduck_toy.stage3.batch formal-check)"
+  "formal_seed_check": "passed 2026-10-27 on the Mac (python -m microduck_toy.stage3.batch formal-check): 26 Stage 3 run folders, 426 seed records, none of 1000-1019"
  },
  "known_issues": [
   "1. Lateral park bias in the blind last segment: the robot parks +1.35 cm (sd 2.17) too far right of the target spot; 19 of 23 misses at +1.7..+4.7 cm and retries repeat the side. Not tuned: the 3E gate passed and Stage 4 runs frozen code. Report it with the Stage 4 inching comparison; a candidate fix is aiming ~1 cm further left.",
@@ -384,10 +415,5 @@
   "4. The cloud twin draws a frame in ~450 ms, so its streamed search sees ~2 frames/s with ~0.5 s lag: cloud pre-runs use --source probe and are never evidence.",
   "5. 3E's one drop_missed (3007 ketchup): the second close held the toy off-centre (6.0 cm forward, 2.1 cm left in the beak, against ~9 cm and ~0 cm on clean grips); it touched the rim and landed 0.20 m behind and 0.17 m left of the tray centre. 11 of 26 drops touched the rim without a stumble; the strict inner-square count equals the main one (25)."
  ],
- "pending": [
-  "3g_board_trial",
-  "freeze.commit",
-  "freeze.bundle_sha256",
-  "freeze.formal_seed_check"
- ]
+ "pending": []
 }
