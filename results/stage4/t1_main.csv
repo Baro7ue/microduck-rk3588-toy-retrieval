@@ -1,0 +1,6 @@
+group,label,episodes,delivered,delivered_strict,wrong_toy,falls,tof_stops,mean_s,ends
+board_int8,"RK3588, YOLO INT8 (NPU)",60,"52/60 = 86.7% [75.8, 93.1]","52/60 = 86.7% [75.8, 93.1]",0,0,0,37.0,"{""delivered"": 52, ""drop_missed"": 2, ""grasp_fail"": 6}"
+board_fp16,"RK3588, YOLO FP16 (NPU)",15,"12/15 = 80.0% [54.8, 93.0]","12/15 = 80.0% [54.8, 93.0]",0,0,0,37.2,"{""delivered"": 12, ""drop_missed"": 1, ""grasp_fail"": 2}"
+board_cpu,"RK3588, YOLO FP32 (CPU)",15,"14/15 = 93.3% [70.2, 98.8]","14/15 = 93.3% [70.2, 98.8]",0,0,0,37.1,"{""delivered"": 14, ""grasp_fail"": 1}"
+mac_cpu,"Mac, YOLO FP32 (CPU)",60,"54/60 = 90.0% [79.8, 95.3]","54/60 = 90.0% [79.8, 95.3]",0,0,0,35.4,"{""delivered"": 54, ""drop_missed"": 2, ""grasp_fail"": 4}"
+mac_colour,"Mac, colour threshold (toys) + YOLO FP32 (tray)",60,"40/60 = 66.7% [54.1, 77.3]","40/60 = 66.7% [54.1, 77.3]",8,0,0,50.0,"{""delivered"": 40, ""grasp_fail"": 11, ""timeout"": 1, ""wrong_toy"": 8}"

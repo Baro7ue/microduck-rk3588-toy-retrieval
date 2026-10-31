@@ -1,0 +1,1856 @@
+{
+ "about": "Stage 4 results (plan claude-docs/stage4_plan_20261028/). Written by scripts/stage4/tables.py from the batch folders and the 4D run; Stage 5 takes its numbers only from here. Rates carry a Wilson 95% interval; paired comparisons McNemar's exact p (two-sided).",
+ "mode": "formal",
+ "layouts": "configs/control/stage1_layouts.json",
+ "rules": {
+  "counted": "an episode folder the batch runner counts as done (stage3/batch.py status); attempts without a result are listed, never scored",
+  "repeated_error": ">= 3 attempts ending in a brain error = a failure, end error",
+  "duplicates": "the earlier result counts",
+  "headline": "board_int8 delivered >= 42/60",
+  "last_segment": "earliest complete 1F run (30 + 30 starts) after the freeze with sim health ok"
+ },
+ "code_sha256_frozen_groups": [
+  "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a"
+ ],
+ "headline": {
+  "group": "board_int8",
+  "delivered": {
+   "k": 52,
+   "n": 60,
+   "rate": 0.8667,
+   "wilson95": [
+    0.7583,
+    0.9309
+   ]
+  },
+  "pass": true
+ },
+ "groups": {
+  "board_int8": {
+   "step": "4A",
+   "label": "RK3588, YOLO INT8 (NPU)",
+   "target": "board",
+   "backend": "int8",
+   "eyes": "yolo",
+   "folders": [
+    {
+     "folder": "runs/batch_board_int8_stage1_layouts",
+     "code_sha256": "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a",
+     "layouts_sha256": "37ee038c58a16c4bdaaae6eb7630a26fb12faad9620bbfe0f612b65d514126ee",
+     "extra": "",
+     "commits": [
+      "9e280a8ac6f806c8bb5adc535568fc9b94996111"
+     ],
+     "dirty": false,
+     "invocations": 2
+    }
+   ],
+   "code_sha256": [
+    "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a"
+   ],
+   "expected": 60,
+   "counted": 60,
+   "not_counted": [],
+   "attempts_not_counted": {
+    "total": 1,
+    "by_status": {
+     "interrupted": 1
+    },
+    "list": [
+     {
+      "folder": "runs/batch_board_int8_stage1_layouts/episodes/1000_bus.interrupted1",
+      "status": "interrupted",
+      "why": "按了 Ctrl-C"
+     }
+    ]
+   },
+   "repeated_errors": [],
+   "duplicate_results_ignored": [],
+   "episodes": 60,
+   "delivered": {
+    "k": 52,
+    "n": 60,
+    "rate": 0.8667,
+    "wilson95": [
+     0.7583,
+     0.9309
+    ]
+   },
+   "delivered_strict": {
+    "k": 52,
+    "n": 60,
+    "rate": 0.8667,
+    "wilson95": [
+     0.7583,
+     0.9309
+    ]
+   },
+   "wrong_toy": 0,
+   "ends": {
+    "delivered": 52,
+    "drop_missed": 2,
+    "grasp_fail": 6
+   },
+   "mean_s": 37.0,
+   "falls": 0,
+   "getup_s_max": null,
+   "tof_stops": 0,
+   "false_tof_stops": 0,
+   "tray_contact": 7,
+   "closes": 89,
+   "grasped": 54,
+   "success_per_close": 0.6067,
+   "reached_pick": 60,
+   "held": 54,
+   "wrong_grabs": 0,
+   "park_err_cm": {
+    "n": 89,
+    "forward_mean_sd": [
+     0.19,
+     1.0
+    ],
+    "lateral_mean_sd": [
+     1.46,
+     1.91
+    ],
+    "rms": 2.6,
+    "first_close_lateral_mean_sd": [
+     1.15,
+     1.95
+    ]
+   },
+   "per_target": {
+    "bus": {
+     "delivered": {
+      "k": 16,
+      "n": 20,
+      "rate": 0.8,
+      "wilson95": [
+       0.584,
+       0.9193
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 16,
+      "drop_missed": 1,
+      "grasp_fail": 3
+     }
+    },
+    "henry": {
+     "delivered": {
+      "k": 18,
+      "n": 20,
+      "rate": 0.9,
+      "wilson95": [
+       0.699,
+       0.9721
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 18,
+      "drop_missed": 1,
+      "grasp_fail": 1
+     }
+    },
+    "ketchup": {
+     "delivered": {
+      "k": 18,
+      "n": 20,
+      "rate": 0.9,
+      "wilson95": [
+       0.699,
+       0.9721
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 18,
+      "grasp_fail": 2
+     }
+    }
+   },
+   "timing": {
+    "state_s_mean": {
+     "APPROACH": 7.75,
+     "CARRY": 6.28,
+     "DROP": 3.27,
+     "GOTO": 1.63,
+     "LAST": 3.06,
+     "LOOK": 3.24,
+     "PICK": 6.6,
+     "SPIN": 3.64,
+     "TRAY_LOOK": 1.48
+    },
+    "latency_ms": {
+     "e2e": {
+      "episodes": 60,
+      "p50_median": 31.968,
+      "p99_median": 45.758,
+      "p99_worst": 62.1
+     },
+     "preprocess": {
+      "episodes": 60,
+      "p50_median": 19.778,
+      "p99_median": 27.616,
+      "p99_worst": 40.372
+     },
+     "inference": {
+      "episodes": 60,
+      "p50_median": 7.135,
+      "p99_median": 15.565,
+      "p99_worst": 31.642
+     },
+     "postprocess": {
+      "episodes": 60,
+      "p50_median": 0.558,
+      "p99_median": 2.07,
+      "p99_worst": 5.424
+     },
+     "receive": {
+      "episodes": 60,
+      "p50_median": 3.577,
+      "p99_median": 5.322,
+      "p99_worst": 11.15
+     },
+     "wait": {
+      "episodes": 60,
+      "p50_median": 0.405,
+      "p99_median": 1.329,
+      "p99_worst": 3.461
+     }
+    }
+   },
+   "board": {
+    "robotd_ticks": 112357,
+    "robotd_missed": 116,
+    "robotd_missed_allowed": 8,
+    "robotd_hz_min": 35.51,
+    "e2e_p99_ms_worst": 62.1,
+    "e2e_p99_ms_limit": 66.0,
+    "episodes_over_limit": 0,
+    "latency_logs": 60
+   },
+   "vision_loop": {
+    "episodes": 60,
+    "recall_targets": {
+     "k": 655,
+     "n": 658,
+     "rate": 0.9954,
+     "wilson95": [
+      0.9867,
+      0.9984
+     ]
+    },
+    "precision_targets": {
+     "k": 689,
+     "n": 690,
+     "rate": 0.9986,
+     "wilson95": [
+      0.9918,
+      0.9997
+     ]
+    },
+    "wrong_class_within_1_6m": 0
+   },
+   "sim_health": {
+    "stalled_max": 0.0167,
+    "odom_ratio_min": null,
+    "odom_ratio_max": null
+   }
+  },
+  "board_fp16": {
+   "step": "4B",
+   "label": "RK3588, YOLO FP16 (NPU)",
+   "target": "board",
+   "backend": "fp16",
+   "eyes": "yolo",
+   "folders": [
+    {
+     "folder": "runs/batch_board_fp16_stage1_layouts_1000-1004",
+     "code_sha256": "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a",
+     "layouts_sha256": "37ee038c58a16c4bdaaae6eb7630a26fb12faad9620bbfe0f612b65d514126ee",
+     "extra": "",
+     "commits": [
+      "9e280a8ac6f806c8bb5adc535568fc9b94996111"
+     ],
+     "dirty": false,
+     "invocations": 1
+    }
+   ],
+   "code_sha256": [
+    "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a"
+   ],
+   "expected": 15,
+   "counted": 15,
+   "not_counted": [],
+   "attempts_not_counted": {
+    "total": 0,
+    "by_status": {},
+    "list": []
+   },
+   "repeated_errors": [],
+   "duplicate_results_ignored": [],
+   "episodes": 15,
+   "delivered": {
+    "k": 12,
+    "n": 15,
+    "rate": 0.8,
+    "wilson95": [
+     0.5481,
+     0.9295
+    ]
+   },
+   "delivered_strict": {
+    "k": 12,
+    "n": 15,
+    "rate": 0.8,
+    "wilson95": [
+     0.5481,
+     0.9295
+    ]
+   },
+   "wrong_toy": 0,
+   "ends": {
+    "delivered": 12,
+    "drop_missed": 1,
+    "grasp_fail": 2
+   },
+   "mean_s": 37.2,
+   "falls": 0,
+   "getup_s_max": null,
+   "tof_stops": 0,
+   "false_tof_stops": 0,
+   "tray_contact": 1,
+   "closes": 22,
+   "grasped": 13,
+   "success_per_close": 0.5909,
+   "reached_pick": 15,
+   "held": 13,
+   "wrong_grabs": 0,
+   "park_err_cm": {
+    "n": 22,
+    "forward_mean_sd": [
+     0.28,
+     1.0
+    ],
+    "lateral_mean_sd": [
+     1.05,
+     2.21
+    ],
+    "rms": 2.6,
+    "first_close_lateral_mean_sd": [
+     0.6,
+     2.26
+    ]
+   },
+   "per_target": {
+    "bus": {
+     "delivered": {
+      "k": 4,
+      "n": 5,
+      "rate": 0.8,
+      "wilson95": [
+       0.3755,
+       0.9638
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 4,
+      "grasp_fail": 1
+     }
+    },
+    "henry": {
+     "delivered": {
+      "k": 4,
+      "n": 5,
+      "rate": 0.8,
+      "wilson95": [
+       0.3755,
+       0.9638
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 4,
+      "grasp_fail": 1
+     }
+    },
+    "ketchup": {
+     "delivered": {
+      "k": 4,
+      "n": 5,
+      "rate": 0.8,
+      "wilson95": [
+       0.3755,
+       0.9638
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 4,
+      "drop_missed": 1
+     }
+    }
+   },
+   "timing": {
+    "state_s_mean": {
+     "APPROACH": 7.59,
+     "CARRY": 6.56,
+     "DROP": 3.08,
+     "GOTO": 1.41,
+     "LAST": 3.07,
+     "LOOK": 3.34,
+     "PICK": 6.51,
+     "SPIN": 3.98,
+     "TRAY_LOOK": 1.63
+    },
+    "latency_ms": {
+     "e2e": {
+      "episodes": 15,
+      "p50_median": 39.27,
+      "p99_median": 52.545,
+      "p99_worst": 62.658
+     },
+     "preprocess": {
+      "episodes": 15,
+      "p50_median": 19.621,
+      "p99_median": 27.551,
+      "p99_worst": 30.548
+     },
+     "inference": {
+      "episodes": 15,
+      "p50_median": 14.451,
+      "p99_median": 24.425,
+      "p99_worst": 35.638
+     },
+     "postprocess": {
+      "episodes": 15,
+      "p50_median": 0.566,
+      "p99_median": 2.014,
+      "p99_worst": 3.925
+     },
+     "receive": {
+      "episodes": 15,
+      "p50_median": 3.59,
+      "p99_median": 5.515,
+      "p99_worst": 7.943
+     },
+     "wait": {
+      "episodes": 15,
+      "p50_median": 0.406,
+      "p99_median": 1.417,
+      "p99_worst": 2.715
+     }
+    }
+   },
+   "board": {
+    "robotd_ticks": 28300,
+    "robotd_missed": 3,
+    "robotd_missed_allowed": 2,
+    "robotd_hz_min": 48.97,
+    "e2e_p99_ms_worst": 62.658,
+    "e2e_p99_ms_limit": 66.0,
+    "episodes_over_limit": 0,
+    "latency_logs": 15
+   },
+   "vision_loop": {
+    "episodes": 15,
+    "recall_targets": {
+     "k": 169,
+     "n": 169,
+     "rate": 1.0,
+     "wilson95": [
+      0.9778,
+      1.0
+     ]
+    },
+    "precision_targets": {
+     "k": 180,
+     "n": 180,
+     "rate": 1.0,
+     "wilson95": [
+      0.9791,
+      1.0
+     ]
+    },
+    "wrong_class_within_1_6m": 0
+   },
+   "sim_health": {
+    "stalled_max": 0.0049,
+    "odom_ratio_min": null,
+    "odom_ratio_max": null
+   }
+  },
+  "board_cpu": {
+   "step": "4B",
+   "label": "RK3588, YOLO FP32 (CPU)",
+   "target": "board",
+   "backend": "cpu",
+   "eyes": "yolo",
+   "folders": [
+    {
+     "folder": "runs/batch_board_cpu_stage1_layouts_1000-1004",
+     "code_sha256": "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a",
+     "layouts_sha256": "37ee038c58a16c4bdaaae6eb7630a26fb12faad9620bbfe0f612b65d514126ee",
+     "extra": "",
+     "commits": [
+      "9e280a8ac6f806c8bb5adc535568fc9b94996111"
+     ],
+     "dirty": false,
+     "invocations": 1
+    }
+   ],
+   "code_sha256": [
+    "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a"
+   ],
+   "expected": 15,
+   "counted": 15,
+   "not_counted": [],
+   "attempts_not_counted": {
+    "total": 0,
+    "by_status": {},
+    "list": []
+   },
+   "repeated_errors": [],
+   "duplicate_results_ignored": [],
+   "episodes": 15,
+   "delivered": {
+    "k": 14,
+    "n": 15,
+    "rate": 0.9333,
+    "wilson95": [
+     0.7018,
+     0.9881
+    ]
+   },
+   "delivered_strict": {
+    "k": 14,
+    "n": 15,
+    "rate": 0.9333,
+    "wilson95": [
+     0.7018,
+     0.9881
+    ]
+   },
+   "wrong_toy": 0,
+   "ends": {
+    "delivered": 14,
+    "grasp_fail": 1
+   },
+   "mean_s": 37.1,
+   "falls": 0,
+   "getup_s_max": null,
+   "tof_stops": 0,
+   "false_tof_stops": 0,
+   "tray_contact": 2,
+   "closes": 21,
+   "grasped": 14,
+   "success_per_close": 0.6667,
+   "reached_pick": 15,
+   "held": 14,
+   "wrong_grabs": 0,
+   "park_err_cm": {
+    "n": 21,
+    "forward_mean_sd": [
+     0.18,
+     0.69
+    ],
+    "lateral_mean_sd": [
+     0.24,
+     1.72
+    ],
+    "rms": 1.83,
+    "first_close_lateral_mean_sd": [
+     0.32,
+     1.69
+    ]
+   },
+   "per_target": {
+    "bus": {
+     "delivered": {
+      "k": 5,
+      "n": 5,
+      "rate": 1.0,
+      "wilson95": [
+       0.5655,
+       1.0
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 5
+     }
+    },
+    "henry": {
+     "delivered": {
+      "k": 5,
+      "n": 5,
+      "rate": 1.0,
+      "wilson95": [
+       0.5655,
+       1.0
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 5
+     }
+    },
+    "ketchup": {
+     "delivered": {
+      "k": 4,
+      "n": 5,
+      "rate": 0.8,
+      "wilson95": [
+       0.3755,
+       0.9638
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 4,
+      "grasp_fail": 1
+     }
+    }
+   },
+   "timing": {
+    "state_s_mean": {
+     "APPROACH": 7.25,
+     "CARRY": 6.82,
+     "DROP": 3.38,
+     "GOTO": 1.51,
+     "LAST": 2.84,
+     "LOOK": 3.31,
+     "PICK": 6.17,
+     "SPIN": 4.03,
+     "TRAY_LOOK": 1.79
+    },
+    "latency_ms": {
+     "e2e": {
+      "episodes": 15,
+      "p50_median": 71.265,
+      "p99_median": 84.327,
+      "p99_worst": 88.401
+     },
+     "preprocess": {
+      "episodes": 15,
+      "p50_median": 16.653,
+      "p99_median": 27.399,
+      "p99_worst": 30.875
+     },
+     "inference": {
+      "episodes": 15,
+      "p50_median": 49.02,
+      "p99_median": 54.96,
+      "p99_worst": 62.794
+     },
+     "postprocess": {
+      "episodes": 15,
+      "p50_median": 0.546,
+      "p99_median": 0.972,
+      "p99_worst": 3.388
+     },
+     "receive": {
+      "episodes": 15,
+      "p50_median": 3.759,
+      "p99_median": 5.447,
+      "p99_worst": 6.511
+     },
+     "wait": {
+      "episodes": 15,
+      "p50_median": 0.335,
+      "p99_median": 16.697,
+      "p99_worst": 21.905
+     }
+    }
+   },
+   "board": {
+    "robotd_ticks": 28183,
+    "robotd_missed": 12,
+    "robotd_missed_allowed": 2,
+    "robotd_hz_min": 33.92,
+    "e2e_p99_ms_worst": 88.401,
+    "e2e_p99_ms_limit": 66.0,
+    "episodes_over_limit": 15,
+    "latency_logs": 15
+   },
+   "vision_loop": {
+    "episodes": 15,
+    "recall_targets": {
+     "k": 175,
+     "n": 175,
+     "rate": 1.0,
+     "wilson95": [
+      0.9785,
+      1.0
+     ]
+    },
+    "precision_targets": {
+     "k": 180,
+     "n": 180,
+     "rate": 1.0,
+     "wilson95": [
+      0.9791,
+      1.0
+     ]
+    },
+    "wrong_class_within_1_6m": 0
+   },
+   "sim_health": {
+    "stalled_max": 0.0079,
+    "odom_ratio_min": null,
+    "odom_ratio_max": null
+   }
+  },
+  "mac_cpu": {
+   "step": "4C",
+   "label": "Mac, YOLO FP32 (CPU)",
+   "target": "mac",
+   "backend": "cpu",
+   "eyes": "yolo",
+   "folders": [
+    {
+     "folder": "runs/batch_mac_cpu_stage1_layouts",
+     "code_sha256": "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a",
+     "layouts_sha256": "37ee038c58a16c4bdaaae6eb7630a26fb12faad9620bbfe0f612b65d514126ee",
+     "extra": "",
+     "commits": [
+      "9e280a8ac6f806c8bb5adc535568fc9b94996111"
+     ],
+     "dirty": false,
+     "invocations": 1
+    }
+   ],
+   "code_sha256": [
+    "8295a307765d1c1dd6fe93176a2d9f4c9ed045bccce53af3f5e41cba8f89215a"
+   ],
+   "expected": 60,
+   "counted": 60,
+   "not_counted": [],
+   "attempts_not_counted": {
+    "total": 0,
+    "by_status": {},
+    "list": []
+   },
+   "repeated_errors": [],
+   "duplicate_results_ignored": [],
+   "episodes": 60,
+   "delivered": {
+    "k": 54,
+    "n": 60,
+    "rate": 0.9,
+    "wilson95": [
+     0.7985,
+     0.9534
+    ]
+   },
+   "delivered_strict": {
+    "k": 54,
+    "n": 60,
+    "rate": 0.9,
+    "wilson95": [
+     0.7985,
+     0.9534
+    ]
+   },
+   "wrong_toy": 0,
+   "ends": {
+    "delivered": 54,
+    "drop_missed": 2,
+    "grasp_fail": 4
+   },
+   "mean_s": 35.4,
+   "falls": 0,
+   "getup_s_max": null,
+   "tof_stops": 0,
+   "false_tof_stops": 0,
+   "tray_contact": 30,
+   "closes": 85,
+   "grasped": 56,
+   "success_per_close": 0.6588,
+   "reached_pick": 60,
+   "held": 56,
+   "wrong_grabs": 0,
+   "park_err_cm": {
+    "n": 85,
+    "forward_mean_sd": [
+     0.38,
+     0.75
+    ],
+    "lateral_mean_sd": [
+     1.56,
+     1.81
+    ],
+    "rms": 2.52,
+    "first_close_lateral_mean_sd": [
+     1.21,
+     1.86
+    ]
+   },
+   "per_target": {
+    "bus": {
+     "delivered": {
+      "k": 17,
+      "n": 20,
+      "rate": 0.85,
+      "wilson95": [
+       0.6396,
+       0.9476
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 17,
+      "drop_missed": 2,
+      "grasp_fail": 1
+     }
+    },
+    "henry": {
+     "delivered": {
+      "k": 18,
+      "n": 20,
+      "rate": 0.9,
+      "wilson95": [
+       0.699,
+       0.9721
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 18,
+      "grasp_fail": 2
+     }
+    },
+    "ketchup": {
+     "delivered": {
+      "k": 19,
+      "n": 20,
+      "rate": 0.95,
+      "wilson95": [
+       0.7639,
+       0.9911
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 19,
+      "grasp_fail": 1
+     }
+    }
+   },
+   "timing": {
+    "state_s_mean": {
+     "APPROACH": 6.61,
+     "CARRY": 6.74,
+     "DROP": 3.38,
+     "GOTO": 1.46,
+     "LAST": 3.05,
+     "LOOK": 2.89,
+     "PICK": 6.25,
+     "SPIN": 3.61,
+     "TRAY_LOOK": 1.42
+    },
+    "latency_ms": {
+     "e2e": {
+      "episodes": 60,
+      "p50_median": 10.035,
+      "p99_median": 11.623,
+      "p99_worst": 43.522
+     },
+     "preprocess": {
+      "episodes": 60,
+      "p50_median": 2.31,
+      "p99_median": 3.372,
+      "p99_worst": 8.294
+     },
+     "inference": {
+      "episodes": 60,
+      "p50_median": 7.086,
+      "p99_median": 8.323,
+      "p99_worst": 34.831
+     },
+     "postprocess": {
+      "episodes": 60,
+      "p50_median": 0.188,
+      "p99_median": 0.304,
+      "p99_worst": 2.004
+     },
+     "receive": {
+      "episodes": 60,
+      "p50_median": 0.11,
+      "p99_median": 0.227,
+      "p99_worst": 0.533
+     },
+     "wait": {
+      "episodes": 60,
+      "p50_median": 0.05,
+      "p99_median": 0.077,
+      "p99_worst": 0.276
+     }
+    }
+   },
+   "board": null,
+   "vision_loop": {
+    "episodes": 60,
+    "recall_targets": {
+     "k": 609,
+     "n": 624,
+     "rate": 0.976,
+     "wilson95": [
+      0.9607,
+      0.9854
+     ]
+    },
+    "precision_targets": {
+     "k": 685,
+     "n": 685,
+     "rate": 1.0,
+     "wilson95": [
+      0.9944,
+      1.0
+     ]
+    },
+    "wrong_class_within_1_6m": 0
+   },
+   "sim_health": {
+    "stalled_max": 0.0009,
+    "odom_ratio_min": 0.954,
+    "odom_ratio_max": 1.032
+   }
+  },
+  "mac_colour": {
+   "step": "4E",
+   "label": "Mac, colour threshold (toys) + YOLO FP32 (tray)",
+   "target": "mac",
+   "backend": "cpu",
+   "eyes": "colour",
+   "folders": [
+    {
+     "folder": "runs/batch_mac_colour_stage1_layouts",
+     "code_sha256": "4bfab66ecac0ff769fd8952dce0003858cb181d69de831180ecc6afb94b1cb26",
+     "layouts_sha256": "37ee038c58a16c4bdaaae6eb7630a26fb12faad9620bbfe0f612b65d514126ee",
+     "extra": "--eyes colour",
+     "commits": [
+      "a0fb2484ed62462482f841c2565a173d78f34c8b"
+     ],
+     "dirty": false,
+     "invocations": 1
+    }
+   ],
+   "code_sha256": [
+    "4bfab66ecac0ff769fd8952dce0003858cb181d69de831180ecc6afb94b1cb26"
+   ],
+   "expected": 60,
+   "counted": 60,
+   "not_counted": [],
+   "attempts_not_counted": {
+    "total": 0,
+    "by_status": {},
+    "list": []
+   },
+   "repeated_errors": [],
+   "duplicate_results_ignored": [],
+   "episodes": 60,
+   "delivered": {
+    "k": 40,
+    "n": 60,
+    "rate": 0.6667,
+    "wilson95": [
+     0.5406,
+     0.7727
+    ]
+   },
+   "delivered_strict": {
+    "k": 40,
+    "n": 60,
+    "rate": 0.6667,
+    "wilson95": [
+     0.5406,
+     0.7727
+    ]
+   },
+   "wrong_toy": 8,
+   "ends": {
+    "delivered": 40,
+    "grasp_fail": 11,
+    "timeout": 1,
+    "wrong_toy": 8
+   },
+   "mean_s": 50.0,
+   "falls": 0,
+   "getup_s_max": null,
+   "tof_stops": 0,
+   "false_tof_stops": 0,
+   "tray_contact": 19,
+   "closes": 108,
+   "grasped": 40,
+   "success_per_close": 0.3704,
+   "reached_pick": 59,
+   "held": 40,
+   "wrong_grabs": 8,
+   "park_err_cm": {
+    "n": 108,
+    "forward_mean_sd": [
+     -10.65,
+     33.24
+    ],
+    "lateral_mean_sd": [
+     14.04,
+     32.78
+    ],
+    "rms": 49.7,
+    "first_close_lateral_mean_sd": [
+     9.92,
+     28.13
+    ]
+   },
+   "per_target": {
+    "bus": {
+     "delivered": {
+      "k": 17,
+      "n": 20,
+      "rate": 0.85,
+      "wilson95": [
+       0.6396,
+       0.9476
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 17,
+      "grasp_fail": 3
+     }
+    },
+    "henry": {
+     "delivered": {
+      "k": 7,
+      "n": 20,
+      "rate": 0.35,
+      "wilson95": [
+       0.1812,
+       0.5671
+      ]
+     },
+     "wrong_toy": 8,
+     "ends": {
+      "delivered": 7,
+      "grasp_fail": 5,
+      "wrong_toy": 8
+     }
+    },
+    "ketchup": {
+     "delivered": {
+      "k": 16,
+      "n": 20,
+      "rate": 0.8,
+      "wilson95": [
+       0.584,
+       0.9193
+      ]
+     },
+     "wrong_toy": 0,
+     "ends": {
+      "delivered": 16,
+      "grasp_fail": 3,
+      "timeout": 1
+     }
+    }
+   },
+   "timing": {
+    "state_s_mean": {
+     "APPROACH": 10.89,
+     "CARRY": 6.63,
+     "DROP": 2.87,
+     "GOTO": 4.56,
+     "LAST": 3.78,
+     "LOOK": 7.89,
+     "PICK": 8.23,
+     "SPIN": 3.91,
+     "TRAY_LOOK": 1.27
+    },
+    "latency_ms": {
+     "e2e": {
+      "episodes": 60,
+      "p50_median": 10.332,
+      "p99_median": 13.096,
+      "p99_worst": 39.725
+     },
+     "preprocess": {
+      "episodes": 60,
+      "p50_median": 2.414,
+      "p99_median": 3.586,
+      "p99_worst": 8.189
+     },
+     "inference": {
+      "episodes": 60,
+      "p50_median": 7.626,
+      "p99_median": 9.668,
+      "p99_worst": 33.794
+     },
+     "postprocess": {
+      "episodes": 60,
+      "p50_median": 0.211,
+      "p99_median": 0.34,
+      "p99_worst": 2.862
+     },
+     "receive": {
+      "episodes": 60,
+      "p50_median": 0.117,
+      "p99_median": 0.268,
+      "p99_worst": 0.484
+     },
+     "wait": {
+      "episodes": 60,
+      "p50_median": 0.053,
+      "p99_median": 0.087,
+      "p99_worst": 0.346
+     }
+    }
+   },
+   "board": null,
+   "vision_loop": {
+    "episodes": 60,
+    "recall_targets": {
+     "k": 593,
+     "n": 613,
+     "rate": 0.9674,
+     "wilson95": [
+      0.9501,
+      0.9788
+     ]
+    },
+    "precision_targets": {
+     "k": 661,
+     "n": 6978,
+     "rate": 0.0947,
+     "wilson95": [
+      0.0881,
+      0.1018
+     ]
+    },
+    "wrong_class_within_1_6m": 7017
+   },
+   "sim_health": {
+    "stalled_max": 0.0012,
+    "odom_ratio_min": 0.987,
+    "odom_ratio_max": 1.021
+   }
+  }
+ },
+ "comparisons": {
+  "board_int8_vs_mac_cpu": {
+   "pairs": 60,
+   "a_delivered": 52,
+   "b_delivered": 54,
+   "a_only": 6,
+   "b_only": 8,
+   "mcnemar_p": 0.7905,
+   "a_only_episodes": [
+    "1000_bus",
+    "1007_henry",
+    "1012_ketchup",
+    "1016_bus",
+    "1017_henry",
+    "1018_bus"
+   ],
+   "b_only_episodes": [
+    "1003_henry",
+    "1004_bus",
+    "1007_bus",
+    "1009_ketchup",
+    "1012_henry",
+    "1014_bus",
+    "1015_ketchup",
+    "1019_bus"
+   ]
+  },
+  "mac_colour_vs_mac_cpu": {
+   "pairs": 60,
+   "a_delivered": 40,
+   "b_delivered": 54,
+   "a_only": 4,
+   "b_only": 18,
+   "mcnemar_p": 0.0043,
+   "a_only_episodes": [
+    "1000_bus",
+    "1007_henry",
+    "1016_bus",
+    "1018_bus"
+   ],
+   "b_only_episodes": [
+    "1000_henry",
+    "1002_henry",
+    "1003_henry",
+    "1004_henry",
+    "1005_bus",
+    "1005_henry",
+    "1008_henry",
+    "1009_henry",
+    "1010_henry",
+    "1010_ketchup",
+    "1012_henry",
+    "1013_bus",
+    "1015_henry",
+    "1016_ketchup",
+    "1017_bus",
+    "1018_henry",
+    "1018_ketchup",
+    "1019_henry"
+   ]
+  },
+  "board_fp16_vs_board_int8": {
+   "pairs": 15,
+   "a_delivered": 12,
+   "b_delivered": 13,
+   "a_only": 1,
+   "b_only": 2,
+   "mcnemar_p": 1.0,
+   "a_only_episodes": [
+    "1003_henry"
+   ],
+   "b_only_episodes": [
+    "1001_henry",
+    "1004_ketchup"
+   ]
+  },
+  "board_cpu_vs_board_int8": {
+   "pairs": 15,
+   "a_delivered": 14,
+   "b_delivered": 13,
+   "a_only": 2,
+   "b_only": 1,
+   "mcnemar_p": 1.0,
+   "a_only_episodes": [
+    "1003_henry",
+    "1004_bus"
+   ],
+   "b_only_episodes": [
+    "1001_ketchup"
+   ]
+  }
+ },
+ "last_segment": {
+  "run": "runs/20261031T073925Z_s1f_s2",
+  "commit": "9e280a8ac6f806c8bb5adc535568fc9b94996111",
+  "sim_health": {
+   "ok": true,
+   "stalled": 0.0001,
+   "steps": 75505,
+   "odom_ratio": 0.961
+  },
+  "tried": [
+   {
+    "run": "runs/20261031T073925Z_s1f_s2",
+    "sim_health": {
+     "ok": true,
+     "stalled": 0.0001,
+     "steps": 75505,
+     "odom_ratio": 0.961
+    }
+   }
+  ],
+  "eyes": "the arena body's segmentation boxes (Stage 1 plan 1A), not YOLO",
+  "inching": {
+   "starts": 30,
+   "closes": 41,
+   "grasped": 29,
+   "success_per_close": 0.7073,
+   "first_close_held": {
+    "k": 22,
+    "n": 30,
+    "rate": 0.7333,
+    "wilson95": [
+     0.5555,
+     0.8582
+    ]
+   },
+   "held_within_3": {
+    "k": 29,
+    "n": 30,
+    "rate": 0.9667,
+    "wilson95": [
+     0.8333,
+     0.9941
+    ]
+   },
+   "park_err_cm": {
+    "n": 41,
+    "forward_mean_sd": [
+     0.26,
+     0.94
+    ],
+    "lateral_mean_sd": [
+     0.99,
+     1.52
+    ],
+    "rms": 2.04
+   },
+   "mean_start_s": 28.3,
+   "falls": 0
+  },
+  "blind": {
+   "starts": 30,
+   "closes": 45,
+   "grasped": 29,
+   "success_per_close": 0.6444,
+   "first_close_held": {
+    "k": 18,
+    "n": 30,
+    "rate": 0.6,
+    "wilson95": [
+     0.4232,
+     0.7541
+    ]
+   },
+   "held_within_3": {
+    "k": 29,
+    "n": 30,
+    "rate": 0.9667,
+    "wilson95": [
+     0.8333,
+     0.9941
+    ]
+   },
+   "park_err_cm": {
+    "n": 45,
+    "forward_mean_sd": [
+     0.09,
+     0.89
+    ],
+    "lateral_mean_sd": [
+     0.75,
+     1.84
+    ],
+    "rms": 2.16
+   },
+   "mean_start_s": 15.2,
+   "falls": 0
+  },
+  "paired_held_within_3": {
+   "pairs": 30,
+   "blind_only": 1,
+   "inching_only": 1,
+   "mcnemar_p": 1.0
+  },
+  "starts": [
+   {
+    "i": 0,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 1,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 2
+   },
+   {
+    "i": 2,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 3,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 2
+   },
+   {
+    "i": 4,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 5,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 2,
+    "blind_closes": 1
+   },
+   {
+    "i": 6,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 7,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 2
+   },
+   {
+    "i": 8,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 2,
+    "blind_closes": 2
+   },
+   {
+    "i": 9,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 10,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 11,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 12,
+    "toy": "bus",
+    "inching_held_within_3": false,
+    "blind_held_within_3": true,
+    "inching_closes": 3,
+    "blind_closes": 2
+   },
+   {
+    "i": 13,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 14,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 2
+   },
+   {
+    "i": 15,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 16,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 17,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 18,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 2
+   },
+   {
+    "i": 19,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 20,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 2,
+    "blind_closes": 3
+   },
+   {
+    "i": 21,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": false,
+    "inching_closes": 3,
+    "blind_closes": 3
+   },
+   {
+    "i": 22,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 3,
+    "blind_closes": 2
+   },
+   {
+    "i": 23,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 24,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 25,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 2,
+    "blind_closes": 3
+   },
+   {
+    "i": 26,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 2
+   },
+   {
+    "i": 27,
+    "toy": "bus",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   },
+   {
+    "i": 28,
+    "toy": "henry",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 2,
+    "blind_closes": 1
+   },
+   {
+    "i": 29,
+    "toy": "ketchup",
+    "inching_held_within_3": true,
+    "blind_held_within_3": true,
+    "inching_closes": 1,
+    "blind_closes": 1
+   }
+  ]
+ },
+ "detection": [
+  {
+   "detector": "pretrained YOLO11n (COCO)",
+   "source": "offline, Stage 2 test + test_far (2100 frames)",
+   "targets_map50": 0.0108,
+   "search_radius_m": 0.0,
+   "wrong_grab_near": 0.0049
+  },
+  {
+   "detector": "colour threshold (HSV)",
+   "source": "offline, Stage 2 test + test_far (2100 frames)",
+   "targets_map50": 0.9288,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0794
+  },
+  {
+   "detector": "fine-tuned YOLO11n FP32",
+   "source": "offline, Stage 2 test + test_far (2100 frames)",
+   "targets_map50": 0.9898,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0
+  },
+  {
+   "detector": "fine-tuned YOLO11n INT8 (board NPU)",
+   "source": "offline, Stage 2 test + test_far (2100 frames)",
+   "targets_map50": 0.9897,
+   "search_radius_m": 1.8,
+   "wrong_grab_near": 0.0
+  },
+  {
+   "detector": "Mac, YOLO FP32 (CPU)",
+   "source": "closed loop, 60 formal episodes",
+   "delivered": {
+    "k": 54,
+    "n": 60,
+    "rate": 0.9,
+    "wilson95": [
+     0.7985,
+     0.9534
+    ]
+   },
+   "wrong_toy": 0,
+   "henry_delivered": {
+    "k": 18,
+    "n": 20,
+    "rate": 0.9,
+    "wilson95": [
+     0.699,
+     0.9721
+    ]
+   },
+   "recall_targets": 0.976,
+   "precision_targets": 1.0,
+   "wrong_class_within_1_6m": 0
+  },
+  {
+   "detector": "Mac, colour threshold (toys) + YOLO FP32 (tray)",
+   "source": "closed loop, 60 formal episodes",
+   "delivered": {
+    "k": 40,
+    "n": 60,
+    "rate": 0.6667,
+    "wilson95": [
+     0.5406,
+     0.7727
+    ]
+   },
+   "wrong_toy": 8,
+   "henry_delivered": {
+    "k": 7,
+    "n": 20,
+    "rate": 0.35,
+    "wilson95": [
+     0.1812,
+     0.5671
+    ]
+   },
+   "recall_targets": 0.9674,
+   "precision_targets": 0.0947,
+   "wrong_class_within_1_6m": 7017
+  }
+ ],
+ "deployment": [
+  {
+   "backend": "cpu",
+   "source": "offline 2F (standing and turning, 1000 frames, no brain)",
+   "e2e_ms_p50_p99": [
+    52.5,
+    55.3
+   ],
+   "inference_ms_p50_p99": [
+    41.3,
+    42.1
+   ],
+   "preprocess_ms_p50_p99": [
+    6.7,
+    9.1
+   ],
+   "system_cpu_pct": 23.56,
+   "robotd_missed": 0
+  },
+  {
+   "backend": "fp16",
+   "source": "offline 2F (standing and turning, 1000 frames, no brain)",
+   "e2e_ms_p50_p99": [
+    37.3,
+    46.2
+   ],
+   "inference_ms_p50_p99": [
+    13.6,
+    23.3
+   ],
+   "preprocess_ms_p50_p99": [
+    19.1,
+    25.1
+   ],
+   "system_cpu_pct": 8.64,
+   "robotd_missed": 0
+  },
+  {
+   "backend": "int8",
+   "source": "offline 2F (standing and turning, 1000 frames, no brain)",
+   "e2e_ms_p50_p99": [
+    30.6,
+    40.0
+   ],
+   "inference_ms_p50_p99": [
+    6.9,
+    14.2
+   ],
+   "preprocess_ms_p50_p99": [
+    18.9,
+    25.5
+   ],
+   "system_cpu_pct": 7.86,
+   "robotd_missed": 0
+  },
+  {
+   "backend": "cpu",
+   "source": "closed loop, seeds 1000-1004 (15 episodes)",
+   "delivered": {
+    "k": 14,
+    "n": 15,
+    "rate": 0.9333,
+    "wilson95": [
+     0.7018,
+     0.9881
+    ]
+   },
+   "e2e_ms_p50_median": 71.265,
+   "e2e_ms_p99_worst": 88.401,
+   "inference_ms_p50_median": 49.02,
+   "preprocess_ms_p50_median": 16.653,
+   "robotd_missed": 12,
+   "robotd_ticks": 28183,
+   "load": {
+    "samples": 604,
+    "brain_cpu_pct_core": 37.76,
+    "brain_procs": 0.85,
+    "brain_rss_mb": 113.98,
+    "cpu0_pct": 3.7,
+    "cpu1_pct": 2.69,
+    "cpu2_pct": 2.65,
+    "cpu3_pct": 2.22,
+    "cpu4_pct": 10.91,
+    "cpu5_pct": 7.84,
+    "cpu6_pct": 16.69,
+    "cpu7_pct": 1.48,
+    "cpu_all_pct": 6.04,
+    "mem_avail_mb": 7114.67,
+    "npu0_pct": 0.0,
+    "npu1_pct": 0.0,
+    "npu2_pct": 0.0,
+    "robotd_cpu_pct_core": 4.14,
+    "robotd_procs": 1.0,
+    "robotd_rss_mb": 31.7,
+    "temp_c": 30.81
+   }
+  },
+  {
+   "backend": "fp16",
+   "source": "closed loop, seeds 1000-1004 (15 episodes)",
+   "delivered": {
+    "k": 12,
+    "n": 15,
+    "rate": 0.8,
+    "wilson95": [
+     0.5481,
+     0.9295
+    ]
+   },
+   "e2e_ms_p50_median": 39.27,
+   "e2e_ms_p99_worst": 62.658,
+   "inference_ms_p50_median": 14.451,
+   "preprocess_ms_p50_median": 19.621,
+   "robotd_missed": 3,
+   "robotd_ticks": 28300,
+   "load": {
+    "samples": 610,
+    "brain_cpu_pct_core": 18.54,
+    "brain_procs": 0.85,
+    "brain_rss_mb": 113.37,
+    "cpu0_pct": 3.14,
+    "cpu1_pct": 2.5,
+    "cpu2_pct": 3.0,
+    "cpu3_pct": 2.26,
+    "cpu4_pct": 6.57,
+    "cpu5_pct": 6.66,
+    "cpu6_pct": 6.0,
+    "cpu7_pct": 1.45,
+    "cpu_all_pct": 3.96,
+    "mem_avail_mb": 7113.72,
+    "npu0_pct": 1.17,
+    "npu1_pct": 0.0,
+    "npu2_pct": 0.0,
+    "robotd_cpu_pct_core": 4.48,
+    "robotd_procs": 1.0,
+    "robotd_rss_mb": 31.7,
+    "temp_c": 30.16
+   }
+  },
+  {
+   "backend": "int8",
+   "source": "closed loop, seeds 1000-1004 (15 episodes)",
+   "delivered": {
+    "k": 13,
+    "n": 15,
+    "rate": 0.8667,
+    "wilson95": [
+     0.6212,
+     0.9626
+    ]
+   },
+   "e2e_ms_p50_median": 31.239,
+   "e2e_ms_p99_worst": 61.028,
+   "inference_ms_p50_median": 7.06,
+   "preprocess_ms_p50_median": 19.481,
+   "robotd_missed": 29,
+   "robotd_ticks": 29201,
+   "load": {
+    "samples": 2397,
+    "brain_cpu_pct_core": 17.33,
+    "brain_procs": 0.85,
+    "brain_rss_mb": 104.94,
+    "cpu0_pct": 3.25,
+    "cpu1_pct": 2.71,
+    "cpu2_pct": 2.71,
+    "cpu3_pct": 2.22,
+    "cpu4_pct": 6.32,
+    "cpu5_pct": 6.33,
+    "cpu6_pct": 5.82,
+    "cpu7_pct": 2.67,
+    "cpu_all_pct": 4.01,
+    "mem_avail_mb": 7121.65,
+    "npu0_pct": 0.62,
+    "npu1_pct": 0.0,
+    "npu2_pct": 0.0,
+    "robotd_cpu_pct_core": 4.51,
+    "robotd_procs": 1.0,
+    "robotd_rss_mb": 32.1,
+    "temp_c": 30.05
+   }
+  }
+ ],
+ "failures": {
+  "n": 38,
+  "by_group": {
+   "board_int8": 8,
+   "board_fp16": 3,
+   "board_cpu": 1,
+   "mac_cpu": 6,
+   "mac_colour": 20
+  }
+ },
+ "pending": []
+}

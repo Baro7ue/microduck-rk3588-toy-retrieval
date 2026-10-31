@@ -1,0 +1,7 @@
+detector,source,targets_map50,search_radius_m,wrong_grab_near,delivered,wrong_toy,henry_delivered,recall_targets,precision_targets,wrong_class_within_1_6m
+pretrained YOLO11n (COCO),"offline, Stage 2 test + test_far (2100 frames)",0.0108,0.0,0.0049,,,,,,
+colour threshold (HSV),"offline, Stage 2 test + test_far (2100 frames)",0.9288,1.8,0.0794,,,,,,
+fine-tuned YOLO11n FP32,"offline, Stage 2 test + test_far (2100 frames)",0.9898,1.8,0.0,,,,,,
+fine-tuned YOLO11n INT8 (board NPU),"offline, Stage 2 test + test_far (2100 frames)",0.9897,1.8,0.0,,,,,,
+"Mac, YOLO FP32 (CPU)","closed loop, 60 formal episodes",,,,"{""k"": 54, ""n"": 60, ""rate"": 0.9, ""wilson95"": [0.7985, 0.9534]}",0,"{""k"": 18, ""n"": 20, ""rate"": 0.9, ""wilson95"": [0.699, 0.9721]}",0.976,1.0,0
+"Mac, colour threshold (toys) + YOLO FP32 (tray)","closed loop, 60 formal episodes",,,,"{""k"": 40, ""n"": 60, ""rate"": 0.6667, ""wilson95"": [0.5406, 0.7727]}",8,"{""k"": 7, ""n"": 20, ""rate"": 0.35, ""wilson95"": [0.1812, 0.5671]}",0.9674,0.0947,7017
