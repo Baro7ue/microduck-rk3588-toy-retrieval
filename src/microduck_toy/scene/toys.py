@@ -106,3 +106,50 @@ LONG = {v: k for k, v in SHORT.items()}
 def resolve(name: str) -> str:
     """Accept the short name (bus, henry, ketchup, croc, thomas) or the GSO name."""
     return LONG.get(name, name)
+
+
+# ── Stage 5 room demo: more than one of a toy ──────────────────────────────────
+# A copy is another body of the same toy: long name 'SCHOOL_BUS@2', short name 'bus_2'. Only the
+# processes that build or read a demo scene register copies (the sim body, the demo runner); every
+# other caller sees the five toys as before.
+
+COPY_SEP = '@'
+_SCENE: list[str] = []
+_COPIES: list[str] = []          # long names register_copies added to SHORT / LONG
+
+
+def base_of(name: str) -> str:
+    """'SCHOOL_BUS@2' -> 'SCHOOL_BUS'; 'bus_2' -> 'SCHOOL_BUS'; one of the five -> its GSO name."""
+    return resolve(name).split(COPY_SEP, 1)[0]
+
+
+def kind_of(name: str) -> str:
+    """The detector class of a toy body: 'bus_2' -> 'bus'."""
+    return SHORT[base_of(name)]
+
+
+def register_copies(copies: dict | None) -> list[str]:
+    """{'bus': 2, 'croc': 3, ...} = that many of the toy in all (the original is one of them).
+    Replaces the copies' names in SHORT / LONG (None = back to the five) and returns every toy body
+    name in build order."""
+    for long in _COPIES:
+        LONG.pop(SHORT.pop(long, None), None)
+    _COPIES.clear()
+    names = list(catalogue())
+    for short, count in (copies or {}).items():
+        base = resolve(short)
+        if base not in catalogue():
+            raise ValueError(f'{short!r} is not one of the five toys')
+        for k in range(2, int(count) + 1):
+            long = f'{base}{COPY_SEP}{k}'
+            SHORT[long] = f'{SHORT[base]}_{k}'
+            LONG[SHORT[long]] = long
+            _COPIES.append(long)
+            names.append(long)
+    _SCENE[:] = names if _COPIES else []
+    return names
+
+
+def scene_toys() -> dict[str, Toy]:
+    """Body name -> Toy for every toy in the scene: the five, then the registered copies."""
+    return {name: catalogue()[base_of(name)] for name in (_SCENE or list(catalogue()))}

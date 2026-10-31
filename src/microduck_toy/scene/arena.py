@@ -51,8 +51,8 @@ def _add_box(parent, name, size, pos, rgba, group=0, contype=1, conaffinity=1, m
     return parent.add_geom(**kwargs)
 
 
-def park_spot(index: int) -> tuple[float, float]:
-    return PARK_X0 + PARK_DX * index, PARK_Y
+def park_spot(index: int, y: float = PARK_Y) -> tuple[float, float]:
+    return PARK_X0 + PARK_DX * index, y
 
 
 def build_spec(cfg: dict, rl_root: Path, floor: str = 'grid') -> mujoco.MjSpec:
@@ -69,16 +69,20 @@ def build_spec(cfg: dict, rl_root: Path, floor: str = 'grid') -> mujoco.MjSpec:
         raise ValueError(f'unknown floor {floor!r} (grid or wood)')
 
     world = spec.worldbody
-    half = float(cfg['half_size_m'])
+    # The room demo (Stage 5) puts its walls at room_half_m, outside the field the brain walks in
+    # (half_size_m), with furniture in between; without it the walls are the field's edge.
+    half = float(cfg.get('room_half_m', cfg['half_size_m']))
     h = float(cfg['wall_height_m'])
     t = float(cfg['wall_thickness_m'])
+    rgba = tuple(cfg.get('wall_rgba', WALL_RGBA))
+    park_y = PARK_Y if 'room_half_m' not in cfg else -(half + 0.6)
     for name, pos, size in (
         ('wall_px', (half + t / 2, 0, h / 2), (t / 2, half + t, h / 2)),
         ('wall_nx', (-half - t / 2, 0, h / 2), (t / 2, half + t, h / 2)),
         ('wall_py', (0, half + t / 2, h / 2), (half, t / 2, h / 2)),
         ('wall_ny', (0, -half - t / 2, h / 2), (half, t / 2, h / 2)),
     ):
-        _add_box(world, name, size, pos, WALL_RGBA)
+        _add_box(world, name, size, pos, rgba)
 
     tray = cfg['tray']
     side, rim_h = float(tray['size_m']), float(tray['rim_height_m'])
@@ -95,27 +99,43 @@ def build_spec(cfg: dict, rl_root: Path, floor: str = 'grid') -> mujoco.MjSpec:
     ):
         _add_box(body, name, size, pos, TRAY_RGBA)
 
-    for i, toy in enumerate(toy_lib.catalogue().values()):
-        tex = spec.add_texture(name=f'tex_{toy.name}', type=mujoco.mjtTexture.mjTEXTURE_2D,
-                               file=str(toy.texture))
-        mat = spec.add_material(name=f'mat_{toy.name}', specular=0.3, shininess=0.3)
-        mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = tex.name
-        spec.add_mesh(name=f'mesh_{toy.name}', file=str(toy.mesh), scale=[toy.scale] * 3)
-        px, py = park_spot(i)
-        b = world.add_body(name=toy.name, pos=[px, py, toy.rest_z])
-        b.add_freejoint(name=f'{toy.name}_free')
-        b.add_geom(name=f'{toy.name}_visual', type=mujoco.mjtGeom.mjGEOM_MESH,
+    # Stage 5 room demo (optional keys): no shadows, furniture boxes and copies of the toys. With the
+    # room's tall walls and furniture the directional light's shadow map draws striped bands on the
+    # floor (OSMesa, MuJoCo 3.10), and the frozen YOLO took the stripes for a bus (cloud check
+    # 2026-10-31: 10 phantom buses in 216 frames, none with shadows off).
+    if not cfg.get('cast_shadows', True):
+        for light in spec.lights:
+            light.castshadow = False
+    for piece in cfg.get('furniture', []):
+        for k, box in enumerate(piece['boxes']):
+            _add_box(world, f'furn_{piece["name"]}_{k}', box['size'], box['pos'],
+                     tuple(box.get('rgba', piece.get('rgba', (0.6, 0.6, 0.6, 1.0)))))
+    toy_lib.register_copies(cfg.get('copies'))
+
+    made = set()
+    for i, (name, toy) in enumerate(toy_lib.scene_toys().items()):
+        if toy.name not in made:            # one texture, material and mesh per kind of toy
+            made.add(toy.name)
+            tex = spec.add_texture(name=f'tex_{toy.name}', type=mujoco.mjtTexture.mjTEXTURE_2D,
+                                   file=str(toy.texture))
+            mat = spec.add_material(name=f'mat_{toy.name}', specular=0.3, shininess=0.3)
+            mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = tex.name
+            spec.add_mesh(name=f'mesh_{toy.name}', file=str(toy.mesh), scale=[toy.scale] * 3)
+        px, py = park_spot(i, park_y)
+        b = world.add_body(name=name, pos=[px, py, toy.rest_z])
+        b.add_freejoint(name=f'{name}_free')
+        b.add_geom(name=f'{name}_visual', type=mujoco.mjtGeom.mjGEOM_MESH,
                    meshname=f'mesh_{toy.name}', material=f'mat_{toy.name}',
                    pos=list(toy.mesh_pos), quat=list(toy.mesh_quat),
                    contype=0, conaffinity=0, group=2, density=0)
         # Group 3: collision only, not drawn by the default renderer or viewer.
-        _add_box(b, f'{toy.name}_box', toy.half, (0, 0, 0), (1, 0, 1, 0.3), group=3,
+        _add_box(b, f'{name}_box', toy.half, (0, 0, 0), (1, 0, 1, 0.3), group=3,
                  mass=toy.mass_kg)
-        spec.add_equality(name=f'hold_{toy.name}', type=mujoco.mjtEq.mjEQ_WELD,
-                          objtype=mujoco.mjtObj.mjOBJ_BODY, name1='jaw_soft', name2=toy.name,
+        spec.add_equality(name=f'hold_{name}', type=mujoco.mjtEq.mjEQ_WELD,
+                          objtype=mujoco.mjtObj.mjOBJ_BODY, name1='jaw_soft', name2=name,
                           active=False)
-        ex = spec.add_exclude(name=f'beak_{toy.name}')
-        ex.bodyname1, ex.bodyname2 = 'jaw_soft', toy.name
+        ex = spec.add_exclude(name=f'beak_{name}')
+        ex.bodyname1, ex.bodyname2 = 'jaw_soft', name
     return spec
 
 
@@ -124,7 +144,7 @@ class ArenaIds:
 
     def __init__(self, model: mujoco.MjModel):
         self.toys = {}
-        for i, (name, toy) in enumerate(toy_lib.catalogue().items()):
+        for name, toy in toy_lib.scene_toys().items():
             body = model.body(name).id
             joint = model.body_jntadr[body]
             self.toys[name] = {
@@ -134,7 +154,7 @@ class ArenaIds:
                 'eq': model.equality(f'hold_{name}').id,
                 'qadr': int(model.jnt_qposadr[joint]),
                 'vadr': int(model.jnt_dofadr[joint]),
-                'park': park_spot(i),
+                'park': tuple(float(v) for v in model.body_pos[body][:2]),   # where build_spec put it
                 'rest_z': toy.rest_z,
                 'half': toy.half,
             }

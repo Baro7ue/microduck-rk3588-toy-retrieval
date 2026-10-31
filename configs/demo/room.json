@@ -1,0 +1,369 @@
+{
+ "about": "Stage 5 room demo (not a formal result; Ethan chose option A on 2026-10-31): the frozen YOLO and brain in a 4.4 x 4.4 m room with furniture, 12 toys (2 of each target, 3 of each distractor), one continuous run delivering several targets. Deep-merged over the frozen configs: 'stage1' over configs/control/stage1.json, 'stage3' over configs/control/stage3.json (dicts merge, lists and numbers replace). The brain walks the 3 x 3 m field (arena.half_size_m 1.5); the walls stand at room_half_m 2.2 and the furniture sits in the band between, so routes (route.keep_in_m from the field edge) never reach it. Floor: the light-wood floor the detector was trained on. No furniture is red, yellow or green (the colours of the toys) or dark grey (the tray's colour: the frozen YOLO took a dark grey TV stand for the tray, 41 of 216 frames, cloud check 2026-10-31). No shadows (cast_shadows false): the light's shadow map striped the floor and YOLO saw buses in the stripes.",
+ "stage1": {
+  "arena": {
+   "half_size_m": 1.5,
+   "room_half_m": 2.2,
+   "wall_height_m": 1.0,
+   "wall_rgba": [
+    0.93,
+    0.91,
+    0.86,
+    1.0
+   ],
+   "cast_shadows": false,
+   "tray": {
+    "centre_m": [
+     1.15,
+     0.0
+    ],
+    "note": "on the +x side of the field, 0.2 m between the tray edge and the field edge (as the Stage 1 tray to its wall)"
+   },
+   "copies": {
+    "bus": 2,
+    "henry": 2,
+    "ketchup": 2,
+    "croc": 3,
+    "thomas": 3
+   },
+   "furniture": [
+    {
+     "name": "sofa",
+     "rgba": [
+      0.36,
+      0.42,
+      0.52,
+      1.0
+     ],
+     "boxes": [
+      {
+       "size": [
+        1.0,
+        0.3,
+        0.21
+       ],
+       "pos": [
+        -0.3,
+        1.88,
+        0.21
+       ]
+      },
+      {
+       "size": [
+        1.0,
+        0.05,
+        0.43
+       ],
+       "pos": [
+        -0.3,
+        2.13,
+        0.43
+       ]
+      },
+      {
+       "size": [
+        0.1,
+        0.3,
+        0.32
+       ],
+       "pos": [
+        -1.4,
+        1.88,
+        0.32
+       ]
+      },
+      {
+       "size": [
+        0.1,
+        0.3,
+        0.32
+       ],
+       "pos": [
+        0.8,
+        1.88,
+        0.32
+       ]
+      }
+     ]
+    },
+    {
+     "name": "bookshelf",
+     "rgba": [
+      0.45,
+      0.33,
+      0.24,
+      1.0
+     ],
+     "boxes": [
+      {
+       "size": [
+        0.16,
+        0.55,
+        0.9
+       ],
+       "pos": [
+        -2.02,
+        -0.6,
+        0.9
+       ]
+      },
+      {
+       "size": [
+        0.01,
+        0.53,
+        0.012
+       ],
+       "pos": [
+        -1.86,
+        -0.6,
+        0.45
+       ],
+       "rgba": [
+        0.55,
+        0.42,
+        0.31,
+        1.0
+       ]
+      },
+      {
+       "size": [
+        0.01,
+        0.53,
+        0.012
+       ],
+       "pos": [
+        -1.86,
+        -0.6,
+        0.9
+       ],
+       "rgba": [
+        0.55,
+        0.42,
+        0.31,
+        1.0
+       ]
+      },
+      {
+       "size": [
+        0.01,
+        0.53,
+        0.012
+       ],
+       "pos": [
+        -1.86,
+        -0.6,
+        1.35
+       ],
+       "rgba": [
+        0.55,
+        0.42,
+        0.31,
+        1.0
+       ]
+      }
+     ]
+    },
+    {
+     "name": "armchair",
+     "rgba": [
+      0.62,
+      0.6,
+      0.56,
+      1.0
+     ],
+     "boxes": [
+      {
+       "size": [
+        0.3,
+        0.35,
+        0.2
+       ],
+       "pos": [
+        -1.86,
+        1.0,
+        0.2
+       ]
+      },
+      {
+       "size": [
+        0.08,
+        0.35,
+        0.4
+       ],
+       "pos": [
+        -2.1,
+        1.0,
+        0.4
+       ]
+      }
+     ]
+    },
+    {
+     "name": "tv_stand",
+     "rgba": [
+      0.78,
+      0.68,
+      0.55,
+      1.0
+     ],
+     "boxes": [
+      {
+       "size": [
+        0.2,
+        0.7,
+        0.25
+       ],
+       "pos": [
+        1.98,
+        0.0,
+        0.25
+       ]
+      },
+      {
+       "size": [
+        0.03,
+        0.55,
+        0.32
+       ],
+       "pos": [
+        2.1,
+        0.0,
+        0.85
+       ],
+       "rgba": [
+        0.08,
+        0.08,
+        0.1,
+        1.0
+       ]
+      }
+     ]
+    },
+    {
+     "name": "toy_chest",
+     "rgba": [
+      0.82,
+      0.8,
+      0.76,
+      1.0
+     ],
+     "boxes": [
+      {
+       "size": [
+        0.4,
+        0.22,
+        0.22
+       ],
+       "pos": [
+        0.9,
+        -1.96,
+        0.22
+       ]
+      }
+     ]
+    },
+    {
+     "name": "cabinet",
+     "rgba": [
+      0.86,
+      0.86,
+      0.84,
+      1.0
+     ],
+     "boxes": [
+      {
+       "size": [
+        0.5,
+        0.2,
+        0.4
+       ],
+       "pos": [
+        -1.0,
+        -1.98,
+        0.4
+       ]
+      },
+      {
+       "size": [
+        0.48,
+        0.005,
+        0.01
+       ],
+       "pos": [
+        -1.0,
+        -1.775,
+        0.55
+       ],
+       "rgba": [
+        0.5,
+        0.5,
+        0.5,
+        1.0
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "stage3": {
+  "search": {
+   "relocate_spots": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     -0.7,
+     0.0
+    ],
+    [
+     0.0,
+     0.7
+    ],
+    [
+     0.0,
+     -0.7
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     -0.7,
+     -0.7
+    ],
+    [
+     0.5,
+     0.8
+    ],
+    [
+     0.5,
+     -0.8
+    ]
+   ],
+   "max_spins": 3
+  },
+  "episode": {
+   "max_s": 240.0
+  }
+ },
+ "demo": {
+  "seed": 5000,
+  "targets": [
+   "bus",
+   "henry",
+   "ketchup"
+  ],
+  "robot": [
+   -0.9,
+   0.0,
+   0.0
+  ],
+  "toy_field_m": 1.2,
+  "toy_gap_m": 0.3,
+  "tray_clear_m": 0.45,
+  "start_clear_m": 0.5,
+  "note": "toys inside |x|, |y| <= toy_field_m (0.3 m inside the field edge), >= toy_gap_m apart, >= tray_clear_m from the tray centre, >= start_clear_m from the robot start; one layout per seed"
+ }
+}

@@ -1,0 +1,176 @@
+"""Stage 5 room demo (not a formal result): one room, 12 toys, the frozen brain and YOLO deliver
+several targets one after another without a reset.
+
+    python -m microduck_toy.stage5.demo [--seed N] [--targets bus,henry,ketchup]
+        [--target mac|board] [--backend cpu|fp16|int8] [... the stage3 episode options]
+
+Needs the arena body in room mode (scripts/sim/stage1/run_arena_body.zsh --camera --room, plus
+--board for the board) and robotd s2. The room, the field, the tray and the search spots come from
+configs/demo/room.json (deep-merged over the frozen stage1/stage3 configs, stage5/room.py); the
+toys are laid out once from the demo seed. Each target is one brain run (on the Mac in this
+process, on the board one ssh as in Stage 3F) started where the previous run's brain thought it
+ended (its odometry/tray-look pose, no truth). Between runs nothing is reset: the toys already in
+the tray stay there. Judged on the simulator's truth like a Stage 3 episode; output in
+runs/<UTC>_s5_room_demo[_board]/ (demo.json + the usual truth.csv, events, episodes/<n>_<target>/).
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import json
+import math
+import sys
+import time
+from pathlib import Path
+
+from microduck_toy.paths import runs_dir
+from microduck_toy.scene import toys as toy_lib
+from microduck_toy.stage1 import metrics
+from microduck_toy.stage3 import brain as brain_lib, episode
+from microduck_toy.stage5 import room
+
+ROOM = 'configs/demo/room.json'
+
+
+class Demo(episode.Runner):
+    def __init__(self, args: argparse.Namespace):
+        stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+        board = args.target == 'board'
+        if args.out is None:
+            args.out = str(runs_dir() / f'{stamp}_s5_room_demo{"_board" if board else ""}')
+        super().__init__('demo', args)
+        self.doc = room.load()
+        self.configs = brain_lib.load_configs(override=ROOM)
+        self.cfg, self.s3 = self.configs['stage1'], self.configs['stage3']
+        self.toys = room.toy_names(self.doc)
+        missing = [t for t in self.toys if t not in (self.meta.get('toys') or {})]
+        if missing:
+            raise RuntimeError(f'the arena body has no {missing}: start run_arena_body.zsh with --room')
+        self.meta.update(test='s5_room_demo', stage1_config=self.cfg, stage3_config=self.s3,
+                         room=self.doc, config_override=ROOM)
+
+    def run_target(self, n: int, target: str, pose, layout: dict | None) -> dict:
+        label = f'{n}_{target}'
+        truth = self.probe.truth()
+        rec = {'part': 'demo', 'label': label, 'seed': self.args.seed, 'target': target,
+               'layout': layout, 'until': 'delivered', 'grasps_from': self.grasp_count(),
+               'start_told': [round(float(v), 5) for v in pose],
+               'start_truth': [round(truth['x'], 5), round(truth['y'], 5), round(truth['yaw'], 5)],
+               'start': self.mark(label), 'offset': 0.0}
+        print(f'== {label}：从 ({pose[0]:+.2f}, {pose[1]:+.2f}) 出发找 {target}', flush=True)
+        if self.board:
+            rec['brain'] = self.remote(label, target, pose, 'delivered', rec)
+        else:
+            b = self.brain(label, target, pose, until='delivered')
+            n0 = len(self.eyes.timings)
+            rec['brain'] = b.run()
+            rec['brain']['latency'] = self.eyes.latency(n0)
+        return self.finish(rec, label)
+
+
+def judge(rec: dict, rows: list[dict], toys: list[str], targets_before: set, s3: dict, centre) -> dict:
+    """What this run put in the tray (truth): every toy body in the tray now and not before."""
+    ep = s3['episode']
+    half, max_z = float(ep['delivered_half_m']), float(ep['delivered_max_z_m'])
+    row = rec['judge_row']
+    in_now = {t for t in toys if episode.in_tray(row, t, centre, half, max_z)}
+    new = sorted(in_now - targets_before)
+    kinds = [toy_lib.kind_of(t) for t in new]
+    held = sorted({g['candidate'] for g in rec.get('grasps', [])
+                   if g.get('result') == 'grasped' and g.get('candidate')})
+    falls = episode.falls_in(rows, rec['start'], rec.get('judge_mark', rec['end_mark']))
+    ok = rec['target'] in kinds and all(k == rec['target'] for k in kinds)
+    told, end_pose = rec['start_told'], rec['brain'].get('pose')
+    return {'outcome': 'delivered' if ok else ('wrong_toy' if new else rec['brain'].get('end')),
+            'new_in_tray': new, 'in_tray': sorted(in_now), 'held': held,
+            'falls': len(falls), 'brain_end': rec['brain'].get('end'),
+            'elapsed_s': rec['brain'].get('elapsed_s'), 'closes': rec['brain'].get('closes'),
+            'start_pose_error_m': round(math.dist(told[:2], rec['start_truth'][:2]), 3),
+            'end_pose': end_pose}
+
+
+def parser() -> argparse.ArgumentParser:
+    # allow_abbrev=False: otherwise the runner's --target (mac|board) is taken as an abbreviation of
+    # --targets (Ethan's first board run 2026-10-31: "['board'] are not target toys").
+    p = argparse.ArgumentParser(prog='stage5.demo', description=__doc__.split('\n')[0], allow_abbrev=False)
+    p.add_argument('--seed', type=int, default=None, help='toy layout (default: room.json demo.seed)')
+    p.add_argument('--targets', default=None, help='e.g. bus,henry,ketchup (default: room.json demo.targets)')
+    return p
+
+
+def parse(argv=None) -> tuple[argparse.Namespace, argparse.Namespace]:
+    """(the demo's own options, the stage3 episode options it passes through)."""
+    own, rest = parser().parse_known_args(argv)
+    return own, episode.parser().parse_args(['3e', *rest])
+
+
+def main(argv=None) -> int:
+    own, args = parse(argv)
+    doc = room.load()
+    args.seed = int(own.seed if own.seed is not None else doc['demo']['seed'])
+    targets = (own.targets.split(',') if own.targets else list(doc['demo']['targets']))
+    bad = [t for t in targets if t not in brain_lib.TARGETS]
+    if bad:
+        raise SystemExit(f'{bad} are not target toys {brain_lib.TARGETS}')
+    if args.backend is None:
+        args.backend = 'int8' if args.target == 'board' else 'cpu'
+    if args.target == 'board' and (args.board_bundle is None or args.board_out is None):
+        raise SystemExit('board runs come from scripts/stage5/run_room_demo.zsh --board')
+    args.config_override = ROOM                         # episode.board_command passes it on
+    lay = room.layout(doc, args.seed)
+    demo = Demo(args)
+    demo.meta.update(seed=args.seed, demo_targets=targets, layout=lay)
+    centre = demo.meta['tray_centre']
+    recs, status = [], 0
+    t0 = time.monotonic()
+    try:
+        demo.start()
+        demo.reset(head='H0', robot=lay['robot'], toys=lay['toys'])
+        if not demo.board:
+            demo.wait_settled(3.0)
+        pose = list(lay['robot'])
+        for n, target in enumerate(targets, 1):
+            rec = demo.run_target(n, target, pose, lay if n == 1 else None)
+            recs.append(rec)
+            demo.trial({k: v for k, v in rec.items() if k != 'layout'})
+            end = rec['brain'].get('pose')
+            if end is None:            # the brain died before it could say: carry on from the truth
+                row = rec['judge_row']
+                end = [row['x'], row['y'], row['yaw']]
+                rec['next_start_from_truth'] = True
+            pose = end
+    except KeyboardInterrupt:
+        demo.meta['interrupted'] = True
+        status = 130
+        print('已中断；保存已完成的部分。', flush=True)
+    except Exception as error:
+        demo.meta['error'] = f'{type(error).__name__}: {error}'
+        status = 1
+        print(f'出错：{demo.meta["error"]}', flush=True)
+    demo.meta['wall_s'] = round(time.monotonic() - t0, 1)
+    rows = demo.close()
+    before: set = set()
+    results = []
+    for rec in recs:
+        j = judge(rec, rows, demo.toys, before, demo.s3, centre)
+        before |= set(j['new_in_tray'])
+        results.append({'n': rec['label'], 'target': rec['target'], **j})
+    delivered = sum(r['outcome'] == 'delivered' for r in results)
+    summary = {'demo': {'seed': args.seed, 'targets': targets, 'delivered': delivered,
+                        'results': results, 'wall_s': demo.meta['wall_s'],
+                        'brain_s': round(sum(r['elapsed_s'] or 0 for r in results), 1),
+                        'falls': sum(r['falls'] for r in results)},
+               'truth': metrics.continuity(rows)}
+    demo.write_summary(summary)
+    (demo.dir / 'demo.json').write_text(json.dumps(summary['demo'], indent=1))
+    print(f'\n== 房间演示（布局 {args.seed}）：送到 {delivered}/{len(targets)}', flush=True)
+    for r in results:
+        got = ', '.join(r['new_in_tray']) or '无'
+        print(f'  {r["n"]:10s} {r["outcome"]:12s} 新进托盘：{got:18s} 用时 {r["elapsed_s"] or 0:6.1f} s  '
+              f'摔倒 {r["falls"]}  起点估计误差 {r["start_pose_error_m"]:.2f} m', flush=True)
+    print(f'  结果：{demo.dir}/demo.json', flush=True)
+    return status
+
+
+if __name__ == '__main__':
+    sys.exit(main())

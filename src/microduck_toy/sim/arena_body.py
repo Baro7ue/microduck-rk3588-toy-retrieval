@@ -293,6 +293,13 @@ class ArenaWorld(probe_body.ProbeWorld):
         self.geom_owner = scene_render.owners(self.model, self.arena)
         self.tray_geoms = set(self.arena.tray_geoms)
         self.wall_geoms = {self.model.geom(f'wall_{k}').id for k in ('px', 'nx', 'py', 'ny')}
+        # The room demo's furniture counts as wall for wall_contact.
+        self.wall_geoms |= {g for g in range(self.model.ngeom)
+                            if (self.model.geom(g).name or '').startswith('furn_')}
+        # Room demo only: every truth row's full qpos goes to <truth>.qpos.f64 as well, so the video
+        # is drawn afterwards (stage5/replay.py) instead of by a viewer that would slow the physics.
+        self.room = 'room_half_m' in self.config['arena']
+        self.qpos_file = None
 
     # ── the beak ──────────────────────────────────────────────────────────
 
@@ -487,6 +494,7 @@ class ArenaWorld(probe_body.ProbeWorld):
             cam = data.site_xpos[ids['cam']].copy()
             forward = data.site_xmat[ids['cam']].reshape(3, 3)[:, 0]
             neck, head = float(data.qpos[ids['neck']]), float(data.qpos[ids['head']])
+            qpos = data.qpos.copy() if self.room else None
             sim_time = float(data.time)
             n = int(data.ncon)
             pairs = list(zip(data.contact.geom1[:n].tolist(), data.contact.geom2[:n].tolist()))
@@ -533,14 +541,21 @@ class ArenaWorld(probe_body.ProbeWorld):
             self.last_row = row
             if self.csv_writer is not None:
                 self.csv_writer.writerow(row)
+                if self.qpos_file is not None and qpos is not None:
+                    self.qpos_file.write(np.concatenate(([sim_time, row['mono']], qpos)).astype('<f8').tobytes())
                 if int(round(sim_time / 0.02)) % 25 == 0:
                     self.csv_file.flush()
+                    if self.qpos_file is not None:
+                        self.qpos_file.flush()
 
     def start_record(self, path: str | None) -> dict:
         with self.rec_lock:
             if self.csv_file is not None:
                 self.csv_file.close()
                 self.csv_file = self.csv_writer = None
+            if self.qpos_file is not None:
+                self.qpos_file.close()
+                self.qpos_file = None
             if path is None:
                 return {'recording': None}
             target = Path(path)
@@ -548,8 +563,13 @@ class ArenaWorld(probe_body.ProbeWorld):
             self.csv_file = target.open('x', newline='')
             self.csv_writer = csv.DictWriter(self.csv_file, fieldnames=COLUMNS)
             self.csv_writer.writeheader()
-            target.with_suffix('.meta.json').write_text(
-                json.dumps({**self.info(), 'csv': str(target)}, indent=2))
+            meta = {**self.info(), 'csv': str(target)}
+            if self.room:
+                qpath = target.with_suffix('.qpos.f64')
+                self.qpos_file = qpath.open('xb')
+                meta['qpos_log'] = {'path': str(qpath), 'dtype': '<f8', 'nq': int(self.model.nq),
+                                    'row': ['t', 'mono', 'qpos[0..nq)']}
+            target.with_suffix('.meta.json').write_text(json.dumps(meta, indent=2))
             return {'recording': str(target)}
 
     def info(self) -> dict:
@@ -631,6 +651,15 @@ def install(floor: str, config: dict) -> None:
             raise SystemExit('arena_body.py runs one duck; use --ducks 1')
         return arena.build_spec(config['arena'], rl_root, floor).compile()
 
+    # Stage 5 room demo: copies of the toys are bodies of their own and get truth columns of their
+    # own (bus_2_x, ...). Without copies the columns stay exactly as before.
+    copies = config['arena'].get('copies')
+    if copies:
+        global TOY_COLUMNS, COLUMNS
+        names = toy_lib.register_copies(copies)
+        TOY_COLUMNS = [f'{toy_lib.SHORT[n]}_{k}' for n in names for k in ('x', 'y', 'z', 'yaw')]
+        COLUMNS = list(metrics.COLUMNS) + ['mouth_open', 'mouth_q', 'holding'] + TOY_COLUMNS + [
+            'tray_contact', 'wall_contact']
     ArenaWorld.floor = floor
     ArenaWorld.config = config
     sim.build_world = build_world
@@ -646,6 +675,9 @@ def main() -> None:
     parser.add_argument('--probe-port', type=int, default=7811)
     parser.add_argument('--floor', choices=('grid', 'wood'), default='grid')
     parser.add_argument('--stage1-config', default=None)
+    parser.add_argument('--room', default=None,
+                        help='Stage 5 room demo config (configs/demo/room.json): its stage1 section is '
+                             'deep-merged over --stage1-config (room walls, furniture, toy copies)')
     parser.add_argument('--oracle-fps', type=float, default=15.0,
                         help='head-camera renders per second; 0 = only when a view op asks')
     parser.add_argument('--render-inline', action='store_true',
@@ -657,10 +689,15 @@ def main() -> None:
     if '--scene' in rest:
         raise SystemExit('arena_body.py builds its own scene; drop --scene')
     ArenaWorld.probe_address = (own.probe_host, own.probe_port)
-    install(own.floor, load_config(own.stage1_config))
+    config = load_config(own.stage1_config)
+    if own.room:
+        from microduck_toy.stage5 import room
+        config = room.deep_merge(config, room.load(own.room).get('stage1', {}))
+    install(own.floor, config)
     ArenaCamera.fps = own.oracle_fps
     ArenaCamera.threaded = not own.render_inline
-    print(f'== Stage 1 arena ({own.floor} floor); startup assistance enabled', flush=True)
+    print(f'== Stage 1 arena ({own.floor} floor{", room demo " + own.room if own.room else ""}); '
+          'startup assistance enabled', flush=True)
     sim.main()
 
 

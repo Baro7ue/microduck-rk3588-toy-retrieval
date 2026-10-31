@@ -65,13 +65,21 @@ class Ended(Exception):
         self.reason, self.detail = reason, detail
 
 
-def load_configs(root: Path | None = None) -> dict:
+def load_configs(root: Path | None = None, override: str | Path | None = None) -> dict:
+    """The four frozen configs. override (Stage 5 room demo, e.g. configs/demo/room.json, relative to
+    the repo): its 'stage1' and 'stage3' sections are deep-merged over those two (stage5/room.py)."""
     root = root or repo_root()
     read = lambda p: json.loads((root / p).read_text())  # noqa: E731
-    return {'stage3': read('configs/control/stage3.json'),
-            'stage1': read('configs/control/stage1.json'),
-            'facts1': read('configs/control/stage1_facts.json'),
-            'stage2': read('configs/vision/stage2.json')}
+    configs = {'stage3': read('configs/control/stage3.json'),
+               'stage1': read('configs/control/stage1.json'),
+               'facts1': read('configs/control/stage1_facts.json'),
+               'stage2': read('configs/vision/stage2.json')}
+    if override:
+        from microduck_toy.stage5 import room
+        doc = room.load(root / override)
+        for name in ('stage1', 'stage3'):
+            configs[name] = room.deep_merge(configs[name], doc.get(name, {}))
+    return configs
 
 
 def points_of(obstacles: list) -> list:
@@ -287,6 +295,10 @@ class Brain:
                   'side': {k: v for k, v in (self.side or {}).items() if k != 'route'},
                   'tray': self.tray, 'drop_d': self.drop_d,
                   'sightings': [s.as_dict() for s in self.seen.spots]}
+        try:                                # where the brain thinks it ended (Stage 5: the next start)
+            result['pose'] = [round(float(v), 5) for v in self.here()]
+        except Exception:
+            result['pose'] = None
         self.log('end', **{k: result[k] for k in ('end', 'elapsed_s', 'closes', 'holding')},
                  detail=end.detail)
         return result
@@ -841,6 +853,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument('--out', required=True)
     ap.add_argument('--frames', action='store_true',
                     help="save the robot's-eye pictures to OUT/frames (needs Pillow)")
+    ap.add_argument('--config-override', default=None,
+                    help='Stage 5 room demo: configs/demo/room.json (its stage1/stage3 sections '
+                         'deep-merged over the frozen configs)')
     return ap
 
 
@@ -850,7 +865,7 @@ def main(argv=None) -> int:
     args = parser().parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    configs = load_configs()
+    configs = load_configs(override=args.config_override)
     start = tuple(float(v) for v in args.start.split(','))
     events = Events(out / 'events.jsonl')
     history = StateHistory()

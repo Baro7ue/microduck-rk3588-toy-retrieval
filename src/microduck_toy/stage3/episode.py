@@ -477,7 +477,9 @@ def board_command(a, remote_out: str, target: str, start, until: str) -> str:
             f'--start={",".join(f"{v:.5f}" for v in start)} '
             f'--socket {shlex.quote(a.board_socket)} --camera {a.sim_host}:7901 '
             f'--tof {a.sim_host}:7801 --backend {a.backend} --until {until} '
-            f'--out {shlex.quote(remote_out)}')
+            f'--out {shlex.quote(remote_out)}'
+            + (f' --config-override {shlex.quote(a.config_override)}'      # Stage 5 room demo only
+               if getattr(a, 'config_override', None) else ''))
 
 
 # ── parts ───────────────────────────────────────────────────────────────────
