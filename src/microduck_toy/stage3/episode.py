@@ -1,7 +1,7 @@
 """Stage 3 runs: lay out the field, run the brain, judge each episode on the simulator's truth.
 
     python -m microduck_toy.stage3.episode 3ab|3c|3d|3e [--parts ...] [--episodes 3000:bus,...]
-        [--quick] [--eyes yolo|oracle] [--source stream|probe] [--backend cpu]
+        [--quick] [--eyes yolo|oracle|colour] [--source stream|probe] [--backend cpu]
         [--target mac|board] [--rescore runs/<dir>]
     python -m microduck_toy.stage3.episode layouts         (writes configs/control/stage3_layouts.json)
 
@@ -1282,7 +1282,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument('--camera', default='127.0.0.1:7901')
     p.add_argument('--source', choices=('stream', 'probe'), default='stream',
                    help='stream: the camera port (Mac, board); probe: the view op (cloud twin)')
-    p.add_argument('--eyes', choices=('yolo', 'oracle'), default='yolo')
+    p.add_argument('--eyes', choices=('yolo', 'oracle', 'colour'), default='yolo',
+                   help='colour = Stage 4E: toys by colour threshold, tray by YOLO (Mac only)')
     p.add_argument('--backend', choices=('cpu', 'fp16', 'int8'), default=None,
                    help='default cpu on the Mac, int8 on the board')
     p.add_argument('--model', default=None)

@@ -14,6 +14,7 @@ Detectors:
     Yolo          Stage 2's LiveDetector (cpu = split FP32 ONNX, fp16 / int8 = RKNN on the NPU),
                   window view while searching, letterboxed whole frame when approaching
     Oracle        the arena body's segmentation boxes (debugging only, never for a result)
+    Colour        Stage 4E's baseline: the toys from Stage 2's colour threshold, the tray from Yolo
 
 The robot.state paired with a frame is the one received closest to the frame's moment (a turning
 robot's camera moves about 1 deg every 20 ms at 0.9 rad/s). Everything is in the upright 360x640
@@ -134,6 +135,33 @@ class Oracle:
 
     def close(self) -> None:
         pass
+
+
+class Colour:
+    """Stage 4E (plan claude-docs/stage4_plan_20261028/, 4E): only the toy detector changes. The toys
+    come from Stage 2's colour threshold (configs/vision/stage2.json baselines.colour, vision/detect.py
+    ColourBoxes) on the same 320x320 input YOLO gets (window when searching, letterbox when
+    approaching), keeping blobs that score above YOLO's conf (0.25: about 7 px or more); the tray box
+    still comes from YOLO. The baseline has no croc class: croc's green falls inside henry's range."""
+
+    def __init__(self, yolo: Yolo, cfg: dict, conf: float):
+        from microduck_toy.vision.detect import ColourBoxes
+        self.yolo, self.colour, self.conf = yolo, ColourBoxes(cfg), conf
+        self.margin = yolo.margin
+
+    def boxes(self, frame: Frame, state: dict | None, view: str) -> tuple[list[dict], str, dict]:
+        found, kind, ms = self.yolo.boxes(frame, state, view)
+        start = time.perf_counter()
+        m = deploy.mapping_for(state, view, self.margin)
+        bgr = np.ascontiguousarray(deploy.frame_input(frame.payload, m)[..., ::-1])   # ColourBoxes takes BGR
+        out = [{'cls': d['cls'], 'conf': round(d['conf'], 4),
+                'xyxy': [round(v, 2) for v in views.to_frame_box(d['xyxy'], m)]}
+               for d in self.colour(bgr, conf=self.conf)]
+        out += [b for b in found if b['cls'] == 'tray']
+        return out, kind, {**ms, 'colour': round((time.perf_counter() - start) * 1000.0, 3)}
+
+    def close(self) -> None:
+        self.yolo.close()
 
 
 class Sight:

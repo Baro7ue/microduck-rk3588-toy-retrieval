@@ -804,7 +804,7 @@ def make_eyes(args, configs: dict, history, probe=None, log=None):
     from microduck_toy.stage3 import eyes as eyes_lib
     s2, s3 = configs['stage2'], configs['stage3']
     if args.source == 'probe':
-        source = eyes_lib.ProbeSource(probe, rgb=args.eyes == 'yolo')
+        source = eyes_lib.ProbeSource(probe, rgb=args.eyes != 'oracle')
     else:
         host, port = args.camera.rsplit(':', 1)
         source = eyes_lib.StreamSource((host, int(port)), float(s3['camera']['stream_lag_s']))
@@ -818,6 +818,8 @@ def make_eyes(args, configs: dict, history, probe=None, log=None):
                                    float(s2['detect']['iou']), threads=int(s3['detector']['cpu_threads']))
         live.warm()
         detector = eyes_lib.Yolo(live, int(s2['input']['window_margin_rows']))
+        if args.eyes == 'colour':           # Stage 4E: the toys by colour threshold, the tray by YOLO
+            detector = eyes_lib.Colour(detector, s2['baselines']['colour'], float(s2['detect']['conf']))
     cam = ranging.CameraModel.from_config(configs['stage1']['camera'])
     return eyes_lib.Eyes(source, detector, history, cam, configs['facts1']['ranging'], log=log)
 
@@ -830,7 +832,7 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument('--camera', default='127.0.0.1:7901')
     ap.add_argument('--source', choices=('stream', 'probe'), default='stream')
     ap.add_argument('--probe', default='127.0.0.1:7811', help='with --source probe')
-    ap.add_argument('--eyes', choices=('yolo', 'oracle'), default='yolo')
+    ap.add_argument('--eyes', choices=('yolo', 'oracle', 'colour'), default='yolo')
     ap.add_argument('--backend', choices=('cpu', 'fp16', 'int8'), default='int8')
     ap.add_argument('--model', default=None)
     ap.add_argument('--tof', default='127.0.0.1:7801', help="sim body HOST:PORT for ToF, or 'none'")
