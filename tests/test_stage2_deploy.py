@@ -220,6 +220,11 @@ class SmallTests(unittest.TestCase):
 
 
 class TableTests(unittest.TestCase):
+    def test_cpus_text(self):
+        self.assertEqual(deploy.cpus_text([4, 5, 6, 7]), '4-7')
+        self.assertEqual(deploy.cpus_text([0, 2, 3, 7]), '0,2-3,7')
+        self.assertEqual(deploy.cpus_text(None), '–')
+
     def test_table_lists_every_backend_found(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = Path(tmp)
@@ -231,12 +236,15 @@ class TableTests(unittest.TestCase):
                     'resources': {'self_cpu_pct_core_mean': 80.0, 'system_cpu_pct_mean': 20.0,
                                   'npu_load_pct_mean': [30.0, 0.0, 0.0]},
                     'robotd': {'missed': 0, 'ticks_expected': 3500}, 'pass': ok, 'outcome': 'completed',
-                    'versions': {'python': '3.10'}}))
+                    'versions': {'python': '3.10'}, **({'cpus': [4, 5, 6, 7]} if ok else {})}))
             out = deploy.table(run)
             md = (run / 'deploy_table.md').read_text().splitlines()
         self.assertEqual(sorted(out['backends']), ['cpu', 'int8'])
         self.assertEqual(len(md), 4)
-        self.assertIn('| int8 | 1000 |', md[3])
+        self.assertIn('| int8 | 4-7 | 1000 |', md[3])
+        self.assertIn('| cpu | – | 1000 |', md[2])
+        self.assertEqual(out['backends']['int8']['cpus'], [4, 5, 6, 7])
+        self.assertEqual(md[0].count('|'), md[1].count('|'))
         self.assertIn('30.0/0.0/0.0 %', md[3])
         self.assertTrue(md[3].endswith('| 是 |'))
 

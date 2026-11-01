@@ -29,6 +29,7 @@ FAKES = {
     'git': RECORD + '[ "$1" = -C ] && cd "$2"; cat .fake_head\n',
     'lsof': RECORD + 'exit "${FAKE_LSOF_STATUS:-1}"\n',
     'cargo': RECORD + 'echo cargo-fake\n',
+    'taskset': RECORD + 'shift 2\nexec "$@"\n',
     'rustc': RECORD + 'echo rustc-fake\n',
     'ssh': RECORD + '''while [ $# -gt 0 ]; do
   case $1 in -t) shift ;; -o|-L) shift 2 ;; *) break ;; esac

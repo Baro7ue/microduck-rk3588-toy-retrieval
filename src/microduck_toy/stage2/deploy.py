@@ -25,7 +25,8 @@ sampler adds system CPU, this process's CPU, robotd's CPU, the NPU load (debugfs
 numbers come from its state stream: every tick's time, missed count and rate.
 
 Meanwhile the robot stands and turns in place (config deploy.motion), at the search head.
-summary.json: percentiles, rates, CPU and NPU means, robotd ticks/missed/period, versions, pass.
+summary.json: percentiles, rates, CPU and NPU means, robotd ticks/missed/period, versions, pass,
+and the cores the process was allowed (the launcher pins it with taskset, env.sh MD_BOARD_CPUS).
 """
 from __future__ import annotations
 
@@ -473,7 +474,7 @@ def measure(args, cfg: dict, stage1: dict) -> int:
     host, port = args.camera.rsplit(':', 1)
     summary = {'backend': args.backend, 'model': str(args.model), 'view': d['view'],
                'head': d['head'], 'motion': d['motion'], 'turn_wz_radps': wz,
-               'frames_wanted': frames_wanted, 'warmup_frames': warmup,
+               'frames_wanted': frames_wanted, 'warmup_frames': warmup, 'cpus': allowed_cpus(),
                'started_utc': dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
                'outcome': 'failed'}
     events = Events(out / 'events.jsonl')
@@ -599,6 +600,23 @@ def place(cfg: dict, stage1: dict, probe_addr: str) -> dict:
             'toys': sorted(scene['toys'])}
 
 
+def allowed_cpus() -> list[int] | None:
+    """The cores this process may run on (taskset); None where the OS does not say (macOS)."""
+    return sorted(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else None
+
+
+def cpus_text(cpus: list[int] | None) -> str:
+    """[4, 5, 6, 7] -> '4-7', [0, 2, 3] -> '0,2-3'."""
+    if not cpus:
+        return '–'
+    parts, start = [], cpus[0]
+    for a, b in zip(cpus, cpus[1:] + [None]):
+        if b != a + 1:
+            parts.append(str(start) if start == a else f'{start}-{a}')
+            start = b
+    return ','.join(parts)
+
+
 def table(run: Path, pack: Path | None = None) -> dict:
     """runs/<..>_s2f_board_deploy/board/<backend>/summary.json -> deploy_table.json + .md."""
     rows = {}
@@ -619,15 +637,16 @@ def table(run: Path, pack: Path | None = None) -> dict:
                                                  'toolkit', 'algo', 'weights_sha256')
                                if k in c}
     out = {'backends': {}, 'versions': {b: r.get('versions') for b, r in rows.items()}, **extra}
-    lines = ['| 档 | 帧数 | 收帧 P50/P99 | 预处理 P50/P99 | 推理 P50/P99 | 后处理 P50/P99 | '
+    lines = ['| 档 | 核 | 帧数 | 收帧 P50/P99 | 预处理 P50/P99 | 推理 P50/P99 | 后处理 P50/P99 | '
              '端到端 P50/P99 | 处理帧率 | 本进程 CPU | 系统 CPU | NPU 负载 | robotd 漏拍 | 通过 |',
-             '|' + '---|' * 13]
+             '|' + '---|' * 14]
     for b, r in rows.items():
         ms = r.get('ms') or {}
         res = r.get('resources') or {}
         rb = r.get('robotd') or {}
         out['backends'][b] = {
-            'frames': r.get('frames'), 'ms': ms, 'processed_fps': r.get('processed_fps'),
+            'cpus': r.get('cpus'), 'frames': r.get('frames'), 'ms': ms,
+            'processed_fps': r.get('processed_fps'),
             'skipped_frames': r.get('skipped_frames'), 'resources': res, 'robotd': rb,
             'falls': r.get('falls'), 'e2e_pass': r.get('e2e_pass'), 'pass': r.get('pass'),
             'outcome': r.get('outcome')}
@@ -636,8 +655,8 @@ def table(run: Path, pack: Path | None = None) -> dict:
             s = ms.get(seg)
             return f'{s["p50"]:.1f} / {s["p99"]:.1f}' if s else '–'
         npu = res.get('npu_load_pct_mean')
-        lines.append(f'| {b} | {r.get("frames")} | {pp("receive")} | {pp("preprocess")} | '
-                     f'{pp("inference")} | {pp("postprocess")} | {pp("e2e")} | '
+        lines.append(f'| {b} | {cpus_text(r.get("cpus"))} | {r.get("frames")} | {pp("receive")} | '
+                     f'{pp("preprocess")} | {pp("inference")} | {pp("postprocess")} | {pp("e2e")} | '
                      f'{r.get("processed_fps")} | {res.get("self_cpu_pct_core_mean")} % | '
                      f'{res.get("system_cpu_pct_mean")} % | '
                      f'{"/".join(str(v) for v in npu) + " %" if npu else "–"} | '

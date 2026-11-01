@@ -62,6 +62,12 @@ class AcceptanceTests(unittest.TestCase):
                 self.assertLessEqual(b['robotd_missed'], 1)
                 self.assertTrue(b['pass'])
 
+    def test_board_launchers_pin_to_the_cores_that_were_fast(self):
+        c = FACTS['deploy_board']['preprocess_cores']
+        self.assertLess(c['big_a76_cores_4_7_p50_ms'], c['little_a55_cores_0_3_p50_ms'])
+        env_sh = (REPO / 'env.sh').read_text()
+        self.assertIn('export MD_BOARD_CPUS="${MD_BOARD_CPUS-4-7}"', env_sh)
+
     def test_parity_and_board_agreement_pass(self):
         p = FACTS['parity']
         self.assertTrue(p['mac_same_frames']['pass'])
