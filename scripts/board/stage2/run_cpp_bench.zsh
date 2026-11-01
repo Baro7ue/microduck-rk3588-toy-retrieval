@@ -7,7 +7,7 @@
 # there from GitHub (airockchip/rknn-toolkit2 v2.3.2, sha256 checked) the first time.
 # Output: runs/<UTC>_s2h_cpp_bench/{bundle/, board/{build.log, unit_tests.log, cpp.jsonl, ref.jsonl,
 # cpp_inputs/, ref_inputs/}, compare.json, console.log}. Both detectors run on cores $MD_BOARD_CPUS
-# (env.sh: 4-7, the big cores), so the C++ and Python times compare like for like.
+# (env.sh: 4-6, the big cores robotd leaves free), so the C++ and Python times compare like for like.
 set -uo pipefail
 source "${0:A:h}/../../../env.sh"
 source "$MD_ROOT/scripts/lib.zsh"

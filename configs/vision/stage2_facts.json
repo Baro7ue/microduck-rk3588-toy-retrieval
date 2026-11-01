@@ -1070,7 +1070,7 @@
    "little_a55_cores_0_3_p50_ms": 18.3,
    "big_a76_cores_4_7_p50_ms": 7.0,
    "result": "the little cores reproduce the NPU backends' 19 ms, the big cores the CPU backend's 6.7 ms; the CPU backend probably stayed on the big cores because its two ONNX Runtime threads kept it busy (not observed directly)",
-   "since": "board launchers pin to env.sh MD_BOARD_CPUS (default 4-7): run_deploy_board.zsh, run_cpp_bench.zsh; Stage 3's board brain should do the same. The 2F rows above are the unpinned run and were not re-measured"
+   "since": "board launchers pin to env.sh MD_BOARD_CPUS: run_deploy_board.zsh, run_cpp_bench.zsh and Stage 3's board brain. Default 4-6 (from 2026-11-01; 4-7 in the first version of this change): core 7 is robotd's since Stage 3F. The 2F rows above are the unpinned run and were not re-measured"
   }
  },
  "evidence": {

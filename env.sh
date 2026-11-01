@@ -33,8 +33,10 @@ export MD_BOARD_ROBOTD="${MD_BOARD_ROBOTD:-$MD_BOARD_ROOT/runtime/bin/robotd}"
 export MD_BOARD_ORT="${MD_BOARD_ORT:-$MD_BOARD_ROOT/runtime/onnxruntime-linux-aarch64-1.28.0/lib/libonnxruntime.so.1.28.0}"
 export MD_BOARD_PY="${MD_BOARD_PY:-$MD_BOARD_ROOT/runtime/venv/bin/python}"   # RKNN Lite2 + ONNX Runtime + OpenCV
 # Cores for timed board runs (taskset -c): 4-7 are the A76 big cores, 0-3 the A55 little ones, where
-# the same detector preprocess takes 18.3 ms instead of 7.0 (2026-10-26). Empty = no pinning.
-export MD_BOARD_CPUS="${MD_BOARD_CPUS-4-7}"
+# the same detector preprocess takes 18.3 ms instead of 7.0 (2026-10-26). Core 7 is robotd's
+# (scripts/board/stage0/run_board_robotd.zsh, MD_BOARD_ROBOTD_CPUS; Stage 3F), so board Python gets
+# the other three big cores, as the Stage 3 and 4 board runs did. Empty = no pinning.
+export MD_BOARD_CPUS="${MD_BOARD_CPUS-4-6}"
 
 case ":${PYTHONPATH:-}:" in
   *":$MD_ROOT/src:"*) ;;

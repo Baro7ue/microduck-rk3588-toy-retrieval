@@ -11,8 +11,9 @@
 # on and the table says the load was not read. Output: runs/<UTC>_s2f_board_deploy/{bundle/,
 # board/<backend>/{summary.json, frames.jsonl, resources.csv, events.jsonl}, deploy_table.md,
 # deploy_table.json, layout.json, mac_versions.json, console.log}.
-# The board Python runs on cores $MD_BOARD_CPUS (env.sh: 4-7, the big cores; MD_BOARD_CPUS= turns
-# pinning off, as in the first 2F run, where the NPU backends' preprocess landed on the little cores).
+# The board Python runs on cores $MD_BOARD_CPUS (env.sh: 4-6, the big cores robotd leaves free;
+# MD_BOARD_CPUS= turns pinning off, as in the first 2F run, where the NPU backends' preprocess landed
+# on the little cores).
 set -uo pipefail
 source "${0:A:h}/../../../env.sh"
 source "$MD_ROOT/scripts/lib.zsh"
