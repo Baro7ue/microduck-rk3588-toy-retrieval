@@ -6,7 +6,7 @@
 
 - B-Human：官方 BHumanCodeRelease 的 2025 年度发布，固定提交 [`d89d603`](https://github.com/bhuman/BHumanCodeRelease/commit/d89d603f0388208cecd1c3144b6e8eb92aef4a93)，提交日期 2025-11-06。年度发布不能等同于团队此刻的内部比赛版本。[官方仓库说明](https://github.com/bhuman/BHumanCodeRelease)
 - Bit-Bots：官方 bitbots_main 的 main 快照，固定提交 [`a9b6276`](https://github.com/bit-bots/bitbots_main/commit/a9b62760085e77f36e541ea00eacab71d5a4775a)，提交日期 2026-10-08。这是可核实的公开开发版本，未核实其所有分支是否用于某场比赛。[官方仓库](https://github.com/bit-bots/bitbots_main)
-- 下列源码均于 2026-10-10 获取。原始副本及完整来源清单保存在同目录 `robocup_sources/` 与 `robocup_sources.json`。参数是所读代码的默认值或该份配置值，不是可直接复制到 MicroDuck 的指标。
+- 下列源码均于 2026-10-10 获取。完整来源清单（仓库、固定提交、文件路径、原文链接）在同目录 `robocup_sources.json`；原始副本没有放进公开仓库（它们属于 B-Human 和 Bit-Bots，各有自己的许可证），按清单里的 `url` 字段读原文。参数是所读代码的默认值或该份配置值，不是可直接复制到 MicroDuck 的指标。
 
 ## 关键问题一：一次看到球后，成熟机器人记住的是什么？
 

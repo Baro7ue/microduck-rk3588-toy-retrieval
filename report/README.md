@@ -1,3 +1,3 @@
 # report/
 
-Course report (English), slides and demo video notes for the 2026-10-31 delivery.
+Course report (English) and slides. Not added yet; the result tables they cite are in `results/stage4/`.

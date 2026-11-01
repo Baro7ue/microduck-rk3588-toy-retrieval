@@ -29,11 +29,8 @@ __pycache__/
 /models/**/*.pt
 /models/policies/.cache/
 
-# Archive: frozen code and docs are tracked; copied bundles and PDF build folders are not.
-/archive/*/vision-offline/*
-!/archive/*/vision-offline/MANIFEST.tsv
-/archive/*/pdf_build/*
-!/archive/*/pdf_build/MANIFEST.tsv
+# Archive: the ball-following prototype, local only since 2026-11-01 (in git up to tag stage4-results).
+/archive/
 
 # Reorganisation working files (the move log itself is tracked).
 /docs/reorg/snapshot_*.tsv
