@@ -1,14 +1,20 @@
 """Stage 5 room demo without a robot: the config merge, the toy layout, the toy copies in the scene,
-the brain's config override, the board command, and the launcher (with the fakes of test_launchers.py)."""
+the brain's config override, the board command, the launcher (with the fakes of test_launchers.py),
+and fix2: the round tray, its tray look, the drop sides and the judge (knocked out, drop_missed)."""
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import json
 import math
 from pathlib import Path
 import socket
 import unittest
 
+import numpy as np
+
+from microduck_toy.control import ranging
 from microduck_toy.stage3 import brain as brain_lib, episode
 from microduck_toy.stage5 import room
 
@@ -24,6 +30,10 @@ from test_launchers import ZSH, put
 
 REPO = Path(__file__).resolve().parents[1]
 RL = REPO / 'third_party' / 'microduck_rl'
+
+
+def as_f32(rgba):
+    return tuple(np.float32(v) for v in rgba)
 
 
 class RoomConfigTests(unittest.TestCase):
@@ -43,7 +53,7 @@ class RoomConfigTests(unittest.TestCase):
         frozen = json.loads((REPO / 'configs/control/stage1.json').read_text())
         self.assertEqual(s1['arena']['half_size_m'], 1.5)
         self.assertEqual(s1['arena']['tray']['centre_m'], [1.15, 0.0])
-        self.assertEqual(s1['arena']['tray']['size_m'], frozen['arena']['tray']['size_m'])
+        self.assertEqual(s1['arena']['tray']['rim_height_m'], frozen['arena']['tray']['rim_height_m'])
         self.assertEqual(s1['camera'], frozen['camera'])
         self.assertFalse(s1['arena']['cast_shadows'])
 
@@ -123,6 +133,115 @@ class BrainOverrideTests(unittest.TestCase):
         demo = episode.board_command(args, '/o/e', 'bus', (-0.9, 0.0, 0.0), 'delivered')
         self.assertTrue(demo.endswith('--config-override configs/demo/room.json'))
         self.assertIn('--start=-0.90000,0.00000,0.00000', demo)
+        self.assertNotIn('--side', demo)
+        args.side = 'y+'
+        sided = episode.board_command(args, '/o/e', 'bus', (-0.9, 0.0, 0.0), 'delivered')
+        self.assertTrue(sided.endswith('--config-override configs/demo/room.json --side=y+'))
+
+    def test_brain_takes_a_drop_side(self):
+        base = ['--target', 'bus', '--start=0,0,0', '--socket', 's', '--out', 'o']
+        self.assertIsNone(brain_lib.parser().parse_args(base).side)
+        self.assertEqual(brain_lib.parser().parse_args(base + ['--side=y-']).side, 'y-')
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            brain_lib.parser().parse_args(base + ['--side', 'left'])
+
+    def test_room_drop_sides_and_round_tray(self):
+        doc = room.load()
+        sides = doc['demo']['drop_sides']
+        self.assertEqual(len(set(sides)), len(sides))
+        self.assertTrue(set(sides) <= set(room.merged(doc, 'stage3')['carry']['sides']))
+        tray = room.merged(doc, 'stage1')['arena']['tray']
+        self.assertEqual((tray['shape'], tray['size_m'], tray['rim_height_m']), ('round', 0.3, 0.01))
+        self.assertNotIn('shape', brain_lib.load_configs()['stage1']['arena']['tray'])
+
+
+class RoundTrayJudgeTests(unittest.TestCase):
+    """In the round tray (truth), what a run knocked out, and drop_missed."""
+    S3 = room.merged(room.load(), 'stage3')
+    TRAY = room.merged(room.load(), 'stage1')['arena']['tray']
+    C = (1.15, 0.0)
+
+    def row(self, **toys):
+        r = {}
+        for name in ('bus', 'henry', 'ketchup'):
+            x, y, z = toys.get(name, (0.0, 0.0, 0.01))
+            r.update({f'{name}_x': x, f'{name}_y': y, f'{name}_z': z})
+        return r
+
+    def test_inside_the_rim_and_low_is_in(self):
+        inn = lambda **kw: room.in_tray(self.row(**kw), 'bus', self.C, self.TRAY, self.S3)  # noqa: E731
+        r = self.TRAY['size_m'] / 2                               # 0.15; the rim's inner face 0.144
+        self.assertTrue(inn(bus=(1.15 + r - 0.03, 0.0, 0.012)))
+        self.assertTrue(inn(bus=(1.15 + 0.6 * r, 0.6 * r, 0.012)))    # 0.85 r from the centre
+        self.assertFalse(inn(bus=(1.15 + 0.13, 0.13, 0.012)))     # 0.184: past the rim (a square's corner)
+        self.assertFalse(inn(bus=(1.15 - r + 0.002, 0.0, 0.03)))  # lying across the rim
+        self.assertFalse(inn(bus=(1.15, 0.0, 0.15)))              # still in the beak above it
+        square = self.TRAY | {'shape': 'square'}
+        corner = self.row(bus=(1.15 + 0.13, 0.13, 0.012))
+        self.assertTrue(room.in_tray(corner, 'bus', self.C, square, self.S3))
+
+    TOYS = ['bus', 'henry', 'ketchup']
+
+    def judge(self, row, target, end='dropped'):
+        from microduck_toy.stage5 import demo
+        return demo.judge(self.rec(row, target, end), [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
+
+    def rec(self, row, target, end='dropped'):
+        return {'judge_row': row, 'target': target, 'start': 0.0, 'end_mark': 1.0, 'side': 'y+',
+                'start_told': [0.0, 0.0, 0.0], 'start_truth': [0.0, 0.0, 0.0],
+                'brain': {'end': end, 'pose': [0.9, 0.0, 0.0], 'elapsed_s': 50.0, 'closes': 1}}
+
+    def test_a_drop_that_knocks_an_earlier_toy_out(self):
+        row = self.row(bus=(0.95, 0.0, 0.012), henry=(1.15, 0.12, 0.012))
+        j = self.judge(row, 'henry')
+        self.assertEqual((j['outcome'], j['new_in_tray'], j['knocked_out'], j['in_tray']),
+                         ('delivered', ['henry'], ['bus'], ['henry']))
+        self.assertEqual(j['side'], 'y+')
+
+    def test_dropped_but_nothing_new_is_drop_missed(self):
+        row = self.row(bus=(1.03, 0.0, 0.012), ketchup=(0.97, 0.05, 0.012))
+        j = self.judge(row, 'ketchup')
+        self.assertEqual((j['outcome'], j['new_in_tray'], j['knocked_out']), ('drop_missed', [], []))
+        self.assertEqual(self.judge(row, 'ketchup', end='timeout')['outcome'], 'timeout')
+
+
+class RoundTrayLookTests(unittest.TestCase):
+    """tray.measure_tray shape 'round' on a synthetic round-tray box (the silhouette of its top and
+    bottom circles, projected like test_stage3_tray.tray_box)."""
+    R, H = 0.15, 0.05
+
+    def box(self, state, centre):
+        from test_stage3_tray import CAM
+        pts = []
+        for k in range(720):
+            a = math.radians(k / 2)
+            for z in (0.0, self.H):
+                rim = (centre[0] + self.R * math.cos(a), centre[1] + self.R * math.sin(a), z)
+                p = ranging.project(CAM, state, rim)
+                if p is not None:
+                    pts.append(p)
+        clip = lambda v, hi: max(0.0, min(hi, v))  # noqa: E731
+        cols, rows = [p[0] for p in pts], [p[1] for p in pts]
+        return {'cls': 'tray', 'conf': 0.9, 'xyxy': [clip(min(cols), CAM.width), clip(min(rows), CAM.height),
+                                                     clip(max(cols), CAM.width), clip(max(rows), CAM.height)]}
+
+    def test_round_rule_finds_the_centre_where_the_square_rule_is_off(self):
+        from test_stage3_tray import CAM, h1_like
+        from microduck_toy.stage3 import tray
+        cfg = json.loads((REPO / 'configs/control/stage3.json').read_text())['tray_look']
+        st = h1_like()
+        worst_square = 0.0
+        for left in (-0.24, -0.2, 0.17, 0.2):
+            centre = (0.45, left)
+            b = self.box(st, centre)
+            self.assertTrue(b['xyxy'][0] > 3 or b['xyxy'][2] < CAM.width - 3)    # a side is in view
+            m = tray.measure_tray([(st, [b])], CAM, cfg, self.R, self.H, (0.45, left - 0.03), shape='round')
+            self.assertEqual(m['source'], 'yolo')
+            self.assertAlmostEqual(m['centre'][0], 0.45, delta=0.005)
+            self.assertAlmostEqual(m['centre'][1], left, delta=0.005)
+            sq = tray.measure_tray([(st, [b])], CAM, cfg, self.R, self.H, (0.45, left - 0.03))
+            worst_square = max(worst_square, abs(sq['centre'][1] - left))
+        self.assertGreater(worst_square, 0.01)
 
 
 @unittest.skipIf(mujoco is None or not (RL / 'src/mjlab_microduck/robot/microduck/scene.xml').is_file(),
@@ -148,6 +267,32 @@ class RoomSceneTests(unittest.TestCase):
         self.assertTrue(all(model.light_castshadow[i] == 0 for i in range(model.nlight)))
         self.assertGreater(sum(1 for g in range(model.ngeom) if model.geom(g).name.startswith('furn_')), 10)
 
+    def test_the_room_tray_is_round(self):
+        cfg = room.merged(room.load(), 'stage1')['arena']
+        tray = cfg['tray']
+        model = arena.build_spec(cfg, RL, 'wood').compile()
+        ids = arena.ArenaIds(model)
+        names = [model.geom(g).name for g in ids.tray_geoms]
+        walls = [g for g in ids.tray_geoms if model.geom(g).name.startswith('tray_wall_')]
+        self.assertEqual(len(walls), tray['segments'])
+        self.assertIn('tray_base', names)
+        base = model.geom('tray_base')
+        self.assertEqual(base.type[0], mujoco.mjtGeom.mjGEOM_CYLINDER)
+        self.assertAlmostEqual(base.size[0], tray['size_m'] / 2)
+        data = mujoco.MjData(model)
+        mujoco.mj_forward(model, data)
+        r, c = tray['size_m'] / 2, ids.tray_centre
+        for g in walls:
+            self.assertAlmostEqual(model.geom_size[g][2] * 2, tray['rim_height_m'])
+            centre = data.geom_xpos[g][:2] - c
+            normal = centre / np.linalg.norm(centre)
+            outward = data.geom_xmat[g].reshape(3, 3)[:2, 0]               # the box's thin axis
+            self.assertAlmostEqual(abs(float(normal @ outward)), 1.0, places=6)
+            self.assertAlmostEqual(float(np.linalg.norm(centre)) + model.geom_size[g][0], r, places=6)
+            # the outer face's half-length reaches the next box: no gap round the circle
+            self.assertGreaterEqual(model.geom_size[g][1], r * math.tan(math.pi / len(walls)) - 1e-9)
+        self.assertTrue(all(tuple(model.geom_rgba[g]) == as_f32(arena.TRAY_RGBA) for g in ids.tray_geoms))
+
     def test_the_stage1_arena_is_unchanged(self):
         cfg = json.loads((REPO / 'configs/control/stage1.json').read_text())['arena']
         toy_lib.register_copies(None)
@@ -155,6 +300,8 @@ class RoomSceneTests(unittest.TestCase):
         self.assertEqual(len(arena.ArenaIds(model).toys), 5)
         self.assertTrue(any(model.light_castshadow))
         self.assertEqual(model.geom('wall_px').size[1], cfg['half_size_m'] + cfg['wall_thickness_m'])
+        self.assertEqual(sorted(model.geom(g).name for g in arena.ArenaIds(model).tray_geoms),
+                         ['tray_base', 'tray_rim_nx', 'tray_rim_ny', 'tray_rim_px', 'tray_rim_py'])
 
 
 @unittest.skipUnless(ZSH, 'zsh not installed')

@@ -74,7 +74,7 @@ def choose_side(robot_xy, obstacles, fld: Field, cfg: dict) -> dict:
 
 
 def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: float,
-                 rim_z_m: float, expected, near_z_m: float = 0.0) -> dict:
+                 rim_z_m: float, expected, near_z_m: float = 0.0, shape: str = 'square') -> dict:
     """The tray centre (forward, left) in the level trunk frame from standing looks at H1.
 
     looks: [(state, boxes)] per frame, boxes [{'cls', 'conf', 'xyxy'}] in the upright image.
@@ -85,7 +85,12 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
     lands 0.7 cm short of the rim on average, the rim top 1.8 cm). A side rim runs straight ahead,
     so it is widest in the picture at its near corner when it lies on its own side of the camera
     axis, and at its far corner (the far rim's top, rim_z_m, the box's top edge) when it lies across
-    the axis."""
+    the axis.
+
+    shape 'round' (Stage 5 room demo, a round tray of radius tray_half_m, rim top at rim_z_m): a
+    side of the box is where the camera's view plane grazes the rim's top, so the centre is
+    tray_half_m from that plane's line at z = rim_z_m (cloud check 2026-10-31: the square rule
+    put the round tray's centre 1.3-3.1 cm off sideways)."""
     edge = float(cfg['cut_margin_px'])
     accept = float(cfg['accept_m'])
     w, mid = cam.width, cam.width / 2
@@ -93,6 +98,17 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
 
     def ground(state, col, row, z):
         return ranging.ground_point(cam, state, (col, row, col, row), z)
+
+    def tangent_left(state, col, y0, y1, fwd, sign):
+        a, b = ground(state, col, y1, rim_z_m), ground(state, col, y0, rim_z_m)
+        if a is None or b is None or math.dist(a, b) < 1e-3:
+            return None
+        ux, uy = (b[0] - a[0]) / math.dist(a, b), (b[1] - a[1]) / math.dist(a, b)
+        nx, ny = -uy, ux
+        if abs(ny) < 0.2:
+            return None
+        both = [a[1] + (k * tray_half_m - (fwd - a[0]) * nx) / ny for k in (-1.0, 1.0)]
+        return min(both) if sign < 0 else max(both)       # the centre is inside the grazed side
 
     for state, boxes in looks:
         trays = [b for b in boxes if b['cls'] == 'tray']
@@ -107,6 +123,11 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
             for col, sign in ((x0, -1.0), (x1, 1.0)):      # left side of the image = the tray's +y rim
                 if (sign < 0 and col <= edge) or (sign > 0 and col >= w - edge):
                     continue                                 # cut by the image edge
+                if shape == 'round':
+                    left = tangent_left(state, col, y0, y1, fwd, sign)
+                    if left is not None:
+                        sides.append(left)
+                    continue
                 same_side = col < mid if sign < 0 else col > mid
                 if not same_side and y0 <= edge:
                     continue                                 # its far corner is above the picture

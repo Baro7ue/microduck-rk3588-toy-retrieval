@@ -479,7 +479,8 @@ def board_command(a, remote_out: str, target: str, start, until: str) -> str:
             f'--tof {a.sim_host}:7801 --backend {a.backend} --until {until} '
             f'--out {shlex.quote(remote_out)}'
             + (f' --config-override {shlex.quote(a.config_override)}'      # Stage 5 room demo only
-               if getattr(a, 'config_override', None) else ''))
+               if getattr(a, 'config_override', None) else '')
+            + (f' --side={a.side}' if getattr(a, 'side', None) else ''))   # Stage 5 room demo only
 
 
 # ── parts ───────────────────────────────────────────────────────────────────

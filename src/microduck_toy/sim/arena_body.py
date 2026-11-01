@@ -581,6 +581,8 @@ class ArenaWorld(probe_body.ProbeWorld):
                    camera=bool(self.bodies and self.bodies[0].camera is not None))
         if self.bodies and self.bodies[0].camera is not None:
             out['camera_draw'] = self.bodies[0].camera.draw_stats()
+        if self.room:            # Stage 5: the tray this body built (the replay draws it, the demo checks it)
+            out['room_tray'] = {k: v for k, v in self.config['arena']['tray'].items() if not k.startswith('note')}
         return out
 
 

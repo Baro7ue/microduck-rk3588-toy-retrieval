@@ -82,6 +82,10 @@ class Replay:
         doc = room.load()
         self.doc = doc
         cfg = room.merged(doc, 'stage1')['arena']
+        # The tray the run's body built (fix2 runs log it; a run from before fix2 had the Stage 1
+        # square tray), so an old run is not drawn with today's round tray.
+        cfg['tray'] = {**room.merged({}, 'stage1')['arena']['tray'], 'centre_m': cfg['tray']['centre_m'],
+                       **self.meta.get('room_tray', {})}
         rl_root = repo_root() / 'third_party' / 'microduck_rl'
         spec = arena.build_spec(cfg, rl_root, self.meta.get('floor', 'wood'))
         spec.visual.global_.offwidth = max(size[0], 640)
@@ -101,6 +105,7 @@ class Replay:
         self.cam.distance, self.cam.elevation = 1.5, -32.0
         self.az = None
         self.cfg = cfg
+        self.s3 = room.merged(doc, 'stage3')
         self.states = brain_states(run)
         self.trials = [json.loads(l) for l in (run / 'trials.jsonl').read_text().splitlines()]
         demo = run / 'demo.json'
@@ -163,7 +168,10 @@ class Replay:
                 draw.rectangle([*px(bx - hx, by + hy), *px(bx + hx, by - hy)], fill=c)
         tx, ty = (float(v) for v in self.cfg['tray']['centre_m'])
         th = float(self.cfg['tray']['size_m']) / 2
-        draw.rectangle([*px(tx - th, ty + th), *px(tx + th, ty - th)], fill=(77, 77, 87))
+        if self.cfg['tray'].get('shape') == 'round':
+            draw.ellipse([*px(tx - th, ty + th), *px(tx + th, ty - th)], fill=(77, 77, 87))
+        else:
+            draw.rectangle([*px(tx - th, ty + th), *px(tx + th, ty - th)], fill=(77, 77, 87))
         for name in self.names:
             q = self.ids.toys[name]['qadr']
             x, y = float(self.data.qpos[q]), float(self.data.qpos[q + 1])
@@ -193,11 +201,17 @@ class Replay:
             lines.append(f'Target {n}/{total}: {target}   -   {what}')
         else:
             lines.append('Starting up')
-        done = []
-        for r in self.results:
-            rec = next((x for x in self.trials if x['label'] == r['n']), None)
-            if rec and r['outcome'] == 'delivered' and mono >= rec.get('end_mark', math.inf):
-                done.append(r['target'])
+        # What is in the tray in this frame (truth, the demo's own rule), so a toy knocked out
+        # leaves the list when it leaves the tray.
+        row = {}
+        for name in self.names:
+            q = self.ids.toys[name]['qadr']
+            short = toy_lib.SHORT[name]
+            row.update({f'{short}_x': float(self.data.qpos[q]), f'{short}_y': float(self.data.qpos[q + 1]),
+                        f'{short}_z': float(self.data.qpos[q + 2])})
+        centre = [float(v) for v in self.cfg['tray']['centre_m']]
+        done = [toy_lib.SHORT[n] for n in self.names
+                if room.in_tray(row, toy_lib.SHORT[n], centre, self.cfg['tray'], self.s3)]
         lines.append(f'sim time {t:6.1f} s    in the tray: {", ".join(done) if done else "-"}')
         y = 14
         for i, line in enumerate(lines):

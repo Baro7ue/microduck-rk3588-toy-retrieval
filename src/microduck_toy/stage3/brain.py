@@ -642,9 +642,11 @@ class Brain:
         expected = self.pose.body(state, self.fld.tray_centre)
         doubt = self.pose_doubt
         accept = float(cfg['accept_after_fall_m'] if doubt else cfg['accept_m'])
+        # Stage 5 room demo only: the round tray is ranged by its own rule (tray.measure_tray).
+        round_tray = {'shape': 'round'} if self.s1['arena']['tray'].get('shape') == 'round' else {}
         m = tray_lib.measure_tray(looks, self.cam, {**cfg, 'accept_m': accept}, self.fld.tray_half_m,
                                   float(self.s1['arena']['tray']['rim_height_m']), expected,
-                                  near_z_m=self.plane['tray'])
+                                  near_z_m=self.plane['tray'], **round_tray)
         if doubt and m['source'] == 'yolo' and m['used'] < int(cfg['min_frames_after_fall']):
             m.update(centre=list(expected), source='odometry', too_few=True)
         m['boxes'] = [[b for b in boxes if b['cls'] == 'tray'] for _, boxes in looks]
@@ -856,6 +858,9 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument('--config-override', default=None,
                     help='Stage 5 room demo: configs/demo/room.json (its stage1/stage3 sections '
                          'deep-merged over the frozen configs)')
+    ap.add_argument('--side', default=None, choices=('x-', 'x+', 'y+', 'y-'),
+                    help='Stage 5 room demo: carry to this side of the tray (default: the shortest '
+                         'free side, stage3 carry.sides)')
     return ap
 
 
@@ -891,7 +896,7 @@ def main(argv=None) -> int:
             tof.start()
         echo({'mono': time.monotonic(), 'event': 'ready'})
         brain = Brain(robot, eyes, tof, configs, args.target, start, log_path=out / 'brain.jsonl',
-                      until=args.until, drop_d=args.drop_d, echo=echo,
+                      until=args.until, drop_d=args.drop_d, side=args.side, echo=echo,
                       frames_dir=out / 'frames' if args.frames else None)
         result = brain.run()
         result['latency'] = eyes.latency()

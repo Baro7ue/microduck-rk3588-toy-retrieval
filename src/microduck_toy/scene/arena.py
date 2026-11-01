@@ -10,7 +10,8 @@ memory. Field layout (world frame, the robot's HOME spawn at the origin facing +
 
     walls     a square of side 2 * half_size_m centred on the origin, wall_height_m tall
     tray      a base plate and four rims, centre at tray.centre_m (default +x wall centre,
-              0.2 m between the tray edge and the wall)
+              0.2 m between the tray edge and the wall); tray.shape "round" (Stage 5 room demo
+              only) makes it round, diameter size_m, rim rim_height_m tall
     toys      a free joint each; one visual mesh (no collision) and one collision box (not drawn).
               Spawned parked outside the field; scripts move them in through the probe.
     grasp     one inactive weld jaw_soft <-> toy per toy, and a contact exclude for the same pair
@@ -49,6 +50,23 @@ def _add_box(parent, name, size, pos, rgba, group=0, contype=1, conaffinity=1, m
     if mass is not None:
         kwargs['mass'] = mass
     return parent.add_geom(**kwargs)
+
+
+def _round_tray(body, r: float, wall_h: float, wall_t: float, base_t: float, segments: int) -> None:
+    """Stage 5 room demo: a round tray of outer radius r on the tray body, same colour as the
+    square one (the frozen YOLO knows the tray by it). A disc base and a rim of `segments` thin
+    boxes round the circle; each box is as long as the outer chord's tangent span, so the boxes
+    overlap a little on the inside and leave no gap on the outside."""
+    body.add_geom(name='tray_base', type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[r, base_t / 2, 0],
+                  pos=[0, 0, base_t / 2], rgba=list(TRAY_RGBA))
+    half_len = r * math.tan(math.pi / segments)
+    mid = r - wall_t / 2
+    for k in range(segments):
+        a = 2 * math.pi * k / segments
+        body.add_geom(name=f'tray_wall_{k:02d}', type=mujoco.mjtGeom.mjGEOM_BOX,
+                      size=[wall_t / 2, half_len, wall_h / 2],
+                      pos=[mid * math.cos(a), mid * math.sin(a), wall_h / 2],
+                      quat=[math.cos(a / 2), 0, 0, math.sin(a / 2)], rgba=list(TRAY_RGBA))
 
 
 def park_spot(index: int, y: float = PARK_Y) -> tuple[float, float]:
@@ -90,14 +108,17 @@ def build_spec(cfg: dict, rl_root: Path, floor: str = 'grid') -> mujoco.MjSpec:
     cx, cy = (float(v) for v in tray['centre_m'])
     body = world.add_body(name='tray', pos=[cx, cy, 0.0])
     s = side / 2
-    _add_box(body, 'tray_base', (s, s, base_t / 2), (0, 0, base_t / 2), TRAY_RGBA)
-    for name, pos, size in (
-        ('tray_rim_px', (s - rim_t / 2, 0, rim_h / 2), (rim_t / 2, s, rim_h / 2)),
-        ('tray_rim_nx', (-s + rim_t / 2, 0, rim_h / 2), (rim_t / 2, s, rim_h / 2)),
-        ('tray_rim_py', (0, s - rim_t / 2, rim_h / 2), (s - rim_t, rim_t / 2, rim_h / 2)),
-        ('tray_rim_ny', (0, -s + rim_t / 2, rim_h / 2), (s - rim_t, rim_t / 2, rim_h / 2)),
-    ):
-        _add_box(body, name, size, pos, TRAY_RGBA)
+    if tray.get('shape', 'square') == 'round':
+        _round_tray(body, s, rim_h, rim_t, base_t, int(tray.get('segments', 32)))
+    else:
+        _add_box(body, 'tray_base', (s, s, base_t / 2), (0, 0, base_t / 2), TRAY_RGBA)
+        for name, pos, size in (
+            ('tray_rim_px', (s - rim_t / 2, 0, rim_h / 2), (rim_t / 2, s, rim_h / 2)),
+            ('tray_rim_nx', (-s + rim_t / 2, 0, rim_h / 2), (rim_t / 2, s, rim_h / 2)),
+            ('tray_rim_py', (0, s - rim_t / 2, rim_h / 2), (s - rim_t, rim_t / 2, rim_h / 2)),
+            ('tray_rim_ny', (0, -s + rim_t / 2, rim_h / 2), (s - rim_t, rim_t / 2, rim_h / 2)),
+        ):
+            _add_box(body, name, size, pos, TRAY_RGBA)
 
     # Stage 5 room demo (optional keys): no shadows, furniture boxes and copies of the toys. With the
     # room's tall walls and furniture the directional light's shadow map draws striped bands on the

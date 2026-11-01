@@ -76,3 +76,17 @@ def layout(doc: dict, seed: int | None = None, tries: int = 20000) -> dict:
         else:
             raise RuntimeError(f'seed {seed}: no room left for {name}')
     return {'seed': seed, 'robot': robot, 'toys': placed}
+
+
+def in_tray(row: dict, toy: str, centre, tray: dict, s3: dict) -> bool:
+    """In the tray (truth). The round tray: the toy's centre inside the rim's inner face (a toy
+    lying across the rim is out) and below delivered_max_z_m (one still in the beak is out);
+    the square tray: Stage 3's rule (episode.in_tray, delivered_half_m)."""
+    ep = s3['episode']
+    max_z = float(ep['delivered_max_z_m'])
+    if tray.get('shape') == 'round':
+        inner = float(tray['size_m']) / 2 - float(tray['rim_thickness_m'])
+        return (math.hypot(row[f'{toy}_x'] - centre[0], row[f'{toy}_y'] - centre[1]) < inner
+                and row[f'{toy}_z'] < max_z)
+    from microduck_toy.stage3 import episode         # lazy: the replay needs no brain
+    return episode.in_tray(row, toy, centre, float(ep['delivered_half_m']), max_z)

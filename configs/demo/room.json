@@ -17,7 +17,14 @@
      1.15,
      0.0
     ],
-    "note": "on the +x side of the field, 0.2 m between the tray edge and the field edge (as the Stage 1 tray to its wall)"
+    "shape": "round",
+    "size_m": 0.3,
+    "rim_height_m": 0.01,
+    "rim_thickness_m": 0.006,
+    "base_thickness_m": 0.003,
+    "segments": 32,
+    "note": "on the +x side of the field, 0.2 m between the tray edge and the field edge (as the Stage 1 tray to its wall)",
+    "note_round": "fix2 2026-10-31 (Ethan: make the tray a round basket): round, 0.3 m across, the Stage 1 tray's 1 cm rim (6 mm thick) and dark grey; together with demo.drop_sides and stage3.drop.d_m it fixes the bounce-out of Ethan's board run (seed 5000: the ketchup, dropped on the side where the bus and henry already lay, bounced off them and out). Why not a taller wall: the toy is released 5-9 cm ahead of the trunk and the toes are 3.4 cm ahead (+1-2.5 cm swing), and the drop walk coasts 4-6 cm, so at the drop the toes reach the rim; the robot steps on a 1 cm rim without trouble (Stage 3E: 11 of 26 drops touched it, 0 falls) but tripped over a 5 cm wall in 2 of 3 drops and over a 2 cm wall in its first drop (cloud seed 5000). Why not wider: at 0.36 m the toes cross the rim while still walking and the robot lurched 14-19 cm into the tray in 2 of 3 drops (cloud seed 5001). The frozen YOLO boxes the round tray as tray (cloud check: 90 of 90 staging views with a 1, 2 or 5 cm wall, 0.3 or 0.36 m, conf about 0.96); the brain measures it with the round rule (stage3/tray.py measure_tray shape 'round'; lateral error rms 0.4 cm against 1.3-3.1 cm with the square rule)."
    },
    "copies": {
     "bus": 2,
@@ -346,6 +353,10 @@
   },
   "episode": {
    "max_s": 240.0
+  },
+  "drop": {
+   "d_m": 0.19,
+   "note_demo": "fix2: the round tray has no corners, so the drop aims 2 cm deeper than Stage 3's 0.21 (the toy is released 5-9 cm ahead of the trunk; cloud, 0.21: 8 of 9 delivered, the miss a ketchup that came down on the rim and slid out; 0.19: 12 of 12 over seeds 5000-5003, 0 falls). 0.19 is also in the Stage 3C sweep (stage3_facts tray_3c c_drop: 9/9, 0 falls, 7 rim touches; 0.21 9/9, 3 touches): the toes reach the 1 cm rim more often, which costs nothing."
   }
  },
  "demo": {
@@ -364,6 +375,12 @@
   "toy_gap_m": 0.3,
   "tray_clear_m": 0.45,
   "start_clear_m": 0.5,
-  "note": "toys inside |x|, |y| <= toy_field_m (0.3 m inside the field edge), >= toy_gap_m apart, >= tray_clear_m from the tray centre, >= start_clear_m from the robot start; one layout per seed"
+  "drop_sides": [
+   "x-",
+   "y+",
+   "y-"
+  ],
+  "note": "toys inside |x|, |y| <= toy_field_m (0.3 m inside the field edge), >= toy_gap_m apart, >= tray_clear_m from the tray centre, >= start_clear_m from the robot start; one layout per seed",
+  "note_sides": "drop_sides: the tray side each target is carried to, in order (brain --side). Every drop lands about 0.12 m from the tray centre on its own side, so three targets from three sides land about 0.15 m apart instead of on top of each other (fix2; the Stage 3 rule picks the shortest side, which was x- for 10 of 13 cloud drops). The +x side is not used (0.2 m from the field edge)."
  }
 }
