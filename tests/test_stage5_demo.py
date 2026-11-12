@@ -224,6 +224,30 @@ class RoundTrayJudgeTests(unittest.TestCase):
         self.assertEqual((j['outcome'], j['new_in_tray'], j['knocked_out']), ('drop_missed', [], []))
         self.assertEqual(self.judge(row, 'ketchup', end='timeout')['outcome'], 'timeout')
 
+    def test_v3_drop_and_leave_diagnostics_beside_an_unchanged_outcome(self):
+        from microduck_toy.stage5 import demo
+        row = self.row(bus=(1.15, 0.0, 0.012), henry=(1.16, 0.03, 0.012))
+        rec = self.rec(row, 'henry')
+        rec['brain']['drop'] = {'result': 'open', 'redos': 1,
+                                'leave': {'clear': False, 'result': 'no_gain'}}
+        j = demo.judge(rec, [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
+        self.assertEqual(j['outcome'], 'delivered')
+        self.assertEqual((j['drop_result'], j['drop_redos'], j['left_clear'], j['leave_result']),
+                         ('open', 1, False, 'no_gain'))
+
+    def test_a_give_up_is_its_own_end_and_in_the_tray_by_luck_still_counts(self):
+        # The pass bar is not changed here (that is Ethan's call): a toy in the tray is delivered,
+        # and brain_end / drop_result say how it got there.
+        from microduck_toy.stage5 import demo
+        row = self.row(bus=(1.15, 0.0, 0.012), henry=(0.70, 0.0, 0.012))
+        rec = self.rec(row, 'henry', end='drop_fail')
+        rec['brain']['drop'] = {'result': 'out_of_steps', 'redos': 1, 'leave': {'clear': True, 'result': 'clear'}}
+        j = demo.judge(rec, [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
+        self.assertEqual((j['outcome'], j['brain_end'], j['drop_result']), ('drop_fail', 'drop_fail', 'out_of_steps'))
+        lucky = self.rec(self.row(bus=(1.15, 0.0, 0.012), henry=(1.18, 0.02, 0.012)), 'henry', end='drop_fail')
+        self.assertEqual(demo.judge(lucky, [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)['outcome'],
+                         'delivered')
+
 
 class DemoLoopTests(unittest.TestCase):
     """demo.main over a fake runner: what each trial line says about where its run started."""
@@ -270,7 +294,8 @@ class DemoLoopTests(unittest.TestCase):
             return {'outcome': 'drop_missed', 'side': None, 'start_from_truth': rec['start_from_truth'],
                     'new_in_tray': [], 'knocked_out': [], 'in_tray': [], 'held': [], 'falls': 0,
                     'brain_end': None, 'elapsed_s': 1.0, 'closes': 0, 'start_pose_error_m': 0.0,
-                    'end_pose': None}
+                    'end_pose': None, 'drop_result': None, 'drop_redos': None, 'left_clear': None,
+                    'leave_result': None}
         with mock.patch.object(demo_lib, 'Demo', FakeDemo), mock.patch.object(demo_lib, 'judge', judge), \
                 mock.patch.object(demo_lib.metrics, 'continuity', lambda rows: {}), \
                 contextlib.redirect_stdout(io.StringIO()):

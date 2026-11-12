@@ -15,7 +15,9 @@ start_from_truth in trials.jsonl and demo.json). The drop side is the brain's ow
 runs nothing is reset: the toys already in the tray stay there. Judged on the simulator's truth like a Stage 3
 episode (in the round tray: inside its rim), plus the toys a run knocked out of the tray and
 what is still in it at the end; output in runs/<UTC>_s5_room_demo[_board]/ (demo.json + the usual
-truth.csv, events, episodes/<n>_<target>/).
+truth.csv, events, episodes/<n>_<target>/). v3 adds diagnostics beside the unchanged outcome: per
+target drop_result (open = the beak opened in the window), drop_redos, left_clear / leave_result,
+and the totals opened_in_window and left_clear.
 """
 from __future__ import annotations
 
@@ -93,6 +95,11 @@ def judge(rec: dict, rows: list[dict], toys: list[str], in_before: set, s3: dict
     ok = rec['target'] in kinds and all(k == rec['target'] for k in kinds)
     told, end_pose = rec['start_told'], rec['brain'].get('pose')
     end = rec['brain'].get('end')
+    # v3 diagnostics beside the outcome, which is unchanged (in the tray counts, however it got
+    # there: Mac 20261112T035812Z bus fell into it out of the beak, brain grasp_fail): did the beak
+    # open in the window (drop_result 'open'), how many redos, did it back clear of the tray.
+    drop = rec['brain'].get('drop') or {}
+    leave = drop.get('leave') or {}
     if ok:
         outcome = 'delivered'
     elif new:
@@ -105,6 +112,8 @@ def judge(rec: dict, rows: list[dict], toys: list[str], in_before: set, s3: dict
             'start_from_truth': bool(rec.get('start_from_truth')),
             'new_in_tray': new, 'knocked_out': out, 'in_tray': sorted(in_now), 'held': held,
             'falls': len(falls), 'brain_end': rec['brain'].get('end'),
+            'drop_result': drop.get('result'), 'drop_redos': drop.get('redos'),
+            'left_clear': leave.get('clear'), 'leave_result': leave.get('result'),
             'elapsed_s': rec['brain'].get('elapsed_s'), 'closes': rec['brain'].get('closes'),
             'start_pose_error_m': round(math.dist(told[:2], rec['start_truth'][:2]), 3),
             'end_pose': end_pose}
@@ -192,6 +201,10 @@ def main(argv=None) -> int:
                         'delivered': delivered, 'kept_at_end': kept, 'in_tray_at_end': at_end,
                         'knocked_out': sum(len(r['knocked_out']) for r in results),
                         'starts_from_truth': sum(r['start_from_truth'] for r in results),
+                        # v3 diagnostics (not the pass bar): beaks opened in the window, backs clear
+                        'opened_in_window': sum(r['brain_end'] == 'dropped' and r['drop_result'] == 'open'
+                                                for r in results),
+                        'left_clear': sum(r['left_clear'] is True for r in results),
                         'results': results, 'wall_s': demo.meta['wall_s'],
                         'brain_s': round(sum(r['elapsed_s'] or 0 for r in results), 1),
                         'falls': sum(r['falls'] for r in results)},
