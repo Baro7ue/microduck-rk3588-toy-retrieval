@@ -9,9 +9,10 @@ Needs the arena body in room mode (scripts/sim/stage1/run_arena_body.zsh --camer
 configs/demo/room.json (deep-merged over the frozen stage1/stage3 configs, stage5/room.py); the
 toys are laid out once from the demo seed. Each target is one brain run (on the Mac in this
 process, on the board one ssh as in Stage 3F) started where the previous run's brain thought it
-ended (its odometry/tray-look pose, no truth), and carried to its own side of the tray (room.json
-demo.drop_sides, brain --side) so the drops do not land on each other. Between runs nothing is
-reset: the toys already in the tray stay there. Judged on the simulator's truth like a Stage 3
+ended (its odometry/tray-look pose, no truth; if that brain died without a pose, the truth, marked
+start_from_truth in trials.jsonl and demo.json). The drop side is the brain's own Stage 3 choice
+(v2; room.json demo.drop_sides, if put back, gives each target its own side, brain --side). Between
+runs nothing is reset: the toys already in the tray stay there. Judged on the simulator's truth like a Stage 3
 episode (in the round tray: inside its rim), plus the toys a run knocked out of the tray and
 what is still in it at the end; output in runs/<UTC>_s5_room_demo[_board]/ (demo.json + the usual
 truth.csv, events, episodes/<n>_<target>/).
@@ -101,6 +102,7 @@ def judge(rec: dict, rows: list[dict], toys: list[str], in_before: set, s3: dict
     else:
         outcome = end
     return {'outcome': outcome, 'side': rec.get('side'),
+            'start_from_truth': bool(rec.get('start_from_truth')),
             'new_in_tray': new, 'knocked_out': out, 'in_tray': sorted(in_now), 'held': held,
             'falls': len(falls), 'brain_end': rec['brain'].get('end'),
             'elapsed_s': rec['brain'].get('elapsed_s'), 'closes': rec['brain'].get('closes'),
@@ -151,15 +153,19 @@ def main(argv=None) -> int:
         if not demo.board:
             demo.wait_settled(3.0)
         pose = list(lay['robot'])
+        from_truth = False
         for n, target in enumerate(targets, 1):
             rec = demo.run_target(n, target, pose, lay if n == 1 else None, sides[n - 1])
-            recs.append(rec)
-            demo.trial({k: v for k, v in rec.items() if k != 'layout'})
+            rec['start_from_truth'] = from_truth
             end = rec['brain'].get('pose')
-            if end is None:            # the brain died before it could say: carry on from the truth
+            from_truth = end is None
+            if from_truth:             # the brain died before it could say: carry on from the truth
                 row = rec['judge_row']
                 end = [row['x'], row['y'], row['yaw']]
-                rec['next_start_from_truth'] = True
+            # Set before the trial line is written (v2: it used to be set after, so trials.jsonl never had it).
+            rec['next_start_from_truth'] = from_truth
+            recs.append(rec)
+            demo.trial({k: v for k, v in rec.items() if k != 'layout'})
             pose = end
     except KeyboardInterrupt:
         demo.meta['interrupted'] = True
@@ -185,6 +191,7 @@ def main(argv=None) -> int:
     summary = {'demo': {'seed': args.seed, 'targets': targets, 'drop_sides': sides,
                         'delivered': delivered, 'kept_at_end': kept, 'in_tray_at_end': at_end,
                         'knocked_out': sum(len(r['knocked_out']) for r in results),
+                        'starts_from_truth': sum(r['start_from_truth'] for r in results),
                         'results': results, 'wall_s': demo.meta['wall_s'],
                         'brain_s': round(sum(r['elapsed_s'] or 0 for r in results), 1),
                         'falls': sum(r['falls'] for r in results)},

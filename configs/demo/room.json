@@ -354,9 +354,46 @@
   "episode": {
    "max_s": 240.0
   },
+  "route": {
+   "tray_exit_m": 0.05,
+   "note_v2": "v2: a route that starts inside the tray's clearance box (tray half + tray_inflate_m, 0.25 m) first steps straight away from the tray centre to tray_exit_m outside that box, then goes round the tray (world.plan_route). Before v2 such a start left the tray out of the route altogether (meant for leaving the spot one stands on): board run 20261112T025144Z, the ketchup's GOTO started 0.19 m from the centre after the henry drop and walked across the tray (0.05 m from the centre at 116.6 s), the bus went out. 0 (stage3.json) keeps the old rule."
+  },
   "drop": {
-   "d_m": 0.19,
-   "note_demo": "fix2: the round tray has no corners, so the drop aims 2 cm deeper than Stage 3's 0.21 (the toy is released 5-9 cm ahead of the trunk; cloud, 0.21: 8 of 9 delivered, the miss a ketchup that came down on the rim and slid out; 0.19: 12 of 12 over seeds 5000-5003, 0 falls). 0.19 is also in the Stage 3C sweep (stage3_facts tray_3c c_drop: 9/9, 0 falls, 7 rim touches; 0.21 9/9, 3 touches): the toes reach the 1 cm rim more often, which costs nothing."
+   "d_m": 0.11,
+   "note_demo": "fix2: the round tray has no corners, so the drop aims 2 cm deeper than Stage 3's 0.21 (the toy is released 5-9 cm ahead of the trunk; cloud, 0.21: 8 of 9 delivered, the miss a ketchup that came down on the rim and slid out; 0.19: 12 of 12 over seeds 5000-5003, 0 falls). 0.19 is also in the Stage 3C sweep (stage3_facts tray_3c c_drop: 9/9, 0 falls, 7 rim touches; 0.21 9/9, 3 touches): the toes reach the 1 cm rim more often, which costs nothing.",
+   "note_v2": "v2 (Ethan 2026-11-12: walk into the tray and drop at its centre): d_m 0.11, so the toy (at the beak opening 6.8-10.9 cm ahead of the trunk, median 9.4, and up to 3.6 cm to the side; truth.csv, 15 drops) comes down within about 4-5 cm of the centre and a toy that lands on one already there has about 11 cm to the rim instead of about 5 (with one drop side, fix2 0.19 would put every toy about 9 cm out on the same side). Board runs 20261112T02*: the robot went into the tray 6 times by accident (trunk 6.0-13.3 cm from the centre); standing still at the opening (<= 5 cm/s, 3 times) the toy landed 4.3, 8.0 and 6.6 cm from the centre, moving (12.6-23.3 cm/s, 3 times) 12.2, 16.0 and 17.6 cm (2 out): drop.staged makes it creep in and stand still first. 0 falls on those 6 entries; unmeasured: stepping over the rim at creep speed with toys in the tray, and backing out over it (drop.leave). Set 0.19 for fix2's drop outside the rim.",
+   "staged": {
+    "standoff_m": 0.25,
+    "deep_tol_m": 0.03,
+    "far_tol_m": 0.015,
+    "long_above_m": 0.04,
+    "pulse_long": "F5",
+    "pulse_short": "F2",
+    "aim_turn_deg": 8.0,
+    "turn_above_m": 0.21,
+    "aim_open_deg": 20.0,
+    "max_steps": 8,
+    "max_retreats": 2,
+    "note": "v2 (brain.staged_drop): the blind walk to d_m and a fixed stand_s before the beak opens is replaced by: walk to standoff_m from the measured centre, then repeat {settle (drop.settle) -> range r and bearing from odometry since the tray look -> act} until it opens. Acts: r < d_m - deep_tol_m: back off (inching.retreat, B10 about 10.5 cm); r > d_m + far_tol_m: turn to the centre if it is more than aim_turn_deg off and r >= turn_above_m (toes off the rim: no turning with a foot on it or in the tray), else creep with pulse_long (F5, 5.3 cm) or, within long_above_m, pulse_short (F2, 2.1 cm) (stage1_facts pulses_mac); in the window but more than aim_open_deg off: back off and come in again (no turning with a foot on the rim); else open. At most max_steps acts and max_retreats back-offs, then it opens where it is. Why (board runs 20261112T02*, 12 drops recomputed from truth.csv): the walk always stopped where planned (trunk 22.0-23.8 cm from the centre at the stop command, 11 of 12; the 12th was a tray look ranged 7.6 cm long), but in the 1 s stand that followed the robot went on 2.9-14.8 cm (6 of 12 over 8 cm) and turned 1.6-32.6 deg (7 of 12 over 10 deg): the coast from 0.3 m/s carried a foot onto the rim (tray_contact, both feet off the floor) and the policy stepped on into the tray, opening 6.0-13.3 cm from the centre; Mac fix2 run: 2.2-3.8 cm and 3.8-8.3 deg. Odometry saw all of it (walk and stand within about 1 cm and 0.1 deg of truth), so the brain can check before it opens. standoff_m: the toes are about 6 cm ahead of the trunk (3.4 cm + swing), so at 0.25 they stay about 3 cm off the rim (outer edge 0.156 m) while the walk coasts. d_m is where the beak opens (note_v2)."
+   },
+   "settle": {
+    "min_s": 0.3,
+    "max_s": 2.5,
+    "window_s": 0.3,
+    "still_mps": 0.01,
+    "still_degps": 5.0,
+    "note": "v2 (brain.settle): standing still = over the last window_s of robot.state the odometry moved at most still_mps and turned at most still_degps; waited at least min_s, at most max_s (then it goes on and logs still=false). Replaces drop.stand_s in the staged drop (stage0_facts stop_from_0.3mps_mac: 0.7-1.0 s to settle on the floor; on the rim it did not, above)."
+   },
+   "leave": {
+    "clear_m": 0.38,
+    "max_pulses": 4,
+    "face_xy": [
+     0.0,
+     0.0
+    ],
+    "turn_tol_deg": 20.0,
+    "note": "v2 (brain.leave_tray, Ethan 2026-11-12: back off two steps and turn round after the drop): after the beak closes, back off with inching.retreat (B10, about 10.5 cm) until the trunk is clear_m from the tray centre (from 0.11 m: three pulses; at most max_pulses), then turn to face face_xy (the field centre) if more than turn_tol_deg off. clear_m 0.38 is outside the tray's clearance box (half 0.25 m, corner 0.354 m), so the next target's route goes round the tray. A fall on the way out ends the drop as dropped (the toy is already out of the beak); the next run's brain gets up. Why: board run 20261112T025527Z, the henry drop left the robot standing in the tray (trunk 0.10 m from the centre) and the next run's walk out of it fell and kicked the bus out (160.9 s)."
+   }
   }
  },
  "demo": {
@@ -375,12 +412,7 @@
   "toy_gap_m": 0.3,
   "tray_clear_m": 0.45,
   "start_clear_m": 0.5,
-  "drop_sides": [
-   "x-",
-   "y+",
-   "y-"
-  ],
   "note": "toys inside |x|, |y| <= toy_field_m (0.3 m inside the field edge), >= toy_gap_m apart, >= tray_clear_m from the tray centre, >= start_clear_m from the robot start; one layout per seed",
-  "note_sides": "drop_sides: the tray side each target is carried to, in order (brain --side). Every drop lands about 0.12 m from the tray centre on its own side, so three targets from three sides land about 0.15 m apart instead of on top of each other (fix2; the Stage 3 rule picks the shortest side, which was x- for 10 of 13 cloud drops). The +x side is not used (0.2 m from the field edge)."
+  "note_sides_v2": "v2 (Ethan 2026-11-12): no drop_sides any more. fix2 gave each target its own side (x-, y+, y-, brain --side); v2 lets the brain pick the side by the Stage 3 rule (stage3/tray.py choose_side: the shortest route whose lane holds no known toy), as in the formal Stage 4 runs. Expect most drops from x- (10 of 13 cloud drops in fix2's check), so the toys can land near each other: the demo judge counts a toy that leaves the tray under a later drop as knocked_out. demo.py still takes drop_sides if they are put back."
  }
 }

@@ -145,14 +145,26 @@ class BrainOverrideTests(unittest.TestCase):
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
             brain_lib.parser().parse_args(base + ['--side', 'left'])
 
-    def test_room_drop_sides_and_round_tray(self):
+    def test_room_v2_no_drop_sides_and_round_tray(self):
         doc = room.load()
-        sides = doc['demo']['drop_sides']
-        self.assertEqual(len(set(sides)), len(sides))
-        self.assertTrue(set(sides) <= set(room.merged(doc, 'stage3')['carry']['sides']))
+        self.assertNotIn('drop_sides', doc['demo'])          # v2: the brain picks the side (Stage 3 rule)
         tray = room.merged(doc, 'stage1')['arena']['tray']
         self.assertEqual((tray['shape'], tray['size_m'], tray['rim_height_m']), ('round', 0.3, 0.01))
         self.assertNotIn('shape', brain_lib.load_configs()['stage1']['arena']['tray'])
+
+    def test_v2_drop_knobs_are_the_rooms_only(self):
+        room_s3 = brain_lib.load_configs(override='configs/demo/room.json')['stage3']
+        frozen = brain_lib.load_configs()['stage3']
+        for key in ('staged', 'settle', 'leave'):
+            self.assertIn(key, room_s3['drop'])
+            self.assertNotIn(key, frozen['drop'])               # Stage 3/4 drops stay as they were
+        self.assertEqual(room_s3['route']['tray_exit_m'], 0.05)
+        self.assertNotIn('tray_exit_m', frozen['route'])
+        tray_half = room.merged(room.load(), 'stage1')['arena']['tray']['size_m'] / 2
+        self.assertLess(room_s3['drop']['d_m'], tray_half)      # v2 opens with the trunk over the tray
+        self.assertGreater(room_s3['drop']['staged']['standoff_m'], tray_half + 0.06 + 0.03)  # toes off the rim
+        box = tray_half + room_s3['route']['tray_inflate_m']
+        self.assertGreater(room_s3['drop']['leave']['clear_m'], box * math.sqrt(2))  # out of the tray box
 
 
 class RoundTrayJudgeTests(unittest.TestCase):
@@ -198,11 +210,75 @@ class RoundTrayJudgeTests(unittest.TestCase):
                          ('delivered', ['henry'], ['bus'], ['henry']))
         self.assertEqual(j['side'], 'y+')
 
+    def test_a_start_from_the_truth_is_in_the_judgement(self):
+        row = self.row(bus=(1.15, 0.0, 0.012))
+        self.assertFalse(self.judge(row, 'henry')['start_from_truth'])
+        from microduck_toy.stage5 import demo
+        rec = self.rec(row, 'henry') | {'start_from_truth': True}
+        j = demo.judge(rec, [], self.TOYS, set(), self.S3, self.C, self.TRAY)
+        self.assertTrue(j['start_from_truth'])
+
     def test_dropped_but_nothing_new_is_drop_missed(self):
         row = self.row(bus=(1.03, 0.0, 0.012), ketchup=(0.97, 0.05, 0.012))
         j = self.judge(row, 'ketchup')
         self.assertEqual((j['outcome'], j['new_in_tray'], j['knocked_out']), ('drop_missed', [], []))
         self.assertEqual(self.judge(row, 'ketchup', end='timeout')['outcome'], 'timeout')
+
+
+class DemoLoopTests(unittest.TestCase):
+    """demo.main over a fake runner: what each trial line says about where its run started."""
+
+    def test_a_start_from_the_truth_is_in_the_trial_lines(self):
+        import tempfile
+        from unittest import mock
+        from microduck_toy.stage5 import demo as demo_lib
+        written = []
+        out = Path(tempfile.mkdtemp())
+
+        class FakeDemo:
+            board = False
+
+            def __init__(self, args):
+                self.meta = {'tray_centre': [1.15, 0.0]}
+                self.cfg, self.s3, self.dir = {'arena': {'tray': {}}}, {}, out
+                self.toys = ['bus', 'henry', 'ketchup']
+
+            def start(self):
+                pass
+
+            def reset(self, **kw):
+                pass
+
+            def wait_settled(self, s):
+                pass
+
+            def run_target(self, n, target, pose, layout, side):
+                end = None if n == 1 else [0.9, 0.0, 0.0]        # the first brain dies without a pose
+                return {'label': f'{n}_{target}', 'target': target, 'start_told': list(pose),
+                        'judge_row': {'x': 1.0, 'y': 0.2, 'yaw': 0.5}, 'brain': {'pose': end}}
+
+            def trial(self, rec):
+                written.append(json.loads(json.dumps(rec)))     # as trials.jsonl gets it
+
+            def close(self):
+                return []
+
+            def write_summary(self, summary):
+                pass
+
+        def judge(rec, *a):
+            return {'outcome': 'drop_missed', 'side': None, 'start_from_truth': rec['start_from_truth'],
+                    'new_in_tray': [], 'knocked_out': [], 'in_tray': [], 'held': [], 'falls': 0,
+                    'brain_end': None, 'elapsed_s': 1.0, 'closes': 0, 'start_pose_error_m': 0.0,
+                    'end_pose': None}
+        with mock.patch.object(demo_lib, 'Demo', FakeDemo), mock.patch.object(demo_lib, 'judge', judge), \
+                mock.patch.object(demo_lib.metrics, 'continuity', lambda rows: {}), \
+                contextlib.redirect_stdout(io.StringIO()):
+            demo_lib.main(['--seed', '5000'])
+        self.assertEqual([w['next_start_from_truth'] for w in written], [True, False, False])
+        self.assertEqual([w['start_from_truth'] for w in written], [False, True, False])
+        self.assertEqual(written[1]['start_told'], [1.0, 0.2, 0.5])
+        self.assertEqual(json.loads((out / 'demo.json').read_text())['starts_from_truth'], 1)
 
 
 class RoundTrayLookTests(unittest.TestCase):

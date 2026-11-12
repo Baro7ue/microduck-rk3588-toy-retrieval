@@ -195,7 +195,9 @@ class Replay:
             n, target = label.split('_', 1)
             total = self.total or '?'
             if state.startswith('END:'):
-                what = 'delivered' if state == 'END:dropped' else state[4:]
+                # The brain only knows it opened the beak; whether the toy stayed in the tray is the
+                # judge's (demo.json), so the caption says released, not delivered (v2).
+                what = 'released' if state == 'END:dropped' else state[4:]
             else:
                 what = STATE_EN.get(state, state.lower())
             lines.append(f'Target {n}/{total}: {target}   -   {what}')

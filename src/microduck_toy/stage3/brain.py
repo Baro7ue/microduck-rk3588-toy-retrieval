@@ -114,6 +114,9 @@ class Brain:
         self.side_forced = side
         self.retreat = load_pulses(self.f1, [self.s1['inching']['retreat']])[self.s1['inching']['retreat']]
         self.tof_retreat = load_pulses(self.f1, [self.cfg['tof']['retreat']])[self.cfg['tof']['retreat']]
+        staged = self.cfg['drop'].get('staged')          # Stage 5 v2 (room.json) only
+        self.creep = (load_pulses(self.f1, [staged['pulse_long'], staged['pulse_short']])
+                      if staged else {})
         self.plane = {k: float(v) for k, v in self.cfg['plane_z_m'].items() if k != 'note'}
         self.log_file = Path(log_path).open('a') if log_path else None
         self.lock = threading.Lock()
@@ -698,15 +701,18 @@ class Brain:
         centre = self.tray['centre']
         self.head(cfg['head'])
         time.sleep(0.5)
-        w = tray_lib.drop_walk(centre, self.drop_d)
-        out = {'plan': w}
-        b = w['bearing']
-        if abs(b) > math.radians(cfg['turn_tol_deg']):
-            out['turn'] = self.turn(b)
-            b = 0.0
-        out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']))
-        time.sleep(float(cfg['stand_s']))
-        self.check()
+        if cfg.get('staged'):                    # Stage 5 v2 (room.json): closed in on odometry
+            out = self.staged_drop(cfg, centre)
+        else:                                    # Stage 3: walk to d, stand stand_s, open
+            w = tray_lib.drop_walk(centre, self.drop_d)
+            out = {'plan': w}
+            b = w['bearing']
+            if abs(b) > math.radians(cfg['turn_tol_deg']):
+                out['turn'] = self.turn(b)
+                b = 0.0
+            out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']))
+            time.sleep(float(cfg['stand_s']))
+            self.check()
         out['open'] = time.monotonic()
         self.log('drop_open', **out)
         self.robot.mouth(1.0)
@@ -715,7 +721,121 @@ class Brain:
         time.sleep(0.3)
         still = self.holding_now()
         self.holding = still
+        if cfg.get('leave'):                     # Stage 5 v2: back off and turn away
+            out['leave'] = self.leave_tray(cfg['leave'])
         self.end('dropped', still_holding=still, drop=out)
+
+    # ── Stage 5 v2 drop: settle, check, creep; then leave the tray ──────
+
+    def tray_range(self) -> tuple[float, float]:
+        """The tray centre from where the robot is now (odometry since the tray look, which put the
+        measured centre at the field's tray centre): (range m, bearing rad, left > 0)."""
+        f, l = self.pose.body(self.robot.snapshot(), self.fld.tray_centre)
+        return math.hypot(f, l), math.atan2(l, f)
+
+    def settle(self) -> dict:
+        """Wait until the robot stands still on odometry (drop.settle): over the last window_s it moved
+        at most still_mps and turned at most still_degps; at least min_s, at most max_s."""
+        cfg = self.cfg['drop']['settle']
+        win, v_max = float(cfg['window_s']), float(cfg['still_mps'])
+        w_max = math.radians(float(cfg['still_degps']))
+        t0 = time.monotonic()
+        hist: list = []
+        while True:
+            state = self.robot.next_states(1)[0]
+            if state['safety'].get('fallen') or len(self.robot.falls) > self.falls_handled:
+                raise Fallen()
+            t = float(state['t'])
+            hist.append((t, *approach.odom_of(state)))
+            while len(hist) > 2 and hist[1][0] <= t - win:
+                hist.pop(0)
+            waited = time.monotonic() - t0
+            span = hist[-1][0] - hist[0][0]
+            if waited >= float(cfg['min_s']) and span >= 0.8 * win:
+                moved = math.dist(hist[0][1:3], hist[-1][1:3]) / span
+                turned = abs(wrap(hist[-1][3] - hist[0][3])) / span
+                if moved <= v_max and turned <= w_max:
+                    return {'settle_s': round(waited, 3), 'still': True}
+            if waited >= float(cfg['max_s']):
+                return {'settle_s': round(waited, 3), 'still': False}
+
+    def staged_drop(self, cfg: dict, centre) -> dict:
+        """Walk to staged.standoff_m from the measured centre (the toes stay off the rim while the
+        walk coasts), then until the beak opens: settle, read range and bearing from odometry, act.
+        Too deep: back off. Short: turn to the centre while the toes are off the rim (range >=
+        turn_above_m), else creep with a measured pulse (into the tray when d_m is inside it). In the
+        window but turned off the centre: back off and come in again. Else open.
+        (Board runs 20261112T02*: the blind walk + 1 s stand let a foot onto the rim and the robot
+        went on into the tray or turned away; room.json drop.staged.note has the numbers.)"""
+        st = cfg['staged']
+        d = self.drop_d
+        w = tray_lib.drop_walk(centre, float(st['standoff_m']))
+        out = {'plan': w, 'target_m': d, 'steps': []}
+        b = w['bearing']
+        if abs(b) > math.radians(cfg['turn_tol_deg']):
+            out['turn'] = self.turn(b)
+            b = 0.0
+        out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']))
+        near, far = d - float(st['deep_tol_m']), d + float(st['far_tol_m'])
+        aim_turn, aim_open = math.radians(float(st['aim_turn_deg'])), math.radians(float(st['aim_open_deg']))
+        retreats, max_retreats = 0, int(st['max_retreats'])
+        act = None
+        for k in range(int(st['max_steps']) + 1):
+            settled = self.settle()
+            self.check()
+            r, aim = self.tray_range()
+            step = {'k': k, 'range_m': round(r, 4), 'aim_deg': round(math.degrees(aim), 1), **settled}
+            if k == int(st['max_steps']):
+                act = 'open_out_of_steps'        # the budget is spent: open where it stands
+            elif r < near and retreats < max_retreats:
+                act = 'retreat'                  # a step went onto the rim or into the tray
+            elif r > far and abs(aim) > aim_turn and r >= float(st['turn_above_m']):
+                act = 'turn'                     # only while the toes are still off the rim
+            elif r > far:
+                act = st['pulse_long'] if r - d > float(st['long_above_m']) else st['pulse_short']
+            elif abs(aim) > aim_open and retreats < max_retreats:
+                act = 'retreat'                  # turning here would drag a foot over the rim
+            else:
+                act = 'open'
+            step['act'] = act
+            if act == 'retreat':
+                retreats += 1
+                approach.send_pulse(self.robot, self.retreat)
+            elif act == 'turn':
+                step['turn'] = self.turn(aim)
+            elif act in self.creep:
+                approach.send_pulse(self.robot, self.creep[act])
+            out['steps'].append(step)
+            self.log('drop_step', **step)
+            if act.startswith('open'):
+                break
+        out['retreats'] = retreats
+        return out
+
+    def leave_tray(self, cfg: dict) -> dict:
+        """After the drop (drop.leave): back off with the measured retreat pulse until the trunk is
+        clear_m from the tray centre (at most max_pulses), then turn to face face_xy (the field
+        centre), so the next target's search and route start away from the toys in the tray. A fall
+        or the episode clock here does not undo the drop: logged, and the next run's brain gets up."""
+        out = {'pulses': 0}
+        try:
+            r, _ = self.tray_range()
+            out['from_m'] = round(r, 4)
+            while r < float(cfg['clear_m']) and out['pulses'] < int(cfg['max_pulses']):
+                approach.send_pulse(self.robot, self.retreat)
+                out['pulses'] += 1
+                self.settle()
+                r, _ = self.tray_range()
+            out['range_m'] = round(r, 4)
+            b = bearing_to(self.here(), tuple(cfg['face_xy']))
+            if abs(b) > math.radians(float(cfg['turn_tol_deg'])):
+                out['turn'] = self.turn(b)
+        except Fallen:
+            out['fallen'] = True
+        except Timeout:                          # the episode clock ran out after the toy was let go
+            out['timeout'] = True
+        self.log('drop_leave', **out)
+        return out
 
     # ── FALLEN / RECOVER ────────────────────────────────────────────────
 
