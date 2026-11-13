@@ -2,6 +2,7 @@
 
     side = choose_side(robot_xy, obstacles, fld, cfg)        # 'x-', 'y+' or 'y-' + staging point
     m = measure_tray(boxes_and_states, cam, cfg, expected)   # tray centre (forward, left) from H1
+    m = measure_bowl(boxes_and_states, cam, cfg, bowl, expected)  # the same for the Stage 5 bowl
     walk = drop_walk(m['centre'], d)                         # turn + walk so trunk-to-centre = d
 
 Plan 3 (CARRY, TRAY_LOOK, DROP) and 3C. The robot carries the toy to a staging point on one side's
@@ -20,6 +21,7 @@ centre lands within accept_m of where odometry expects the tray is used.
 """
 from __future__ import annotations
 
+import itertools
 import math
 
 from microduck_toy.control import ranging
@@ -74,8 +76,7 @@ def choose_side(robot_xy, obstacles, fld: Field, cfg: dict) -> dict:
 
 
 def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: float,
-                 rim_z_m: float, expected, near_z_m: float = 0.0, shape: str = 'square',
-                 near_half_m: float | None = None) -> dict:
+                 rim_z_m: float, expected, near_z_m: float = 0.0, shape: str = 'square') -> dict:
     """The tray centre (forward, left) in the level trunk frame from standing looks at H1.
 
     looks: [(state, boxes)] per frame, boxes [{'cls', 'conf', 'xyxy'}] in the upright image.
@@ -91,16 +92,7 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
     shape 'round' (Stage 5 room demo, a round tray of radius tray_half_m, rim top at rim_z_m): a
     side of the box is where the camera's view plane grazes the rim's top, so the centre is
     tray_half_m from that plane's line at z = rim_z_m (cloud check 2026-10-31: the square rule
-    put the round tray's centre 1.3-3.1 cm off sideways).
-
-    shape 'bowl' (Stage 5 room demo v4, scene/arena.py bowl_profile: a cone from radius near_half_m
-    on the floor out to the lip, radius tray_half_m at rim_z_m): the sides as 'round' (the lip is the
-    widest). The box's bottom edge is the lowest point of the bowl in the picture: the base's near edge
-    on the floor, or the near lip, whichever the camera sees lower. Taken as the base's, the bottom
-    row gives a centre near[0] + near_half_m; as the lip's, lip[0] + tray_half_m; the true one gives
-    the farther centre (if it is the base, the lip lies beyond where that row's ray crosses the lip's
-    height, and the other way round), so the larger of the two is used. From the room's staging
-    point at H1 the two are about 1 deg apart in the picture."""
+    put the round tray's centre 1.3-3.1 cm off sideways)."""
     edge = float(cfg['cut_margin_px'])
     accept = float(cfg['accept_m'])
     w, mid = cam.width, cam.width / 2
@@ -128,16 +120,12 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
             near = ground(state, (x0 + x1) / 2, y1, near_z_m)
             if near is None:
                 continue
-            fwd = near[0] + (tray_half_m if near_half_m is None else near_half_m)
-            if shape == 'bowl':
-                lip = ground(state, (x0 + x1) / 2, y1, rim_z_m)
-                if lip is not None:
-                    fwd = max(fwd, lip[0] + tray_half_m)
+            fwd = near[0] + tray_half_m
             sides = []
             for col, sign in ((x0, -1.0), (x1, 1.0)):      # left side of the image = the tray's +y rim
                 if (sign < 0 and col <= edge) or (sign > 0 and col >= w - edge):
                     continue                                 # cut by the image edge
-                if shape in ('round', 'bowl'):
+                if shape == 'round':
                     left = tangent_left(state, col, y0, y1, fwd, sign)
                     if left is not None:
                         sides.append(left)
@@ -171,6 +159,153 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
         out.update(centre=[fwds[len(fwds) // 2], lefts[len(lefts) // 2]], source='yolo')
     else:
         out.update(centre=list(expected), source='odometry')
+    return out
+
+
+def bowl_candidates(trays: list) -> list:
+    """What may be the bowl in one frame: each tray box, and the union of every group of 2-4 of them
+    (the frozen YOLO splits the bowl: Mac 20261112T113436Z henry, the bowl off to the right with a
+    toy in it, a box over the lip and one over the near wall in all 5 frames). (xyxy, conf, which)."""
+    out = [(list(b['xyxy']), float(b['conf']), [i]) for i, b in enumerate(trays)]
+    if 2 <= len(trays) <= 4:
+        for k in range(2, len(trays) + 1):
+            for idx in itertools.combinations(range(len(trays)), k):
+                xs = [trays[i]['xyxy'] for i in idx]
+                out.append(([min(x[0] for x in xs), min(x[1] for x in xs), max(x[2] for x in xs),
+                             max(x[3] for x in xs)], max(float(trays[i]['conf']) for i in idx), list(idx)))
+    return out
+
+
+def measure_bowl(looks: list, cam: ranging.CameraModel, cfg: dict, bowl: dict, expected,
+                 near_z_m: float = 0.0) -> dict:
+    """The bowl's centre (forward, left) in the level trunk frame from standing looks at H1 (Stage 5
+    room demo v4; bowl = scene/bowl.py profile). Same inputs and output as measure_tray, plus a
+    per-frame record (per_frame) and, when no frame gave the bowl, hint_bearing (rad, left > 0).
+
+    Each candidate box (bowl_candidates) gives the centre twice, from its two rows:
+      bottom   the box's bottom edge is the bowl's lowest point in the picture: the base's near edge
+               on the floor (near_z_m, radius base_r) or the near lip (h, lip_r), whichever is lower;
+               of the two centres that gives, the true one is the farther (if it is the base, the lip
+               lies beyond where that row's ray crosses the lip's height, and the other way round).
+      top      the box's top edge is the far lip's highest point, its inner edge (lip_top_z,
+               lip_inner_r) or outer edge (h, lip_r); the true one gives the nearer centre.
+    (An image row is a line of constant forward distance on a level plane, so the extreme rows of a
+    circle are at centre +- radius forward, whatever the column.) A box over the whole bowl gives the
+    two within about 1 cm (Mac 20261112T113436Z, bus: 0.4-0.8 cm; henry's two boxes merged:
+    0.1-0.2 cm). A box over part of it ranges long from its bottom and short from its top (henry's
+    lip box: +9.8 and -0.9 cm against the truth): gap = bottom - top > bowl_gap_m is 'partial'; one
+    over more than the bowl, gap < -bowl_gap_m, is 'too_tall'; a top or bottom edge on the image's
+    border is 'cut' (it says nothing). The rest are 'ok', and of those (within accept_m of the
+    odometry) the one whose two rows agree best is the frame's. Its forward is the bottom's, more
+    precise (0.15 cm per pixel at the staging point against 0.6 for the far lip), but at most
+    bowl_slack_m beyond the top's, so a box a little short of the bowl cannot range much long (a
+    long range walks the legs into the bowl, a short one only drops nearer the lip). Sideways: the
+    lip's tangent rule (as shape 'round').
+
+    No frame with an ok box, but a 'partial' or 'cut' box seen: centre = expected (odometry), and
+    hint_bearing = the median over those frames of the bearing of the biggest such box's centre as
+    its top edge and visible side put it (the far lip and the lip's tangent; henry's lip box alone:
+    -15.9 deg, the truth -16.0), for the brain to turn to and look again (a bowl seen in part is
+    usually one cut by the picture's side). Only a direction: the top edge of a box over the near
+    wall alone ranges far short (henry's: -28 cm), so it is never used as a range."""
+    edge = float(cfg['cut_margin_px'])
+    accept = float(cfg['accept_m'])
+    gap_max = float(cfg['bowl_gap_m'])
+    slack = float(cfg['bowl_slack_m'])
+    lip_r, base_r, h = bowl['lip_r'], bowl['base_r'], bowl['h']
+    w = cam.width
+    fwds, lefts, per_frame, hints = [], [], [], []
+    used = rejected = 0
+
+    def ground(state, col, row, z):
+        return ranging.ground_point(cam, state, (col, row, col, row), z)
+
+    def tangent_left(state, col, y0, y1, fwd, sign):
+        a, b = ground(state, col, y1, h), ground(state, col, y0, h)
+        if a is None or b is None or math.dist(a, b) < 1e-3:
+            return None
+        ux, uy = (b[0] - a[0]) / math.dist(a, b), (b[1] - a[1]) / math.dist(a, b)
+        nx, ny = -uy, ux
+        if abs(ny) < 0.2:
+            return None
+        both = [a[1] + (k * lip_r - (fwd - a[0]) * nx) / ny for k in (-1.0, 1.0)]
+        return min(both) if sign < 0 else max(both)       # the centre is inside the grazed side
+
+    def left_at(state, x0, y0, x1, y1, fwd):
+        sides = []
+        for col_s, sign in ((x0, -1.0), (x1, 1.0)):        # left side of the image = the bowl's +y side
+            if (sign < 0 and col_s <= edge) or (sign > 0 and col_s >= w - edge):
+                continue                                     # cut by the image edge
+            left = tangent_left(state, col_s, y0, y1, fwd, sign)
+            if left is not None:
+                sides.append(left)
+        return (sum(sides) / len(sides) if sides else None), len(sides)
+
+    def judge(state, xyxy, conf, which):
+        x0, y0, x1, y1 = (float(v) for v in xyxy)
+        col = (x0 + x1) / 2
+        c = {'xyxy': [round(v, 2) for v in (x0, y0, x1, y1)], 'conf': round(conf, 4), 'boxes': which,
+             'area': (x1 - x0) * (y1 - y0)}
+        base, lip = ground(state, col, y1, near_z_m), ground(state, col, y1, h)
+        top_in, top_out = ground(state, col, y0, bowl['lip_top_z']), ground(state, col, y0, h)
+        if None in (base, lip, top_in, top_out):
+            c['verdict'] = 'no_ground'
+            return c
+        bottom = max(base[0] + base_r, lip[0] + lip_r)
+        top = min(top_in[0] - bowl['lip_inner_r'], top_out[0] - lip_r)
+        c.update(bottom_m=round(bottom, 4), top_m=round(top, 4), gap_m=round(bottom - top, 4))
+        if y0 <= edge or y1 >= cam.height - edge or bottom - top > gap_max:
+            c['verdict'] = 'cut' if (y0 <= edge or y1 >= cam.height - edge) else 'partial'
+            left, _ = left_at(state, x0, y0, x1, y1, top)
+            if left is None:
+                far = top_in if y0 > edge else None
+                left = None if far is None else far[1]
+            if left is not None and top > 0:
+                c['hint_bearing'] = round(math.atan2(left, top), 4)
+            return c
+        if bottom - top < -gap_max:
+            c['verdict'] = 'too_tall'
+            return c
+        fwd = min(bottom, top + slack)
+        left, n_sides = left_at(state, x0, y0, x1, y1, fwd)
+        if left is None:
+            # both sides cut: the near rim spans the picture, so the centre is in that band
+            lo, hi = ground(state, 0.0, y1, near_z_m), ground(state, float(w), y1, near_z_m)
+            band = (lo[1] - lip_r, hi[1] + lip_r) if lo and hi else (-lip_r, lip_r)
+            left = max(min(band), min(max(band), expected[1]))
+        c.update(fwd_m=round(fwd, 4), left_m=round(left, 4), sides=n_sides)
+        c['verdict'] = 'far' if math.hypot(fwd - expected[0], left - expected[1]) > accept else 'ok'
+        return c
+
+    for state, boxes in looks:
+        trays = [b for b in boxes if b['cls'] == 'tray']
+        cands = [judge(state, *cand) for cand in bowl_candidates(trays)]
+        ok = [k for k, c in enumerate(cands) if c['verdict'] == 'ok']
+        chosen = min(ok, key=lambda k: (abs(cands[k]['gap_m']), -cands[k]['area'])) if ok else None
+        for c in cands:
+            c.pop('area')
+        per_frame.append({'chosen': chosen, 'candidates': cands})
+        if chosen is not None:
+            fwds.append(cands[chosen]['fwd_m'])
+            lefts.append(cands[chosen]['left_m'])
+            used += 1
+        elif trays:
+            rejected += 1
+            seen = [c for c in cands if 'hint_bearing' in c]
+            if seen:
+                big = max(seen, key=lambda c: (c['xyxy'][2] - c['xyxy'][0]) * (c['xyxy'][3] - c['xyxy'][1]))
+                hints.append(big['hint_bearing'])
+    out = {'frames': len(looks), 'used': used, 'rejected': rejected, 'expected': list(expected),
+           'per_frame': per_frame}
+    if used:
+        fwds.sort()
+        lefts.sort()
+        out.update(centre=[fwds[len(fwds) // 2], lefts[len(lefts) // 2]], source='yolo')
+    else:
+        out.update(centre=list(expected), source='odometry')
+        if hints:
+            hints.sort()
+            out['hint_bearing'] = hints[len(hints) // 2]
     return out
 
 

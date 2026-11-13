@@ -414,13 +414,95 @@ class RoundTrayLookTests(unittest.TestCase):
         self.assertGreater(worst_square, 0.01)
 
 
+# The two bowl looks of Mac 20261112T113436Z (runs/20261112T113142Z_s5_v4_validation, mac/cpu): the
+# brain's state.jsonl entry 0.2 s before each look, the five frames' tray boxes from brain.jsonl, the
+# odometry's expectation and the truth (truth.csv) in the level trunk frame. v4 ranged henry 9.82 cm off.
+REAL_LOOKS = {
+    'bus': {
+        'state': {'frames': {'camera': {'pos': [0.0833883337636982, -0.001461953406100283, 0.07582219582932666],
+                                        'quat': [0.2748234756043243, -0.6444264018449192, 0.6508017692188339,
+                                                 -0.2926494952047676]}},
+                  'imu': {'quat': [0.9996347594293364, -0.0023360635101727432, 0.003183976859029331,
+                                   0.026734861871540103]},
+                  'odom': {'position': [1.5966104545064113, 0.03552187388734219, 0.11755244813666921]}},
+        'boxes': [[[11.93, 63.2, 360.77, 260.54, 0.9755]], [[11.95, 63.63, 360.8, 261.14, 0.9751]],
+                  [[12.49, 63.84, 360.76, 261.66, 0.9742]], [[12.58, 64.19, 360.78, 261.86, 0.9743]],
+                  [[12.71, 64.53, 360.7, 262.19, 0.9744]]],
+        'expected': (0.45306130830985336, -0.04097233909951112), 'truth': (0.4554, -0.0630)},
+    'henry': {
+        'state': {'frames': {'camera': {'pos': [0.08209644865194349, -0.0006760724914180048, 0.07892388277299466],
+                                        'quat': [0.2958678905431604, -0.6386040835015241, 0.6421838178253574,
+                                                 -0.3037218464384253]}},
+                  'imu': {'quat': [0.6780936408707005, -0.0007417337905534202, -0.00025566532113677594,
+                                   0.734975100719028]},
+                  'odom': {'position': [2.014668053549127, -0.4872905654852472, 0.11741110316816378]}},
+        'boxes': [[[109.17, 96.4, 363.33, 220.85, 0.8309], [166.21, 199.75, 359.77, 283.79, 0.438]],
+                  [[109.76, 96.34, 363.72, 220.95, 0.8451], [161.11, 206.37, 359.77, 283.82, 0.407]],
+                  [[110.47, 96.29, 363.76, 221.41, 0.8432], [161.09, 207.65, 359.98, 284.13, 0.4026]],
+                  [[111.17, 96.43, 363.7, 221.82, 0.8605], [160.39, 207.61, 360.15, 284.39, 0.408]],
+                  [[111.51, 96.88, 363.63, 222.49, 0.8761], [160.84, 206.09, 360.19, 284.97, 0.4182]]],
+        'expected': (0.45316159672551887, -0.06352174818815996), 'truth': (0.4593, -0.1310)},
+}
+
+
 class BowlLookTests(unittest.TestCase):
-    """tray.measure_tray shape 'bowl' on a synthetic bowl box: the outer cone from the base circle on
-    the floor to the lip, and the lip's top, projected by a camera where H1 puts it at the staging
-    point (runs/20261101T030042Z truth at the tray looks: 19.5-19.8 cm up, pitched 40-43 deg down,
-    8.4-8.7 cm ahead of the trunk)."""
+    """tray.measure_bowl: on the real looks above, and on synthetic bowl boxes (the outer cone from
+    the base circle on the floor to the lip, and the lip's top, projected by a camera where H1 puts it
+    at the staging point: runs/20261101T030042Z truth at the tray looks, 19.5-19.8 cm up, pitched
+    40-43 deg down, 8.4-8.7 cm ahead of the trunk)."""
     TRAY = room.merged(room.load(), 'stage1')['arena']['tray']
-    LIP, BASE, H = TRAY['size_m'] / 2, TRAY['base_size_m'] / 2, TRAY['rim_height_m']
+    CFG = room.merged(room.load(), 'stage3')['tray_look']
+
+    @classmethod
+    def setUpClass(cls):
+        from microduck_toy.scene import bowl
+        cls.P = bowl.profile(cls.TRAY)
+        cls.LIP, cls.BASE, cls.H = cls.P['lip_r'], cls.P['base_r'], cls.P['h']
+
+    def measure(self, looks, expected):
+        from test_stage3_tray import CAM
+        from microduck_toy.stage3 import tray
+        return tray.measure_bowl(looks, CAM, self.CFG, self.P, expected)
+
+    @staticmethod
+    def real(name, keep=None):
+        look = REAL_LOOKS[name]
+        frames = []
+        for boxes in look['boxes']:
+            chosen = boxes if keep is None else [boxes[k] for k in keep]
+            frames.append((look['state'], [{'cls': 'tray', 'conf': b[4], 'xyxy': b[:4]} for b in chosen]))
+        return frames, look['expected'], look['truth']
+
+    # the real looks
+
+    def test_the_split_bowl_of_henry_is_merged_and_ranged(self):
+        frames, expected, truth = self.real('henry')
+        m = self.measure(frames, expected)
+        self.assertEqual((m['source'], m['used']), ('yolo', 5))
+        self.assertLess(math.dist(m['centre'], truth), 0.015)            # v4: 0.098
+        for f in m['per_frame']:
+            chosen = f['candidates'][f['chosen']]
+            self.assertEqual(chosen['boxes'], [0, 1])                     # the union of both boxes
+            self.assertEqual([c['verdict'] for c in f['candidates'][:2]], ['partial', 'partial'])
+
+    def test_henrys_lip_box_alone_is_not_taken_for_the_bowl(self):
+        frames, expected, truth = self.real('henry', keep=[0])
+        m = self.measure(frames, expected)
+        self.assertEqual((m['source'], m['used'], m['rejected']), ('odometry', 0, 5))
+        gaps = [f['candidates'][0]['gap_m'] for f in m['per_frame']]
+        self.assertTrue(all(g > 0.1 for g in gaps), gaps)                 # bottom +9.8 cm, top -0.9 cm
+        # it says where to look again: the bowl is to the right
+        self.assertLess(m['hint_bearing'], -math.radians(self.CFG.get('turn_tol_deg', 10.0)))
+        self.assertLess(abs(m['hint_bearing'] - math.atan2(truth[1], truth[0])), math.radians(8))
+
+    def test_the_whole_bowl_box_of_bus_is_ranged_as_before(self):
+        frames, expected, truth = self.real('bus')
+        m = self.measure(frames, expected)
+        self.assertEqual((m['source'], m['used']), ('yolo', 5))
+        self.assertLess(math.dist(m['centre'], truth), 0.015)
+        self.assertTrue(all(abs(f['candidates'][0]['gap_m']) < 0.01 for f in m['per_frame']))
+
+    # synthetic boxes
 
     def state(self, pitch_deg=42.0):
         from test_stage3_tray import FORWARD, axis_quat, quat_mul
@@ -429,11 +511,10 @@ class BowlLookTests(unittest.TestCase):
                 'imu': {'quat': [1.0, 0.0, 0.0, 0.0]}, 'odom': {'position': [0.0, 0.0, 0.12], 'yaw': 0.0},
                 'safety': {'gravity': [0.0, 0.0, -1.0]}}
 
-    def box(self, state, centre, lip_only=False):
+    def box(self, state, centre, rings=None, conf=0.9):
         from test_stage3_tray import CAM
-        top = self.H + self.TRAY['rim_thickness_m'] * math.cos(math.atan2(self.H, self.LIP - self.BASE))
-        rings = [(self.LIP, self.H), (self.LIP - 0.003, top)]
-        if not lip_only:
+        if rings is None:
+            rings = [(self.LIP, self.H), (self.P['lip_inner_r'], self.P['lip_top_z'])]
             rings += [(self.BASE + (self.LIP - self.BASE) * k / 6, self.H * k / 6) for k in range(6)]
         pts = []
         for k in range(720):
@@ -444,38 +525,76 @@ class BowlLookTests(unittest.TestCase):
                     pts.append(q)
         clip = lambda v, hi: max(0.0, min(hi, v))  # noqa: E731
         cols, rows = [q[0] for q in pts], [q[1] for q in pts]
-        return {'cls': 'tray', 'conf': 0.9, 'xyxy': [clip(min(cols), CAM.width), clip(min(rows), CAM.height),
-                                                     clip(max(cols), CAM.width), clip(max(rows), CAM.height)]}
+        return {'cls': 'tray', 'conf': conf, 'xyxy': [clip(min(cols), CAM.width), clip(min(rows), CAM.height),
+                                                      clip(max(cols), CAM.width), clip(max(rows), CAM.height)]}
 
-    def measure(self, st, b, expected, **kw):
-        from test_stage3_tray import CAM
-        from microduck_toy.stage3 import tray
-        cfg = json.loads((REPO / 'configs/control/stage3.json').read_text())['tray_look']
-        args = dict(shape='bowl', near_half_m=self.BASE) | kw
-        return tray.measure_tray([(st, [b])], CAM, cfg, self.LIP, self.H, expected, **args)
-
-    def test_the_bowl_rule_finds_the_centre(self):
+    def test_a_whole_bowl_box_finds_the_centre(self):
         for pitch in (40.0, 43.0):
             st = self.state(pitch)
             for centre in ((0.45, 0.0), (0.45, 0.06), (0.42, -0.05), (0.50, 0.0)):
-                m = self.measure(st, self.box(st, centre), (centre[0] - 0.03, centre[1] + 0.02))
+                expected = (centre[0] - 0.03, centre[1] + 0.02)
+                m = self.measure([(st, [self.box(st, centre)])], expected)
                 self.assertEqual(m['source'], 'yolo')
                 self.assertAlmostEqual(m['centre'][0], centre[0], delta=0.005, msg=(pitch, centre))
-                self.assertAlmostEqual(m['centre'][1], centre[1], delta=0.02, msg=(pitch, centre))
+                c = m['per_frame'][0]['candidates'][0]
+                self.assertLess(abs(c['gap_m']), 0.01)
+                if c['sides']:
+                    self.assertAlmostEqual(m['centre'][1], centre[1], delta=0.02, msg=(pitch, centre))
+                else:                    # wider than the picture both sides: sideways stays odometry's
+                    self.assertAlmostEqual(m['centre'][1], expected[1], delta=1e-9, msg=(pitch, centre))
 
-    def test_a_box_that_stops_at_the_lip_ranges_within_about_a_centimetre(self):
-        # The base edge and the lip are about 1 deg apart in the picture from the staging point; a
-        # detector that boxes the lip only puts the box's bottom on the lip: the larger-centre rule
-        # then takes it for the base and ranges long, by about 1.2 cm.
+    def test_a_box_over_the_lip_only_never_ranges_long(self):
+        # From the staging point the near base and the near lip are ~1 deg apart: a lip-only box is
+        # within bowl_gap_m and is used, at most bowl_slack_m beyond its top edge's range.
         st = self.state()
-        m = self.measure(st, self.box(st, (0.45, 0.0), lip_only=True), (0.42, 0.0))
-        self.assertLess(abs(m['centre'][0] - 0.45), 0.015)
+        lip = self.box(st, (0.45, 0.0), rings=[(self.LIP, self.H), (self.P['lip_inner_r'], self.P['lip_top_z'])])
+        m = self.measure([(st, [lip])], (0.42, 0.0))
+        c = m['per_frame'][0]['candidates'][0]
+        self.assertLessEqual(c['fwd_m'], c['top_m'] + self.CFG['bowl_slack_m'] + 1e-9)
+        self.assertLess(m['centre'][0] - 0.45, 0.015)
 
-    def test_ranged_as_a_round_tray_it_would_be_far_off(self):
-        # Without near_half_m the floor edge (the base, 9 cm from the centre) is taken for the lip's.
+    def test_a_box_over_the_near_half_only_is_partial(self):
         st = self.state()
-        m = self.measure(st, self.box(st, (0.45, 0.0)), (0.45, 0.0), shape='round', near_half_m=None)
-        self.assertGreater(m['centre'][0] - 0.45, 0.05)
+        whole = self.box(st, (0.45, 0.0))
+        x0, y0, x1, y1 = whole['xyxy']
+        near_half = {'cls': 'tray', 'conf': 0.5, 'xyxy': [x0, (y0 + y1) / 2, x1, y1]}
+        m = self.measure([(st, [near_half])], (0.45, 0.0))
+        self.assertEqual(m['per_frame'][0]['candidates'][0]['verdict'], 'partial')
+        self.assertEqual(m['source'], 'odometry')
+
+    def test_a_phantom_box_is_not_merged_in(self):
+        st = self.state()
+        whole = self.box(st, (0.45, 0.0), conf=0.95)
+        x0, y0, x1, y1 = whole['xyxy']
+        phantom = {'cls': 'tray', 'conf': 0.3, 'xyxy': [x0, max(4.0, y0 - 60), x0 + 40, y0 - 30]}  # far off
+        m = self.measure([(st, [whole, phantom])], (0.45, 0.0))
+        f = m['per_frame'][0]
+        self.assertEqual(f['candidates'][f['chosen']]['boxes'], [0])
+        self.assertEqual(f['candidates'][2]['verdict'], 'too_tall')        # the union of both
+        self.assertAlmostEqual(m['centre'][0], 0.45, delta=0.005)
+
+    def test_an_edge_on_the_picture_border_says_nothing(self):
+        from test_stage3_tray import CAM
+        st = self.state()
+        whole = self.box(st, (0.45, 0.0))
+        top_cut = dict(whole, xyxy=[whole['xyxy'][0], 0.0, whole['xyxy'][2], whole['xyxy'][3]])
+        bottom_cut = dict(whole, xyxy=[whole['xyxy'][0], whole['xyxy'][1], whole['xyxy'][2], float(CAM.height)])
+        for b in (top_cut, bottom_cut):
+            m = self.measure([(st, [b])], (0.45, 0.0))
+            self.assertEqual(m['per_frame'][0]['candidates'][0]['verdict'], 'cut')
+            self.assertEqual(m['source'], 'odometry')
+
+    def test_far_from_the_odometry_is_not_used(self):
+        st = self.state()
+        m = self.measure([(st, [self.box(st, (0.45, 0.0))])], (0.90, 0.0))
+        self.assertEqual(m['per_frame'][0]['candidates'][0]['verdict'], 'far')
+        self.assertEqual((m['source'], m['centre']), ('odometry', [0.90, 0.0]))
+        self.assertNotIn('hint_bearing', m)            # a whole box far from the odometry: no turning on it
+
+    def test_no_tray_box_no_hint(self):
+        m = self.measure([(self.state(), [])] * 3, (0.44, -0.01))
+        self.assertEqual((m['source'], m['used'], m['rejected'], m['centre']), ('odometry', 0, 0, [0.44, -0.01]))
+        self.assertNotIn('hint_bearing', m)
 
 
 @unittest.skipIf(mujoco is None or not (RL / 'src/mjlab_microduck/robot/microduck/scene.xml').is_file(),

@@ -852,21 +852,72 @@ class RoomDropTests(StubbedMotion):
 
 
 class RoomTrayLookTests(StubbedMotion):
-    def test_the_bowl_is_ranged_by_its_own_rule_and_the_look_is_timed(self):
-        cx, cy = ROOM['stage1']['arena']['tray']['centre_m']
-        robot = FakeRobot(cx - 0.45, cy, 0.0)
-        b = make_room_brain(robot, start_state='TRAY_LOOK', holding=True)
+    CX, CY = ROOM['stage1']['arena']['tray']['centre_m']
+
+    def looker(self):
+        robot = FakeRobot(self.CX - 0.45, self.CY, 0.0)
+        return robot, make_room_brain(robot, start_state='TRAY_LOOK', holding=True)
+
+    def test_the_bowl_is_ranged_by_its_own_rule_and_each_frame_is_traced(self):
+        from microduck_toy.scene import bowl
+        robot, b = self.looker()
         got = {}
 
-        def measure(looks, cam, cfg, half, rim, expected, near_z_m=0.0, **kw):
-            got.update(half=half, rim=rim, **kw)
-            return {'centre': list(expected), 'source': 'yolo', 'used': 5}
-        tray = ROOM['stage1']['arena']['tray']
-        with mock.patch('microduck_toy.stage3.brain.tray_lib.measure_tray', measure):
+        def measure(looks, cam, cfg, profile, expected, near_z_m=0.0):
+            got.update(profile=profile, frames=len(looks), cfg=cfg)
+            return {'centre': list(expected), 'source': 'yolo', 'used': len(looks),
+                    'per_frame': [{'chosen': 0, 'candidates': []} for _ in looks]}
+        with mock.patch('microduck_toy.stage3.brain.tray_lib.measure_bowl', measure), \
+                mock.patch('microduck_toy.stage3.brain.tray_lib.measure_tray',
+                           side_effect=AssertionError('the bowl is not ranged by measure_tray')):
             self.assertEqual(b.s_tray_look(), 'DROP')
-        self.assertEqual(got, {'half': tray['size_m'] / 2, 'rim': tray['rim_height_m'], 'shape': 'bowl',
-                               'near_half_m': tray['base_size_m'] / 2})
+        self.assertEqual(got['profile'], bowl.profile(ROOM['stage1']['arena']['tray']))
+        self.assertEqual(got['frames'], RS3['tray_look']['frames'])
+        self.assertEqual(got['cfg']['bowl_gap_m'], RS3['tray_look']['bowl_gap_m'])
         self.assertIn('mono', b.tray)
+        seqs = [f['seq'] for f in b.tray['per_frame']]
+        self.assertEqual(len(seqs), RS3['tray_look']['frames'])
+        self.assertEqual(seqs, sorted(seqs))
+        for f in b.tray['per_frame']:
+            self.assertIn('mono', f)
+            self.assertEqual(f['state']['odom'], robot.snapshot()['odom'])
+
+    def test_a_bowl_seen_in_part_is_turned_to_and_looked_at_again(self):
+        robot, b = self.looker()
+        hint = -math.radians(16.0)
+
+        def measure(looks, cam, cfg, profile, expected, near_z_m=0.0):
+            return {'centre': list(expected), 'source': 'odometry', 'used': 0, 'rejected': len(looks),
+                    'hint_bearing': hint, 'per_frame': [{'chosen': None, 'candidates': []} for _ in looks]}
+        with mock.patch('microduck_toy.stage3.brain.tray_lib.measure_bowl', measure):
+            self.assertEqual(b.s_tray_look(), 'TRAY_LOOK')
+            self.assertAlmostEqual(robot.yaw, hint)
+            self.assertEqual(b.tray_turns, 1)
+            for _ in range(RS3['tray_look']['max_turns'] - 1):
+                self.assertEqual(b.s_tray_look(), 'TRAY_LOOK')
+            # out of turns: on with the odometry (and its own turn rule), as before v4.1
+            self.assertNotEqual(b.s_tray_look(), 'TRAY_LOOK')
+
+    def test_a_small_hint_is_not_turned_to(self):
+        robot, b = self.looker()
+
+        def measure(looks, cam, cfg, profile, expected, near_z_m=0.0):
+            return {'centre': list(expected), 'source': 'odometry', 'used': 0, 'rejected': len(looks),
+                    'hint_bearing': math.radians(RS3['tray_look']['turn_tol_deg'] - 3),
+                    'per_frame': [{'chosen': None, 'candidates': []} for _ in looks]}
+        with mock.patch('microduck_toy.stage3.brain.tray_lib.measure_bowl', measure):
+            self.assertEqual(b.s_tray_look(), 'DROP')
+        self.assertEqual(b.tray_turns, 0)
+
+    def test_the_stage3_tray_look_is_unchanged(self):
+        cx, cy = make_brain(FakeRobot()).fld.tray_centre
+        robot = FakeRobot(cx - S3['carry']['staging_m'], cy, 0.0)
+        b = make_brain(robot, start_state='TRAY_LOOK', holding=True)
+        with mock.patch('microduck_toy.stage3.brain.tray_lib.measure_bowl',
+                        side_effect=AssertionError('no bowl in Stage 3')):
+            self.assertEqual(b.s_tray_look(), 'DROP')
+        self.assertNotIn('per_frame', b.tray)
+        self.assertEqual(b.tray['source'], 'odometry')       # no boxes: measure_tray's fallback
 
 
 class SettleTests(unittest.TestCase):

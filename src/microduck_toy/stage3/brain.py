@@ -43,6 +43,7 @@ from microduck_toy.control.inching import load_pulses
 from microduck_toy.control.pick import ground_pick, mouth_angle
 from microduck_toy.control.robot import Events, Robot, UPRIGHT
 from microduck_toy.paths import repo_root
+from microduck_toy.scene import bowl as bowl_lib
 from microduck_toy.stage3 import shots as shots_lib, tray as tray_lib
 from microduck_toy.stage3.world import (Field, FieldPose, Sightings, approach_point, bearing_to,
                                         plan_route, to_field, wrap)
@@ -641,31 +642,50 @@ class Brain:
         time.sleep(float(cfg['settle_s']))
         self.check()
         self.eyes.frame('approach', fresh=True)
-        looks = []
+        looks, sights = [], []
         for _ in range(int(cfg['frames'])):
             sight = self.eyes.frame('approach')
             looks.append((sight.state, sight.boxes))
+            sights.append(sight)
         state = self.robot.snapshot()
         expected = self.pose.body(state, self.fld.tray_centre)
         doubt = self.pose_doubt
         accept = float(cfg['accept_after_fall_m'] if doubt else cfg['accept_m'])
-        # Stage 5 room demo only: the round tray and the bowl are ranged by their own rules
-        # (tray.measure_tray); the bowl's near edge on the floor is its base, not its lip.
         arena_tray = self.s1['arena']['tray']
-        shaped = {}
-        if arena_tray.get('shape') in ('round', 'bowl'):
-            shaped['shape'] = arena_tray['shape']
         if arena_tray.get('shape') == 'bowl':
-            shaped['near_half_m'] = float(arena_tray['base_size_m']) / 2
-        m = tray_lib.measure_tray(looks, self.cam, {**cfg, 'accept_m': accept}, self.fld.tray_half_m,
-                                  float(arena_tray['rim_height_m']), expected,
-                                  near_z_m=self.plane['tray'], **shaped)
+            # Stage 5 room demo v4: the bowl, from both edges of each box (tray.measure_tray's bowl
+            # rule took the bottom edge only and ranged a split bowl 9.8 cm long: Mac
+            # 20261112T113436Z henry). Every frame's candidates, verdicts and the state they were
+            # ranged with go into the log.
+            m = tray_lib.measure_bowl(looks, self.cam, {**cfg, 'accept_m': accept},
+                                      bowl_lib.profile(arena_tray), expected, near_z_m=self.plane['tray'])
+            for rec, s in zip(m['per_frame'], sights):
+                st = s.state or {}
+                rec.update(seq=s.seq, mono=s.mono, received=s.received, state={
+                    't': st.get('t'), 'odom': st.get('odom'), 'imu_quat': (st.get('imu') or {}).get('quat'),
+                    'camera': (st.get('frames') or {}).get('camera')})
+        else:
+            # Stage 5 room demo only: the round tray is ranged by its own rule (tray.measure_tray).
+            round_tray = {'shape': 'round'} if arena_tray.get('shape') == 'round' else {}
+            m = tray_lib.measure_tray(looks, self.cam, {**cfg, 'accept_m': accept}, self.fld.tray_half_m,
+                                      float(arena_tray['rim_height_m']), expected,
+                                      near_z_m=self.plane['tray'], **round_tray)
         m['mono'] = round(time.monotonic(), 3)   # when (the demo judge checks the look on truth)
         if doubt and m['source'] == 'yolo' and m['used'] < int(cfg['min_frames_after_fall']):
             m.update(centre=list(expected), source='odometry', too_few=True)
         m['boxes'] = [[b for b in boxes if b['cls'] == 'tray'] for _, boxes in looks]
         self.shot(sight, 'tray_' + m['source'])
         m['pose_doubt'] = doubt
+        # The bowl seen only in part (measure_bowl: no frame whose box covers it, hint_bearing): turn
+        # to it and look again, within max_turns (a bowl cut by the picture's side, as henry's was).
+        hint = m.get('hint_bearing')
+        if (hint is not None and m['source'] != 'yolo' and abs(hint) > math.radians(cfg['turn_tol_deg'])
+                and self.tray_turns < int(cfg['max_turns'])):
+            self.tray_turns += 1
+            self.tray = m
+            self.log('tray_look', **m, recarry=False, hint_turn_deg=round(math.degrees(hint), 1))
+            self.turn(hint)
+            return 'TRAY_LOOK'
         # After a fall the tray may be well off to the side (cloud 3D: 88 deg right after two falls,
         # out of the +-22.5 deg picture, and the toy went down on odometry 0.4 m away): look around.
         scans = cfg['scan_after_fall_deg']

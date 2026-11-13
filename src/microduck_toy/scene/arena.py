@@ -29,6 +29,7 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
+from microduck_toy.scene import bowl
 from microduck_toy.scene import toys as toy_lib
 
 UPSTREAM_SCENE = Path('src/mjlab_microduck/robot/microduck/scene.xml')
@@ -70,16 +71,8 @@ def _round_tray(body, r: float, wall_h: float, wall_t: float, base_t: float, seg
 
 
 def bowl_profile(tray: dict) -> dict:
-    """The bowl's outer wall (Stage 5 room demo, tray.shape 'bowl'): a cone from radius base_r on the
-    floor to radius lip_r at height h (the lip's outer edge), wall t thick, tilted alpha from the
-    floor. The lip's inner edge is at radius lip_inner_r, height lip_top_z (its highest point)."""
-    lip_r, base_r = float(tray['size_m']) / 2, float(tray['base_size_m']) / 2
-    h, t = float(tray['rim_height_m']), float(tray['rim_thickness_m'])
-    if not 0 < base_r < lip_r or h <= 0:
-        raise ValueError(f'bowl: need 0 < base_size_m < size_m and rim_height_m > 0 ({tray})')
-    alpha = math.atan2(h, lip_r - base_r)
-    return {'lip_r': lip_r, 'base_r': base_r, 'h': h, 't': t, 'alpha': alpha,
-            'lip_inner_r': lip_r - t * math.sin(alpha), 'lip_top_z': h + t * math.cos(alpha)}
+    """The bowl's outer wall (Stage 5 room demo, tray.shape 'bowl'): scene/bowl.py profile."""
+    return bowl.profile(tray)
 
 
 def _bowl_tray(body, tray: dict, base_t: float, segments: int) -> None:
