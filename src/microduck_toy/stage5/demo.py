@@ -15,9 +15,12 @@ start_from_truth in trials.jsonl and demo.json). The drop side is the brain's ow
 runs nothing is reset: the toys already in the tray stay there. Judged on the simulator's truth like a Stage 3
 episode (in the round tray: inside its rim), plus the toys a run knocked out of the tray and
 what is still in it at the end; output in runs/<UTC>_s5_room_demo[_board]/ (demo.json + the usual
-truth.csv, events, episodes/<n>_<target>/). v3 adds diagnostics beside the unchanged outcome: per
-target drop_result (open = the beak opened in the window), drop_redos, left_clear / leave_result,
-and the totals opened_in_window and left_clear.
+truth.csv, events, episodes/<n>_<target>/). Diagnostics beside the unchanged outcome (v4, the bowl):
+per target delivered_by_drop (in the bowl and the brain ended 'dropped': the DROP state let it go,
+not a fall or an error), opened_at_m (the trunk's true distance from the centre when the beak
+opened), tray_touch_s (truth rows with the robot touching the tray, x 20 ms), tray_look_err_m (the
+last tray look's centre against the truth) and left_clear / leave_result; totals delivered_by_drop,
+touched_tray (runs with a touch) and left_clear.
 """
 from __future__ import annotations
 
@@ -80,6 +83,37 @@ class Demo(episode.Runner):
         return self.finish(rec, label)
 
 
+def row_near(rows: list[dict], mono: float, within_s: float = 0.1) -> dict | None:
+    """The truth row nearest the Mac monotonic time mono (None without one within within_s)."""
+    best = min(rows, key=lambda r: abs(r['mono'] - mono), default=None)
+    return best if best is not None and abs(best['mono'] - mono) <= within_s else None
+
+
+def drop_checks(rec: dict, rows: list[dict], centre) -> dict:
+    """v4 diagnostics from the truth (not the pass bar): where the trunk was when the beak opened,
+    how long the robot touched the tray during the run, how far off the last tray look was. Brain
+    times are its own monotonic clock: + rec['offset'] is the Mac's (0 on the Mac)."""
+    off = float(rec.get('offset') or 0.0)
+    brain = rec['brain']
+    out = {'opened_at_m': None, 'tray_touch_s': None, 'tray_look_err_m': None}
+    if not rows:
+        return out
+    opened = (brain.get('drop') or {}).get('open')
+    r = row_near(rows, float(opened) + off) if opened is not None else None
+    if r is not None:
+        out['opened_at_m'] = round(math.hypot(r['x'] - centre[0], r['y'] - centre[1]), 4)
+    span = metrics.window(rows, rec['start'], rec.get('judge_mark', rec.get('end_mark', math.inf)))
+    out['tray_touch_s'] = round(sum(1 for x in span if x.get('tray_contact')) * 0.02, 2)
+    look = brain.get('tray') or {}
+    r = row_near(rows, float(look['mono']) + off) if look.get('mono') is not None else None
+    if r is not None and look.get('centre'):
+        c, s = math.cos(r['yaw']), math.sin(r['yaw'])
+        dx, dy = centre[0] - r['x'], centre[1] - r['y']
+        out['tray_look_err_m'] = round(math.dist((c * dx + s * dy, -s * dx + c * dy), look['centre']), 4)
+        out['tray_look_source'] = look.get('source')
+    return out
+
+
 def judge(rec: dict, rows: list[dict], toys: list[str], in_before: set, s3: dict, centre,
           tray: dict) -> dict:
     """What this run did to the tray (truth): the toys in it now and not before (new), and the
@@ -95,9 +129,10 @@ def judge(rec: dict, rows: list[dict], toys: list[str], in_before: set, s3: dict
     ok = rec['target'] in kinds and all(k == rec['target'] for k in kinds)
     told, end_pose = rec['start_told'], rec['brain'].get('pose')
     end = rec['brain'].get('end')
-    # v3 diagnostics beside the outcome, which is unchanged (in the tray counts, however it got
-    # there: Mac 20261112T035812Z bus fell into it out of the beak, brain grasp_fail): did the beak
-    # open in the window (drop_result 'open'), how many redos, did it back clear of the tray.
+    # Diagnostics beside the outcome, which is unchanged (in the tray counts, however it got there:
+    # Mac 20261112T035812Z bus fell into it out of the beak, brain grasp_fail; v3 retakes take1
+    # ketchup grasp_fail and take3 henry error were in the tray too): delivered_by_drop says the DROP
+    # state let it go; drop_checks where and how.
     drop = rec['brain'].get('drop') or {}
     leave = drop.get('leave') or {}
     if ok:
@@ -112,8 +147,9 @@ def judge(rec: dict, rows: list[dict], toys: list[str], in_before: set, s3: dict
             'start_from_truth': bool(rec.get('start_from_truth')),
             'new_in_tray': new, 'knocked_out': out, 'in_tray': sorted(in_now), 'held': held,
             'falls': len(falls), 'brain_end': rec['brain'].get('end'),
-            'drop_result': drop.get('result'), 'drop_redos': drop.get('redos'),
+            'delivered_by_drop': ok and end == 'dropped',
             'left_clear': leave.get('clear'), 'leave_result': leave.get('result'),
+            **drop_checks(rec, rows, centre),
             'elapsed_s': rec['brain'].get('elapsed_s'), 'closes': rec['brain'].get('closes'),
             'start_pose_error_m': round(math.dist(told[:2], rec['start_truth'][:2]), 3),
             'end_pose': end_pose}
@@ -201,9 +237,10 @@ def main(argv=None) -> int:
                         'delivered': delivered, 'kept_at_end': kept, 'in_tray_at_end': at_end,
                         'knocked_out': sum(len(r['knocked_out']) for r in results),
                         'starts_from_truth': sum(r['start_from_truth'] for r in results),
-                        # v3 diagnostics (not the pass bar): beaks opened in the window, backs clear
-                        'opened_in_window': sum(r['brain_end'] == 'dropped' and r['drop_result'] == 'open'
-                                                for r in results),
+                        # v4 diagnostics (not the pass bar): delivered by the DROP state, runs that
+                        # touched the tray, backs clear of it
+                        'delivered_by_drop': sum(bool(r.get('delivered_by_drop')) for r in results),
+                        'touched_tray': sum(bool(r.get('tray_touch_s')) for r in results),
                         'left_clear': sum(r['left_clear'] is True for r in results),
                         'results': results, 'wall_s': demo.meta['wall_s'],
                         'brain_s': round(sum(r['elapsed_s'] or 0 for r in results), 1),
@@ -219,9 +256,16 @@ def main(argv=None) -> int:
         print(f'  {r["n"]:10s} {r["side"] or "-":3s} {r["outcome"]:12s} 新进托盘：{got:18s} '
               f'用时 {r["elapsed_s"] or 0:6.1f} s  摔倒 {r["falls"]}  '
               f'起点估计误差 {r["start_pose_error_m"]:.2f} m{out}', flush=True)
+        print(f'             DROP 放下 {"是" if r.get("delivered_by_drop") else "否"}  '
+              f'开嘴时距盘心 {_cm(r.get("opened_at_m"))}  碰盘 {r.get("tray_touch_s")} s  '
+              f'看盘误差 {_cm(r.get("tray_look_err_m"))}  离开 {r.get("leave_result")}', flush=True)
     print(f'  最后托盘里：{", ".join(at_end) or "无"}', flush=True)
     print(f'  结果：{demo.dir}/demo.json', flush=True)
     return status
+
+
+def _cm(v) -> str:
+    return '-' if v is None else f'{v * 100:.1f} cm'
 
 
 if __name__ == '__main__':

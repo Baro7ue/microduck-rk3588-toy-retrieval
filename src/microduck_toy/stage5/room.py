@@ -84,6 +84,14 @@ def in_tray(row: dict, toy: str, centre, tray: dict, s3: dict) -> bool:
     the square tray: Stage 3's rule (episode.in_tray, delivered_half_m)."""
     ep = s3['episode']
     max_z = float(ep['delivered_max_z_m'])
+    if tray.get('shape') == 'bowl':
+        # The bowl (v4): the toy's centre inside the lip's inner edge and lower than the lip plus
+        # delivered_max_z_m (one lying on the wall sits up to about the lip; one in the beak over
+        # the bowl is 14 cm or more up: its bottom at the opening 14.9-19.9 cm, 44 recorded drops).
+        from microduck_toy.scene import arena          # lazy: the board brain imports this module
+        p = arena.bowl_profile(tray)
+        return (math.hypot(row[f'{toy}_x'] - centre[0], row[f'{toy}_y'] - centre[1]) < p['lip_inner_r']
+                and row[f'{toy}_z'] < p['h'] + max_z)
     if tray.get('shape') == 'round':
         inner = float(tray['size_m']) / 2 - float(tray['rim_thickness_m'])
         return (math.hypot(row[f'{toy}_x'] - centre[0], row[f'{toy}_y'] - centre[1]) < inner

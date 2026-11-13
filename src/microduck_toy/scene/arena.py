@@ -69,6 +69,52 @@ def _round_tray(body, r: float, wall_h: float, wall_t: float, base_t: float, seg
                       quat=[math.cos(a / 2), 0, 0, math.sin(a / 2)], rgba=list(TRAY_RGBA))
 
 
+def bowl_profile(tray: dict) -> dict:
+    """The bowl's outer wall (Stage 5 room demo, tray.shape 'bowl'): a cone from radius base_r on the
+    floor to radius lip_r at height h (the lip's outer edge), wall t thick, tilted alpha from the
+    floor. The lip's inner edge is at radius lip_inner_r, height lip_top_z (its highest point)."""
+    lip_r, base_r = float(tray['size_m']) / 2, float(tray['base_size_m']) / 2
+    h, t = float(tray['rim_height_m']), float(tray['rim_thickness_m'])
+    if not 0 < base_r < lip_r or h <= 0:
+        raise ValueError(f'bowl: need 0 < base_size_m < size_m and rim_height_m > 0 ({tray})')
+    alpha = math.atan2(h, lip_r - base_r)
+    return {'lip_r': lip_r, 'base_r': base_r, 'h': h, 't': t, 'alpha': alpha,
+            'lip_inner_r': lip_r - t * math.sin(alpha), 'lip_top_z': h + t * math.cos(alpha)}
+
+
+def _bowl_tray(body, tray: dict, base_t: float, segments: int) -> None:
+    """Stage 5 room demo: a bowl, same colour as the trays. A disc base of the floor radius and a cone
+    of `segments` thin boxes from (base_r, 0) to (lip_r, h) on their outer face. Each box is as wide
+    as the lip's tangent span, so the boxes leave no gap at the lip and overlap further down. With
+    tray.priority set, the bowl's friction (tray.friction) is the contact's, whatever the toy's
+    (MuJoCo: the higher geom priority wins), so a toy that lands on the wall slides in."""
+    p = bowl_profile(tray)
+    lip_r, base_r, h, t, alpha = p['lip_r'], p['base_r'], p['h'], p['t'], p['alpha']
+    extra = {}
+    if 'friction' in tray:
+        extra['friction'] = [float(tray['friction']), 0.005, 0.0001]
+    if 'priority' in tray:
+        extra['priority'] = int(tray['priority'])
+    body.add_geom(name='tray_base', type=mujoco.mjtGeom.mjGEOM_CYLINDER, size=[base_r, base_t / 2, 0],
+                  pos=[0, 0, base_t / 2], rgba=list(TRAY_RGBA), **extra)
+    slant = math.hypot(lip_r - base_r, h)
+    half_len = lip_r * math.tan(math.pi / segments)
+    # The box's local z runs up the slope, its local x is the outer face's normal (out and down):
+    # a turn of beta = 90 deg - alpha about the tangent, then the azimuth about z.
+    beta = math.pi / 2 - alpha
+    mid_r = (base_r + lip_r) / 2 - t / 2 * math.sin(alpha)
+    mid_z = h / 2 + t / 2 * math.cos(alpha)
+    for k in range(segments):
+        a = 2 * math.pi * k / segments
+        quat = np.zeros(4)
+        mujoco.mju_mulQuat(quat, np.array([math.cos(a / 2), 0, 0, math.sin(a / 2)]),
+                           np.array([math.cos(beta / 2), 0, math.sin(beta / 2), 0]))
+        body.add_geom(name=f'tray_wall_{k:02d}', type=mujoco.mjtGeom.mjGEOM_BOX,
+                      size=[t / 2, half_len, slant / 2],
+                      pos=[mid_r * math.cos(a), mid_r * math.sin(a), mid_z],
+                      quat=list(quat), rgba=list(TRAY_RGBA), **extra)
+
+
 def park_spot(index: int, y: float = PARK_Y) -> tuple[float, float]:
     return PARK_X0 + PARK_DX * index, y
 
@@ -110,6 +156,8 @@ def build_spec(cfg: dict, rl_root: Path, floor: str = 'grid') -> mujoco.MjSpec:
     s = side / 2
     if tray.get('shape', 'square') == 'round':
         _round_tray(body, s, rim_h, rim_t, base_t, int(tray.get('segments', 32)))
+    elif tray.get('shape') == 'bowl':
+        _bowl_tray(body, tray, base_t, int(tray.get('segments', 32)))
     else:
         _add_box(body, 'tray_base', (s, s, base_t / 2), (0, 0, base_t / 2), TRAY_RGBA)
         for name, pos, size in (

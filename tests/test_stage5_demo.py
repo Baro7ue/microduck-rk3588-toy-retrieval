@@ -1,6 +1,7 @@
 """Stage 5 room demo without a robot: the config merge, the toy layout, the toy copies in the scene,
 the brain's config override, the board command, the launcher (with the fakes of test_launchers.py),
-and fix2: the round tray, its tray look, the drop sides and the judge (knocked out, drop_missed)."""
+fix2: the round tray, its tray look, the drop sides and the judge (knocked out, drop_missed), and v4:
+the bowl, its tray look, the drop from outside it and the judge's drop checks."""
 from __future__ import annotations
 
 import argparse
@@ -53,7 +54,8 @@ class RoomConfigTests(unittest.TestCase):
         frozen = json.loads((REPO / 'configs/control/stage1.json').read_text())
         self.assertEqual(s1['arena']['half_size_m'], 1.5)
         self.assertEqual(s1['arena']['tray']['centre_m'], [1.15, 0.0])
-        self.assertEqual(s1['arena']['tray']['rim_height_m'], frozen['arena']['tray']['rim_height_m'])
+        self.assertEqual(s1['arena']['tray']['rim_height_m'], doc['stage1']['arena']['tray']['rim_height_m'])
+        self.assertEqual(s1['arena']['tray']['rim_thickness_m'], frozen['arena']['tray']['rim_thickness_m'])
         self.assertEqual(s1['camera'], frozen['camera'])
         self.assertFalse(s1['arena']['cast_shadows'])
 
@@ -145,32 +147,45 @@ class BrainOverrideTests(unittest.TestCase):
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
             brain_lib.parser().parse_args(base + ['--side', 'left'])
 
-    def test_room_v2_no_drop_sides_and_round_tray(self):
+    def test_room_v4_no_drop_sides_and_a_bowl(self):
         doc = room.load()
         self.assertNotIn('drop_sides', doc['demo'])          # v2: the brain picks the side (Stage 3 rule)
         tray = room.merged(doc, 'stage1')['arena']['tray']
-        self.assertEqual((tray['shape'], tray['size_m'], tray['rim_height_m']), ('round', 0.3, 0.01))
+        self.assertEqual((tray['shape'], tray['size_m'], tray['base_size_m'], tray['rim_height_m']),
+                         ('bowl', 0.36, 0.18, 0.07))
         self.assertNotIn('shape', brain_lib.load_configs()['stage1']['arena']['tray'])
 
-    def test_v2_drop_knobs_are_the_rooms_only(self):
+    def test_v4_drop_knobs_are_the_rooms_only(self):
         room_s3 = brain_lib.load_configs(override='configs/demo/room.json')['stage3']
         frozen = brain_lib.load_configs()['stage3']
-        for key in ('staged', 'settle', 'leave'):
+        for key in ('settle', 'leave', 'tof_walk'):
             self.assertIn(key, room_s3['drop'])
             self.assertNotIn(key, frozen['drop'])               # Stage 3/4 drops stay as they were
+        self.assertNotIn('staged', room_s3['drop'])             # v4: no walking into the tray
+        self.assertFalse(room_s3['drop']['tof_walk'])
         self.assertEqual(room_s3['route']['tray_exit_m'], 0.05)
         self.assertNotIn('tray_exit_m', frozen['route'])
-        tray_half = room.merged(room.load(), 'stage1')['arena']['tray']['size_m'] / 2
-        self.assertLess(room_s3['drop']['d_m'], tray_half)      # v2 opens with the trunk over the tray
-        self.assertGreater(room_s3['drop']['staged']['standoff_m'], tray_half + 0.06 + 0.03)  # toes off the rim
-        box = tray_half + room_s3['route']['tray_inflate_m']
+        tray = room.merged(room.load(), 'stage1')['arena']['tray']
+        lip = tray['size_m'] / 2
+        # outside the lip by more than the legs reach at its height (2.6 cm at 4-5 cm up, room.json
+        # arena.tray.note_bowl), with the toy released 5.2-9.3 cm ahead still inside the lip
+        self.assertGreater(room_s3['drop']['d_m'], lip + 0.026)
+        self.assertLess(room_s3['drop']['d_m'] - 0.052, lip - tray['rim_thickness_m'])
+        self.assertLessEqual(room_s3['drop']['leave']['turn_above_m'], room_s3['drop']['d_m'])
+        box = lip + room_s3['route']['tray_inflate_m']
         self.assertGreater(room_s3['drop']['leave']['clear_m'], box * math.sqrt(2))  # out of the tray box
+        # the lip is above the ToF's obstacle height: hence no ToF on the drop walk
+        self.assertGreater(tray['rim_height_m'], room_s3['tof']['min_height_m'])
+
+
+ROUND_TRAY = {'centre_m': [1.15, 0.0], 'shape': 'round', 'size_m': 0.3, 'rim_height_m': 0.01,
+              'rim_thickness_m': 0.006, 'base_thickness_m': 0.003, 'segments': 32}     # fix2 - v3
 
 
 class RoundTrayJudgeTests(unittest.TestCase):
     """In the round tray (truth), what a run knocked out, and drop_missed."""
     S3 = room.merged(room.load(), 'stage3')
-    TRAY = room.merged(room.load(), 'stage1')['arena']['tray']
+    TRAY = ROUND_TRAY
     C = (1.15, 0.0)
 
     def row(self, **toys):
@@ -224,29 +239,82 @@ class RoundTrayJudgeTests(unittest.TestCase):
         self.assertEqual((j['outcome'], j['new_in_tray'], j['knocked_out']), ('drop_missed', [], []))
         self.assertEqual(self.judge(row, 'ketchup', end='timeout')['outcome'], 'timeout')
 
-    def test_v3_drop_and_leave_diagnostics_beside_an_unchanged_outcome(self):
+    def test_a_toy_in_the_tray_without_the_drop_is_delivered_but_not_by_the_drop(self):
+        # The pass bar is not changed here (that is Ethan's call): a toy in the tray is delivered,
+        # and delivered_by_drop / brain_end say how it got there (v3 retakes: take1 ketchup
+        # grasp_fail and take3 henry error were in the tray).
         from microduck_toy.stage5 import demo
         row = self.row(bus=(1.15, 0.0, 0.012), henry=(1.16, 0.03, 0.012))
-        rec = self.rec(row, 'henry')
-        rec['brain']['drop'] = {'result': 'open', 'redos': 1,
-                                'leave': {'clear': False, 'result': 'no_gain'}}
-        j = demo.judge(rec, [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
-        self.assertEqual(j['outcome'], 'delivered')
-        self.assertEqual((j['drop_result'], j['drop_redos'], j['left_clear'], j['leave_result']),
-                         ('open', 1, False, 'no_gain'))
+        j = demo.judge(self.rec(row, 'henry', end='grasp_fail'), [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
+        self.assertEqual((j['outcome'], j['brain_end'], j['delivered_by_drop']), ('delivered', 'grasp_fail', False))
+        j = demo.judge(self.rec(row, 'henry'), [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
+        self.assertEqual((j['outcome'], j['delivered_by_drop']), ('delivered', True))
 
-    def test_a_give_up_is_its_own_end_and_in_the_tray_by_luck_still_counts(self):
-        # The pass bar is not changed here (that is Ethan's call): a toy in the tray is delivered,
-        # and brain_end / drop_result say how it got there.
+
+class BowlJudgeTests(unittest.TestCase):
+    """v4: in the bowl (truth), and the drop checks from the truth rows."""
+    S3 = room.merged(room.load(), 'stage3')
+    TRAY = room.merged(room.load(), 'stage1')['arena']['tray']
+    C = (1.15, 0.0)
+    TOYS = ['bus', 'henry', 'ketchup']
+
+    def row(self, **toys):
+        return RoundTrayJudgeTests.row(self, **toys)
+
+    @unittest.skipIf(mujoco is None, 'the bowl profile lives in scene/arena.py (MuJoCo)')
+    def test_inside_the_lip_and_below_it_is_in(self):
+        inn = lambda xyz: room.in_tray(self.row(bus=xyz), 'bus', self.C, self.TRAY, self.S3)  # noqa: E731
+        lip, h = self.TRAY['size_m'] / 2, self.TRAY['rim_height_m']
+        self.assertTrue(inn((1.15, 0.0, 0.012)))                       # on the bottom
+        self.assertTrue(inn((1.15 + lip - 0.02, 0.0, h - 0.01)))       # lying on the wall near the lip
+        self.assertFalse(inn((1.15 + lip + 0.01, 0.0, 0.012)))         # on the floor outside
+        self.assertFalse(inn((1.15 + 0.13, 0.13, 0.012)))              # 0.184 m out, beside it
+        self.assertFalse(inn((1.15, 0.0, 0.15)))                       # still in the beak above it
+
+    def rec(self, end='dropped', **brain):
+        return {'judge_row': self.row(), 'target': 'henry', 'start': 10.0, 'end_mark': 20.0, 'offset': 100.0,
+                'judge_mark': 20.0, 'side': 'x-', 'start_told': [0.0, 0.0, 0.0], 'start_truth': [0.0, 0.0, 0.0],
+                'brain': {'end': end, 'pose': [0.9, 0.0, 0.0], 'elapsed_s': 50.0, 'closes': 1, **brain}}
+
+    def rows(self):
+        """Truth rows every 20 ms from 10 to 20 s (Mac clock): the robot stands at x 0.93 facing +x
+        (0.22 m from the centre), touching the tray for 0.1 s around 15 s."""
+        out = []
+        for k in range(501):
+            t = 10.0 + 0.02 * k
+            out.append({'mono': t, 'x': 0.93, 'y': 0.0, 'yaw': 0.0, 'gz': -1.0, 'z': 0.12,
+                        'tray_contact': int(15.0 <= t < 15.1 - 1e-9)})
+        return out
+
+    def test_drop_checks_from_the_truth(self):
         from microduck_toy.stage5 import demo
-        row = self.row(bus=(1.15, 0.0, 0.012), henry=(0.70, 0.0, 0.012))
-        rec = self.rec(row, 'henry', end='drop_fail')
-        rec['brain']['drop'] = {'result': 'out_of_steps', 'redos': 1, 'leave': {'clear': True, 'result': 'clear'}}
-        j = demo.judge(rec, [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
-        self.assertEqual((j['outcome'], j['brain_end'], j['drop_result']), ('drop_fail', 'drop_fail', 'out_of_steps'))
-        lucky = self.rec(self.row(bus=(1.15, 0.0, 0.012), henry=(1.18, 0.02, 0.012)), 'henry', end='drop_fail')
-        self.assertEqual(demo.judge(lucky, [], self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)['outcome'],
-                         'delivered')
+        # brain clock = Mac clock - 100 (rec offset)
+        rec = self.rec(drop={'open': -85.0, 'leave': {'clear': True, 'result': 'clear'}},
+                       tray={'centre': [0.225, 0.004], 'source': 'yolo', 'mono': -88.0})
+        j = demo.drop_checks(rec, self.rows(), self.C)
+        self.assertAlmostEqual(j['opened_at_m'], 0.22, places=6)
+        self.assertAlmostEqual(j['tray_touch_s'], 0.1, places=6)
+        self.assertAlmostEqual(j['tray_look_err_m'], math.hypot(0.005, 0.004), places=4)
+        self.assertEqual(j['tray_look_source'], 'yolo')
+
+    def test_drop_checks_without_rows_or_times_are_none(self):
+        from microduck_toy.stage5 import demo
+        self.assertEqual(demo.drop_checks(self.rec(), [], self.C),
+                         {'opened_at_m': None, 'tray_touch_s': None, 'tray_look_err_m': None})
+        j = demo.drop_checks(self.rec(), self.rows(), self.C)          # no drop, no tray look
+        self.assertIsNone(j['opened_at_m'])
+        self.assertIsNone(j['tray_look_err_m'])
+
+    @unittest.skipIf(mujoco is None, 'the bowl profile lives in scene/arena.py (MuJoCo)')
+    def test_the_judge_carries_the_checks_beside_the_outcome(self):
+        from microduck_toy.stage5 import demo
+        row = self.row(bus=(1.15, 0.0, 0.012), henry=(1.17, 0.02, 0.03))
+        rec = self.rec(drop={'open': -85.0, 'leave': {'clear': True, 'result': 'clear'}})
+        rec['judge_row'] = row
+        j = demo.judge(rec, self.rows(), self.TOYS, {'bus'}, self.S3, self.C, self.TRAY)
+        self.assertEqual((j['outcome'], j['delivered_by_drop'], j['left_clear']), ('delivered', True, True))
+        self.assertAlmostEqual(j['opened_at_m'], 0.22, places=6)
+        self.assertNotIn('drop_result', j)
 
 
 class DemoLoopTests(unittest.TestCase):
@@ -294,8 +362,9 @@ class DemoLoopTests(unittest.TestCase):
             return {'outcome': 'drop_missed', 'side': None, 'start_from_truth': rec['start_from_truth'],
                     'new_in_tray': [], 'knocked_out': [], 'in_tray': [], 'held': [], 'falls': 0,
                     'brain_end': None, 'elapsed_s': 1.0, 'closes': 0, 'start_pose_error_m': 0.0,
-                    'end_pose': None, 'drop_result': None, 'drop_redos': None, 'left_clear': None,
-                    'leave_result': None}
+                    'end_pose': None, 'delivered_by_drop': False, 'left_clear': None,
+                    'leave_result': None, 'opened_at_m': None, 'tray_touch_s': None,
+                    'tray_look_err_m': None}
         with mock.patch.object(demo_lib, 'Demo', FakeDemo), mock.patch.object(demo_lib, 'judge', judge), \
                 mock.patch.object(demo_lib.metrics, 'continuity', lambda rows: {}), \
                 contextlib.redirect_stdout(io.StringIO()):
@@ -345,6 +414,70 @@ class RoundTrayLookTests(unittest.TestCase):
         self.assertGreater(worst_square, 0.01)
 
 
+class BowlLookTests(unittest.TestCase):
+    """tray.measure_tray shape 'bowl' on a synthetic bowl box: the outer cone from the base circle on
+    the floor to the lip, and the lip's top, projected by a camera where H1 puts it at the staging
+    point (runs/20261101T030042Z truth at the tray looks: 19.5-19.8 cm up, pitched 40-43 deg down,
+    8.4-8.7 cm ahead of the trunk)."""
+    TRAY = room.merged(room.load(), 'stage1')['arena']['tray']
+    LIP, BASE, H = TRAY['size_m'] / 2, TRAY['base_size_m'] / 2, TRAY['rim_height_m']
+
+    def state(self, pitch_deg=42.0):
+        from test_stage3_tray import FORWARD, axis_quat, quat_mul
+        return {'frames': {'camera': {'pos': [0.085, 0.0, 0.076],
+                                      'quat': quat_mul(axis_quat((0, 1, 0), math.radians(pitch_deg)), FORWARD)}},
+                'imu': {'quat': [1.0, 0.0, 0.0, 0.0]}, 'odom': {'position': [0.0, 0.0, 0.12], 'yaw': 0.0},
+                'safety': {'gravity': [0.0, 0.0, -1.0]}}
+
+    def box(self, state, centre, lip_only=False):
+        from test_stage3_tray import CAM
+        top = self.H + self.TRAY['rim_thickness_m'] * math.cos(math.atan2(self.H, self.LIP - self.BASE))
+        rings = [(self.LIP, self.H), (self.LIP - 0.003, top)]
+        if not lip_only:
+            rings += [(self.BASE + (self.LIP - self.BASE) * k / 6, self.H * k / 6) for k in range(6)]
+        pts = []
+        for k in range(720):
+            a = math.radians(k / 2)
+            for r, z in rings:
+                q = ranging.project(CAM, state, (centre[0] + r * math.cos(a), centre[1] + r * math.sin(a), z))
+                if q is not None:
+                    pts.append(q)
+        clip = lambda v, hi: max(0.0, min(hi, v))  # noqa: E731
+        cols, rows = [q[0] for q in pts], [q[1] for q in pts]
+        return {'cls': 'tray', 'conf': 0.9, 'xyxy': [clip(min(cols), CAM.width), clip(min(rows), CAM.height),
+                                                     clip(max(cols), CAM.width), clip(max(rows), CAM.height)]}
+
+    def measure(self, st, b, expected, **kw):
+        from test_stage3_tray import CAM
+        from microduck_toy.stage3 import tray
+        cfg = json.loads((REPO / 'configs/control/stage3.json').read_text())['tray_look']
+        args = dict(shape='bowl', near_half_m=self.BASE) | kw
+        return tray.measure_tray([(st, [b])], CAM, cfg, self.LIP, self.H, expected, **args)
+
+    def test_the_bowl_rule_finds_the_centre(self):
+        for pitch in (40.0, 43.0):
+            st = self.state(pitch)
+            for centre in ((0.45, 0.0), (0.45, 0.06), (0.42, -0.05), (0.50, 0.0)):
+                m = self.measure(st, self.box(st, centre), (centre[0] - 0.03, centre[1] + 0.02))
+                self.assertEqual(m['source'], 'yolo')
+                self.assertAlmostEqual(m['centre'][0], centre[0], delta=0.005, msg=(pitch, centre))
+                self.assertAlmostEqual(m['centre'][1], centre[1], delta=0.02, msg=(pitch, centre))
+
+    def test_a_box_that_stops_at_the_lip_ranges_within_about_a_centimetre(self):
+        # The base edge and the lip are about 1 deg apart in the picture from the staging point; a
+        # detector that boxes the lip only puts the box's bottom on the lip: the larger-centre rule
+        # then takes it for the base and ranges long, by about 1.2 cm.
+        st = self.state()
+        m = self.measure(st, self.box(st, (0.45, 0.0), lip_only=True), (0.42, 0.0))
+        self.assertLess(abs(m['centre'][0] - 0.45), 0.015)
+
+    def test_ranged_as_a_round_tray_it_would_be_far_off(self):
+        # Without near_half_m the floor edge (the base, 9 cm from the centre) is taken for the lip's.
+        st = self.state()
+        m = self.measure(st, self.box(st, (0.45, 0.0)), (0.45, 0.0), shape='round', near_half_m=None)
+        self.assertGreater(m['centre'][0] - 0.45, 0.05)
+
+
 @unittest.skipIf(mujoco is None or not (RL / 'src/mjlab_microduck/robot/microduck/scene.xml').is_file(),
                  'mujoco or microduck_rl not available')
 class RoomSceneTests(unittest.TestCase):
@@ -368,9 +501,9 @@ class RoomSceneTests(unittest.TestCase):
         self.assertTrue(all(model.light_castshadow[i] == 0 for i in range(model.nlight)))
         self.assertGreater(sum(1 for g in range(model.ngeom) if model.geom(g).name.startswith('furn_')), 10)
 
-    def test_the_room_tray_is_round(self):
+    def test_the_round_tray(self):
         cfg = room.merged(room.load(), 'stage1')['arena']
-        tray = cfg['tray']
+        tray = cfg['tray'] = dict(ROUND_TRAY)
         model = arena.build_spec(cfg, RL, 'wood').compile()
         ids = arena.ArenaIds(model)
         names = [model.geom(g).name for g in ids.tray_geoms]
@@ -393,6 +526,47 @@ class RoomSceneTests(unittest.TestCase):
             # the outer face's half-length reaches the next box: no gap round the circle
             self.assertGreaterEqual(model.geom_size[g][1], r * math.tan(math.pi / len(walls)) - 1e-9)
         self.assertTrue(all(tuple(model.geom_rgba[g]) == as_f32(arena.TRAY_RGBA) for g in ids.tray_geoms))
+
+    def test_the_room_tray_is_a_bowl(self):
+        cfg = room.merged(room.load(), 'stage1')['arena']
+        tray = cfg['tray']
+        p = arena.bowl_profile(tray)
+        model = arena.build_spec(cfg, RL, 'wood').compile()
+        ids = arena.ArenaIds(model)
+        walls = [g for g in ids.tray_geoms if model.geom(g).name.startswith('tray_wall_')]
+        self.assertEqual(len(walls), tray['segments'])
+        base = model.geom('tray_base')
+        self.assertEqual(base.type[0], mujoco.mjtGeom.mjGEOM_CYLINDER)
+        self.assertAlmostEqual(base.size[0], p['base_r'])
+        data = mujoco.MjData(model)
+        mujoco.mj_forward(model, data)
+        c = ids.tray_centre
+        for g in walls:
+            hx, hy, hz = model.geom_size[g]
+            rot = data.geom_xmat[g].reshape(3, 3)
+            outer = [data.geom_xpos[g] + rot @ np.array([hx, 0.0, sz * hz]) for sz in (-1, 1)]
+            (r0, z0), (r1, z1) = [(float(np.hypot(*(q[:2] - c))), float(q[2])) for q in outer]
+            self.assertAlmostEqual(r0, p['base_r'], places=6)          # outer face: base on the floor ...
+            self.assertAlmostEqual(z0, 0.0, places=6)
+            self.assertAlmostEqual(r1, p['lip_r'], places=6)           # ... out to the lip
+            self.assertAlmostEqual(z1, p['h'], places=6)
+            self.assertGreaterEqual(hy, p['lip_r'] * math.tan(math.pi / len(walls)) - 1e-9)  # no gap at the lip
+            self.assertAlmostEqual(model.geom_friction[g][0], tray.get('friction', 1.0))
+            self.assertEqual(model.geom_priority[g], tray.get('priority', 0))
+        self.assertAlmostEqual(math.degrees(p['alpha']), 37.9, delta=0.1)
+        self.assertTrue(all(tuple(model.geom_rgba[g]) == as_f32(arena.TRAY_RGBA) for g in ids.tray_geoms))
+
+    def test_a_bowl_can_take_its_own_friction(self):
+        cfg = room.merged(room.load(), 'stage1')['arena']
+        cfg['tray'] = {**cfg['tray'], 'friction': 0.3, 'priority': 1}
+        model = arena.build_spec(cfg, RL, 'wood').compile()
+        for g in arena.ArenaIds(model).tray_geoms:
+            self.assertAlmostEqual(model.geom_friction[g][0], 0.3)
+            self.assertEqual(model.geom_priority[g], 1)
+
+    def test_a_bowl_needs_a_base_smaller_than_its_lip(self):
+        with self.assertRaises(ValueError):
+            arena.bowl_profile({'size_m': 0.3, 'base_size_m': 0.3, 'rim_height_m': 0.07, 'rim_thickness_m': 0.006})
 
     def test_the_stage1_arena_is_unchanged(self):
         cfg = json.loads((REPO / 'configs/control/stage1.json').read_text())['arena']

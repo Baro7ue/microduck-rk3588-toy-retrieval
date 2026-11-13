@@ -19,6 +19,7 @@ from microduck_toy.stage3.eyes import Sight
 
 CONFIGS = brain_lib.load_configs()
 S3 = CONFIGS['stage3']
+REAL_WALK = Brain.walk          # StubbedMotion replaces it
 
 
 class FakeRobot:
@@ -112,7 +113,7 @@ class StubbedMotion(unittest.TestCase):
         patches = [mock.patch('microduck_toy.stage3.brain.time.sleep'),
                    mock.patch.object(Brain, 'elapsed', lambda self: 1.0),
                    mock.patch.object(Brain, 'turn', lambda self, a: (self.robot.turn_by(a), {'turned': a})[1]),
-                   mock.patch.object(Brain, 'walk', lambda self, d, b, vx: (self.robot.walk_by(d, b), {'walked': d})[1]),
+                   mock.patch.object(Brain, 'walk', lambda self, d, b, vx, tof=True: (self.robot.walk_by(d, b), {'walked': d, 'tof': tof})[1]),
                    mock.patch('microduck_toy.stage3.brain.approach.send_pulse')]
         for p in patches:
             p.start()
@@ -602,17 +603,33 @@ class TrayLookTests(StubbedMotion):
         self.assertIn(('mouth', 1.0), robot.calls)
         self.assertEqual(robot.calls[-1], ('mouth', 0.0))
 
-    def test_the_stage3_drop_has_no_v2_steps(self):
-        self.assertNotIn('staged', S3['drop'])
-        self.assertNotIn('leave', S3['drop'])
+    def test_the_stage3_drop_has_no_room_steps(self):
+        for key in ('staged', 'leave', 'settle', 'tof_walk'):
+            self.assertNotIn(key, S3['drop'])
         self.assertEqual(make_brain(FakeRobot()).fld.tray_exit_m, 0.0)
 
+    def test_the_stage3_drop_walk_keeps_the_tof_and_stands_stand_s(self):
+        robot = FakeRobot(0.2, 0.0, 0.0)
+        b = make_brain(robot, start_state='DROP', holding=True, drop_d=0.21)
+        b.tray = {'centre': [0.45, 0.0], 'source': 'yolo'}
+        slept = []
+        with mock.patch.object(Brain, 'holding_now', lambda self: False), \
+             mock.patch('microduck_toy.stage3.brain.time.sleep', slept.append), \
+             mock.patch.object(Brain, 'settle', side_effect=AssertionError('no settle in Stage 3')), \
+             self.assertRaises(brain_lib.Ended) as done:
+            b.s_drop()
+        drop = done.exception.detail['drop']
+        self.assertTrue(drop['walk']['tof'])
+        self.assertIn(S3['drop']['stand_s'], slept)
+        self.assertNotIn('leave', drop)
 
-# ── Stage 5 v2 (configs/demo/room.json): staged drop, settle, leave the tray ──
+
+# ── Stage 5 room (configs/demo/room.json), v4: drop from outside the bowl, settle, leave ──
 
 ROOM = brain_lib.load_configs(override='configs/demo/room.json')
 RS3 = ROOM['stage3']
 STILL = {'settle_s': 0.0, 'still': True}
+LIP_R = ROOM['stage1']['arena']['tray']['size_m'] / 2
 
 
 def make_room_brain(robot, **kw):
@@ -633,7 +650,7 @@ def pulse_moves(robot, script=None):
     return mock.patch('microduck_toy.stage3.brain.approach.send_pulse', send)
 
 
-class StagedDropTests(StubbedMotion):
+class RoomDropTests(StubbedMotion):
     CX, CY = ROOM['stage1']['arena']['tray']['centre_m']
 
     def setUp(self):
@@ -649,207 +666,126 @@ class StagedDropTests(StubbedMotion):
         b.tray = {'centre': [back, 0.0], 'source': 'yolo'}
         return robot, b
 
+    def range_of(self, robot):
+        return math.dist((robot.x, robot.y), (self.CX, self.CY))
+
     def run_drop(self, b):
         with self.assertRaises(brain_lib.Ended) as done:
             b.s_drop()
         self.assertEqual(done.exception.reason, 'dropped')
         return done.exception.detail['drop']
 
-    def test_walks_to_the_standoff_creeps_in_and_opens_inside_the_window(self):
+    def test_walks_to_d_outside_the_bowl_stands_still_and_opens(self):
         robot, b = self.dropper()
-        st, d = RS3['drop']['staged'], RS3['drop']['d_m']
         opened = []
-        b.robot.mouth = lambda v: (opened.append(math.dist((robot.x, robot.y), (self.CX, self.CY)))
-                                   if v == 1.0 else None)
+        b.robot.mouth = lambda v: opened.append(self.range_of(robot)) if v == 1.0 else None
         with pulse_moves(robot):
             drop = self.run_drop(b)
-        acts = [s['act'] for s in drop['steps']]
-        self.assertEqual(acts[-1], 'open')
-        self.assertTrue(set(acts[:-1]) <= {st['pulse_long'], st['pulse_short']}, acts)
-        self.assertAlmostEqual(drop['steps'][0]['range_m'], st['standoff_m'], places=6)
-        self.assertGreaterEqual(opened[0], d - st['deep_tol_m'])
-        self.assertLessEqual(opened[0], d + st['far_tol_m'])
+        self.assertEqual(len(opened), 1)
+        self.assertAlmostEqual(opened[0], RS3['drop']['d_m'], places=6)
+        self.assertGreater(opened[0], LIP_R)                     # the trunk stays outside the lip
+        self.assertEqual(drop['settle'], STILL)
+        self.assertAlmostEqual(drop['range_m'], RS3['drop']['d_m'], places=6)
+        self.assertNotIn('steps', drop)                           # no v2/v3 creeping in
 
-    def test_then_backs_out_of_the_tray_and_turns_to_the_field(self):
+    def test_the_drop_walk_has_no_tof_stop_in_the_room(self):
+        robot, b = self.dropper()
+        with pulse_moves(robot):
+            drop = self.run_drop(b)
+        self.assertFalse(drop['walk']['tof'])
+
+    def test_a_room_walk_without_tof_ignores_a_tof_hit_but_not_a_fall(self):
+        robot = FakeRobot()
+        hit = {'range_m': 0.1}
+        tof = mock.Mock(stop_reason=lambda: hit)
+        b = Brain(robot, FakeEyes(robot, lambda r, s: []), tof, ROOM, 'bus', start=(0.0, 0.0, 0.0))
+        b.t0 = time_now = 0.0
+        with mock.patch.object(Brain, 'elapsed', lambda self: time_now):
+            state = robot.snapshot()
+            self.assertEqual(b.walk_stop(state)['tof'], hit)
+            self.assertIsNone(b.walk_stop(state, tof=False))
+            robot.fallen = True
+            self.assertEqual(b.walk_stop(robot.snapshot(), tof=False), 'fallen')
+
+    def test_room_walk_without_tof_does_not_arm_it(self):
+        robot = FakeRobot()
+        tof = mock.Mock(stop_reason=lambda: None)
+        b = Brain(robot, FakeEyes(robot, lambda r, s: []), tof, ROOM, 'bus', start=(0.0, 0.0, 0.0))
+        seen = []
+
+        def walk(rob, distance, bearing, cfg, stop):
+            seen.append(stop(robot.snapshot()))
+            return {'move': 'walk'}
+        with mock.patch('microduck_toy.stage3.brain.approach.walk', walk), \
+                mock.patch.object(Brain, 'check', lambda self: None), \
+                mock.patch.object(Brain, 'elapsed', lambda self: 0.0):
+            REAL_WALK(b, 0.2, 0.0, 0.3, tof=False)
+            tof.arm.assert_not_called()
+            REAL_WALK(b, 0.2, 0.0, 0.3)
+            tof.arm.assert_called_once()
+        self.assertEqual(seen, [None, None])
+
+    def test_then_backs_off_and_turns_to_the_field(self):
         robot, b = self.dropper()
         with pulse_moves(robot):
             drop = self.run_drop(b)
         leave = drop['leave']
+        self.assertTrue(leave['clear'])
         self.assertGreaterEqual(leave['range_m'], RS3['drop']['leave']['clear_m'])
-        self.assertLessEqual(leave['pulses'], RS3['drop']['leave']['max_pulses'])
+        self.assertEqual([s['act'] for s in leave['steps']], ['B10', 'B10', 'clear'])
         self.assertIn('turn', leave)
         here = b.here()
         self.assertLess(abs(brain_lib.bearing_to(here, (0.0, 0.0))), math.radians(1))
 
-    def test_a_step_into_the_tray_is_backed_off_before_it_opens(self):
-        robot, b = self.dropper()
-        lurched = []
+    def test_no_drop_fail_end_any_more(self):
+        self.assertNotIn('drop_fail', brain_lib.ENDS)
+        self.assertFalse(hasattr(brain_lib, 'staged_act'))
+        for name in ('staged_drop', 'drop_not_ready'):
+            self.assertFalse(hasattr(Brain, name))
 
-        def script(pulse):                         # the first forward pulse lurches 18 cm in
-            if pulse.forward_m[0] > 0 and not lurched:
-                lurched.append(1)
-                return 0.18, 0.0
-            return pulse.forward_m[0], 0.0
-        with pulse_moves(robot, script):
-            drop = self.run_drop(b)
-        acts = [s['act'] for s in drop['steps']]
-        self.assertIn('retreat', acts)
-        self.assertEqual(drop['retreats'], 1)
-        self.assertEqual(acts[-1], 'open')
-        self.assertGreaterEqual(drop['steps'][-1]['range_m'],
-                                RS3['drop']['d_m'] - RS3['drop']['staged']['deep_tol_m'])
-
-    def scripted(self, ranges):
-        """Run the staged drop with tray_range scripted: [(range m, bearing deg), ...] per settle."""
-        robot, b = self.dropper()
-        seq = iter([(r, math.radians(a)) for r, a in ranges])
-        last = [None]
-
-        def tray_range(self_):
-            last[0] = next(seq, last[0])
-            return last[0]
-        with mock.patch.object(Brain, 'tray_range', tray_range), pulse_moves(robot), \
-                mock.patch.object(Brain, 'leave_tray', lambda self_, cfg: {}):
-            drop = self.run_drop(b)
-        return [s['act'] for s in drop['steps']]
-
-    def test_turned_off_the_centre_in_the_window_backs_off_turns_and_comes_in_again(self):
-        st = RS3['drop']['staged']
-        acts = self.scripted([(0.25, 0.0), (0.12, 30.0), (0.225, 30.0), (0.225, 0.0), (0.115, 0.0)])
-        self.assertEqual(acts, [st['pulse_long'], 'retreat', 'turn', st['pulse_long'], 'open'])
-
-    def test_no_turning_once_the_toes_are_over_the_rim(self):
-        st = RS3['drop']['staged']
-        acts = self.scripted([(0.18, 15.0), (0.12, 15.0)])
-        self.assertEqual(acts, [st['pulse_long'], 'open'])
-
-    def test_short_of_the_window_by_little_takes_the_short_pulse(self):
-        st, d = RS3['drop']['staged'], RS3['drop']['d_m']
-        acts = self.scripted([(d + st['long_above_m'] - 0.005, 0.0), (d, 0.0)])
-        self.assertEqual(acts, [st['pulse_short'], 'open'])
-
-    # v3: out of steps or retreats short of the window, the beak stays shut (v2 opened there:
-    # runs/20261112T034551Z_s5_v2_validation, Mac 5000 ketchup 133 deg off, board 5002 ketchup 103).
-
-    @staticmethod
-    def stuck(pulse):
-        """Creeps that do not move the robot (it never reaches the window); retreats as measured."""
-        return (0.0, 0.0) if pulse.forward_m[0] > 0 else (pulse.forward_m[0], 0.0)
-
-    def range_of(self, robot):
-        return math.dist((robot.x, robot.y), (self.CX, self.CY))
-
-    def test_out_of_steps_short_of_the_window_the_beak_stays_shut(self):
-        st = RS3['drop']['staged']
-        robot, b = self.dropper()
-        with pulse_moves(robot, self.stuck):
-            out = b.staged_drop(RS3['drop'], b.tray['centre'])
-        self.assertEqual(out['result'], 'out_of_steps')
-        self.assertEqual(len(out['steps']), st['max_steps'] + 1)
-        self.assertNotIn(('mouth', 1.0), robot.calls)
-
-    def test_out_of_retreats_the_beak_stays_shut(self):
-        st = RS3['drop']['staged']
-        robot, b = self.dropper()
-
-        def deep(pulse):                           # every creep lurches past the window
-            return (0.20, 0.0) if pulse.forward_m[0] > 0 else (pulse.forward_m[0], 0.0)
-        with pulse_moves(robot, deep):
-            out = b.staged_drop(RS3['drop'], b.tray['centre'])
-        self.assertEqual(out['result'], 'out_of_retreats')
-        self.assertEqual(out['retreats'], st['max_retreats'])
-        self.assertNotIn(('mouth', 1.0), robot.calls)
-
-    def test_not_ready_backs_out_facing_the_tray_and_looks_again(self):
-        st = RS3['drop']['staged']
-        robot, b = self.dropper()
-        with pulse_moves(robot, self.stuck), mock.patch.object(Brain, 'holding_now', lambda self: True):
-            nxt = b.s_drop()
-        self.assertEqual(nxt, 'TRAY_LOOK')
-        self.assertEqual(b.drop_redos, 1)
-        self.assertNotIn(('mouth', 1.0), robot.calls)
-        self.assertGreaterEqual(self.range_of(robot), st['redo_back_m'])
-        here = b.here()
-        self.assertLess(abs(brain_lib.bearing_to(here, (self.CX, self.CY))), math.radians(1))
-
-    def test_redo_with_the_toy_gone_recovers(self):
-        robot, b = self.dropper()
-        with pulse_moves(robot, self.stuck):     # holding_now False (setUp): it came out
-            nxt = b.s_drop()
-        self.assertEqual(nxt, 'RECOVER')
-        self.assertTrue(b.lost)
-
-    def test_after_the_redos_it_gives_up_outside_the_tray(self):
-        st = RS3['drop']['staged']
-        robot, b = self.dropper()
-        b.drop_redos = st['max_redos']
-        opened_at = []
-        b.robot.mouth = lambda v: opened_at.append(self.range_of(robot)) if v == 1.0 else None
-        with pulse_moves(robot, self.stuck), mock.patch.object(Brain, 'holding_now', lambda self: True), \
-                self.assertRaises(brain_lib.Ended) as done:
-            b.s_drop()
-        self.assertEqual(done.exception.reason, 'drop_fail')
-        self.assertEqual(done.exception.detail['not_ready'], 'out_of_steps')
-        drop = done.exception.detail['drop']
-        self.assertFalse(drop['redo'])
-        self.assertTrue(drop['back']['clear'])
-        self.assertEqual(len(opened_at), 1)
-        self.assertGreaterEqual(opened_at[0], st['redo_back_m'])
-        self.assertTrue(drop['leave']['clear'])
-
-    def test_a_fall_while_backing_out_for_a_redo_goes_to_fallen_with_the_redo_counted(self):
-        robot, b = self.dropper()
-        calls = []
-
-        def settle(self_):
-            calls.append(1)
-            if len(calls) > RS3['drop']['staged']['max_steps'] + 2:   # the second back_out step
-                raise Fallen()
-            return dict(STILL)
-        with pulse_moves(robot, self.stuck), mock.patch.object(Brain, 'settle', settle), \
-                self.assertRaises(Fallen):
-            b.s_drop()
-        self.assertEqual(b.drop_redos, 1)
-        self.assertNotIn(('mouth', 1.0), robot.calls)
-
-    # v3 leave: back straight out, turn only with the toes off the rim, never turn round in the tray.
+    # leave (brain.back_out): back straight off, turn to face the centre only with the trunk at
+    # least leave.turn_above_m from it, stop when the pulses gain nothing.
 
     def leaver(self, r=None, yaw=0.0):
         robot, b = self.dropper(back=r if r is not None else RS3['drop']['d_m'])
         robot.yaw = yaw
         return robot, b
 
-    def test_leave_squares_up_to_the_centre_only_with_the_toes_off_the_rim(self):
+    def test_leave_turns_back_to_the_centre_when_a_pulse_turns_it(self):
         robot, b = self.leaver()
 
-        def drift(pulse):                          # each B10 turns the robot 20 deg
-            return (pulse.forward_m[0], math.radians(20)) if pulse.forward_m[0] < 0 else (pulse.forward_m[0], 0.0)
+        def drift(pulse):                          # each B10 turns the robot 30 deg
+            return (pulse.forward_m[0], math.radians(30)) if pulse.forward_m[0] < 0 else (pulse.forward_m[0], 0.0)
         with pulse_moves(robot, drift):
             leave = b.leave_tray(RS3['drop']['leave'])
         acts = [s['act'] for s in leave['steps']]
-        self.assertEqual(acts, ['B10', 'B10', 'turn', 'B10', 'clear'])
-        turn = leave['steps'][2]
-        self.assertGreaterEqual(turn['range_m'], RS3['drop']['staged']['turn_above_m'])
+        self.assertEqual(acts, ['B10', 'turn', 'B10', 'clear'])
+        for s in leave['steps']:
+            if s['act'] == 'turn':
+                self.assertGreaterEqual(s['range_m'], RS3['drop']['leave']['turn_above_m'])
         self.assertTrue(leave['clear'])
         self.assertIn('turn', leave)               # then it faces the field
 
-    def test_spinning_on_the_rim_stops_not_clear_and_does_not_turn_round(self):
-        robot, b = self.leaver()
+    def test_too_close_to_the_centre_it_does_not_turn(self):
+        cfg = RS3['drop']['leave']
+        robot, b = self.leaver(r=cfg['turn_above_m'] - 0.03, yaw=math.radians(40))
+        with pulse_moves(robot):
+            leave = b.leave_tray(cfg)
+        self.assertEqual(leave['steps'][0]['act'], 'B10')
+        self.assertTrue(all(s['range_m'] >= cfg['turn_above_m'] for s in leave['steps'] if s['act'] == 'turn'))
 
-        def spin(pulse):                           # board 5000 ketchup: no range, all yaw
-            return (0.0, math.radians(46))
-        with pulse_moves(robot, spin):
+    def test_pulses_that_gain_nothing_stop_it_not_clear(self):
+        robot, b = self.leaver()
+        with pulse_moves(robot, lambda p: (0.0, math.radians(46))):
             leave = b.leave_tray(RS3['drop']['leave'])
-        acts = [s['act'] for s in leave['steps']]
-        self.assertEqual(acts, ['B10', 'B10', 'no_gain'])
-        self.assertFalse(leave['clear'])
         self.assertEqual(leave['result'], 'no_gain')
+        self.assertFalse(leave['clear'])
         self.assertNotIn('turn', leave)
 
     def test_out_of_pulses_short_of_clear_does_not_turn_round(self):
         cfg = RS3['drop']['leave']
         robot, b = self.leaver()
-        with pulse_moves(robot, lambda p: (-0.03, 0.0)):
+        with pulse_moves(robot, lambda p: (-0.025, 0.0)):
             leave = b.leave_tray(cfg)
         self.assertEqual(leave['pulses'], cfg['max_pulses'])
         self.assertEqual(leave['result'], 'out_of_pulses')
@@ -858,18 +794,34 @@ class StagedDropTests(StubbedMotion):
         self.assertLess(leave['range_m'], cfg['clear_m'])
 
     def test_with_the_centre_behind_it_walks_forward_out(self):
-        robot, b = self.leaver(r=0.15, yaw=math.pi)            # Mac 5000 ketchup: B10 went in
+        # closer than turn_above_m it may not turn, so it steps away forwards
+        robot, b = self.leaver(r=RS3['drop']['leave']['turn_above_m'] - 0.05, yaw=math.pi)
         with pulse_moves(robot):
             leave = b.leave_tray(RS3['drop']['leave'])
         steps = leave['steps']
-        self.assertEqual(steps[0]['act'], RS3['drop']['staged']['pulse_long'])
+        self.assertEqual(steps[0]['act'], RS3['drop']['leave']['pulse_ahead'])
         self.assertGreater(steps[1]['range_m'], steps[0]['range_m'])
         self.assertTrue(leave['clear'])
-        self.assertTrue(all(s['range_m'] >= RS3['drop']['staged']['turn_above_m']
-                            for s in steps if s['act'] == 'turn'))
+
+    def test_with_the_centre_behind_far_enough_it_turns_to_face_it_first(self):
+        robot, b = self.leaver(r=0.25, yaw=math.pi)
+        with pulse_moves(robot):
+            leave = b.leave_tray(RS3['drop']['leave'])
+        self.assertEqual([s['act'] for s in leave['steps']][:2], ['turn', 'B10'])
+        self.assertTrue(leave['clear'])
+
+    def test_with_the_centre_behind_and_no_forward_pulse_it_stops(self):
+        cfg = {k: v for k, v in RS3['drop']['leave'].items() if k != 'pulse_ahead'}
+        robot, b = self.leaver(r=RS3['drop']['leave']['turn_above_m'] - 0.05, yaw=math.pi)
+        b.ahead = None
+        with pulse_moves(robot):
+            leave = b.leave_tray(cfg)
+        self.assertEqual(leave['result'], 'centre_behind')
+        self.assertEqual(leave['pulses'], 0)
+        self.assertFalse(leave['clear'])
 
     def test_a_fall_while_leaving_is_logged_not_raised(self):
-        robot, b = self.dropper(back=RS3['drop']['d_m'])           # standing where the beak opened
+        robot, b = self.leaver()                     # standing where the beak opened
         calls = []
 
         def fell_second(self_):
@@ -885,7 +837,7 @@ class StagedDropTests(StubbedMotion):
         self.assertEqual(len(leave['steps']), 1)                   # what was done before the fall
 
     def test_the_clock_running_out_while_leaving_is_logged_not_raised(self):
-        robot, b = self.dropper(back=RS3['drop']['d_m'])
+        robot, b = self.leaver()
         with mock.patch.object(Brain, 'elapsed', lambda self_: RS3['episode']['max_s'] + 1.0), \
                 pulse_moves(robot):
             leave = b.leave_tray(RS3['drop']['leave'])
@@ -893,40 +845,28 @@ class StagedDropTests(StubbedMotion):
         self.assertFalse(leave['clear'])
         self.assertEqual(leave['pulses'], 0)
 
-
-class StagedActTests(unittest.TestCase):
-    """brain.staged_act, the v3 decision table, on the room config (d_m 0.11)."""
-    st, d = RS3['drop']['staged'], RS3['drop']['d_m']
-
-    def act(self, r, aim_deg, still=True, retreats=0):
-        return brain_lib.staged_act(r, math.radians(aim_deg), still, self.d, self.st, retreats)
-
-    def test_opens_only_in_the_window_aimed_and_still(self):
-        self.assertEqual(self.act(self.d, 0.0), 'open')
-        self.assertEqual(self.act(self.d, 0.0, still=False), 'wait')
-        self.assertEqual(self.act(self.d, self.st['aim_open_deg'] + 5), 'retreat')
-
-    def test_too_deep_retreats_and_then_is_out_of_retreats_not_open(self):
-        deep = self.d - self.st['deep_tol_m'] - 0.01
-        self.assertEqual(self.act(deep, 0.0), 'retreat')
-        self.assertEqual(self.act(deep, 0.0, retreats=self.st['max_retreats']), 'out_of_retreats')
-        self.assertEqual(self.act(self.d, 60.0, retreats=self.st['max_retreats']), 'out_of_retreats')
-
-    def test_no_creeping_with_the_centre_off_to_the_side_over_the_rim(self):
-        # Mac 5000 ketchup k=6,7: 12.6 cm, centre 125 deg off: v2 sent F2 (away from the centre).
-        self.assertEqual(self.act(0.1258, 124.5), 'retreat')
-        self.assertEqual(self.act(0.18, 15.0), self.st['pulse_long'])      # aimed enough: creep
-        self.assertEqual(self.act(0.18, 40.0), 'retreat')                   # not: out, turn there
-
-    def test_turns_only_with_the_toes_off_the_rim(self):
-        self.assertEqual(self.act(self.st['turn_above_m'] + 0.01, 15.0), 'turn')
-        self.assertEqual(self.act(self.st['turn_above_m'] + 0.01, 170.0), 'turn')
-        self.assertEqual(self.act(self.st['turn_above_m'] - 0.01, 170.0), 'retreat')
-
     def test_away_is_back_with_the_centre_ahead_forward_with_it_behind(self):
         b = make_room_brain(FakeRobot())
         self.assertEqual(b.away(math.radians(80))[0], ROOM['stage1']['inching']['retreat'])
-        self.assertEqual(b.away(math.radians(-122))[0], self.st['pulse_long'])
+        self.assertEqual(b.away(math.radians(-122))[0], RS3['drop']['leave']['pulse_ahead'])
+
+
+class RoomTrayLookTests(StubbedMotion):
+    def test_the_bowl_is_ranged_by_its_own_rule_and_the_look_is_timed(self):
+        cx, cy = ROOM['stage1']['arena']['tray']['centre_m']
+        robot = FakeRobot(cx - 0.45, cy, 0.0)
+        b = make_room_brain(robot, start_state='TRAY_LOOK', holding=True)
+        got = {}
+
+        def measure(looks, cam, cfg, half, rim, expected, near_z_m=0.0, **kw):
+            got.update(half=half, rim=rim, **kw)
+            return {'centre': list(expected), 'source': 'yolo', 'used': 5}
+        tray = ROOM['stage1']['arena']['tray']
+        with mock.patch('microduck_toy.stage3.brain.tray_lib.measure_tray', measure):
+            self.assertEqual(b.s_tray_look(), 'DROP')
+        self.assertEqual(got, {'half': tray['size_m'] / 2, 'rim': tray['rim_height_m'], 'shape': 'bowl',
+                               'near_half_m': tray['base_size_m'] / 2})
+        self.assertIn('mono', b.tray)
 
 
 class SettleTests(unittest.TestCase):

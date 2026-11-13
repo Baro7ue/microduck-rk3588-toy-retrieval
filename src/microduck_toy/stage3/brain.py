@@ -20,8 +20,8 @@ Stages 1 and 2 and returns the next state (plan section 3):
     CARRY      H1 to the chosen side's staging point, square up facing the tray
     TRAY_LOOK  H1 tray box -> where the tray centre is
     DROP       H0 walk until the trunk is d from the centre, open the beak, end
-               (Stage 5 room, drop.staged: creep in, open only in the window; else back out and
-               TRAY_LOOK again, at most staged.max_redos times, then let go outside: drop_fail)
+               (Stage 5 room: drop.settle stands until still instead of stand_s, drop.tof_walk
+               false walks up to the bowl without the ToF stop, drop.leave backs off and turns away)
     FALLEN     (any state) wait for velstand, then carry on from what the mouth says
     RECOVER    the toy came out in a fall: look at the feet, else re-search
 
@@ -50,34 +50,7 @@ from microduck_toy.stage3.world import (Field, FieldPose, Sightings, approach_po
 TARGETS = ('bus', 'henry', 'ketchup')
 STATES = ('SPIN', 'LOOK', 'GOTO', 'APPROACH', 'LAST', 'PICK', 'CARRY', 'TRAY_LOOK', 'DROP',
           'FALLEN', 'RECOVER', 'RELOCATE')
-# drop_fail: Stage 5 v3 staged drop only, the beak never got to the window and the toy was let go
-# outside the tray (Brain.drop_not_ready).
-ENDS = ('dropped', 'held', 'grasp_fail', 'search_fail', 'timeout', 'error', 'drop_fail')
-
-
-def staged_act(r: float, aim: float, still: bool, d: float, st: dict, retreats: int) -> str:
-    """One staged-drop decision (drop.staged) from the trunk's range r to the tray centre (m) and
-    the centre's bearing aim (rad, left > 0), on odometry since the tray look:
-
-      in the window (d - deep_tol <= r <= d + far_tol, centre within aim_open)  -> open (wait if
-                                                       the settle timed out: it is still moving)
-      short, centre > aim_turn off, toes off the rim (r >= turn_above)            -> turn
-      short, centre within aim_open                                               -> creep: pulse_long,
-                                                       or pulse_short within long_above of d
-      anything else (too deep; turned off the centre where it may not turn)       -> retreat (a pulse
-                                                       away from the centre), or out_of_retreats
-
-    v2 crept on whatever the bearing once the toes were over the rim (Mac 20261112T035420Z ketchup:
-    two F2 with the centre 125 deg off) and opened when out of retreats; v3 does neither."""
-    near, far = d - float(st['deep_tol_m']), d + float(st['far_tol_m'])
-    a = abs(aim)
-    if near <= r <= far and a <= math.radians(float(st['aim_open_deg'])):
-        return 'open' if still else 'wait'
-    if r > far and a > math.radians(float(st['aim_turn_deg'])) and r >= float(st['turn_above_m']):
-        return 'turn'
-    if r > far and a <= math.radians(float(st['aim_open_deg'])):
-        return st['pulse_long'] if r - d > float(st['long_above_m']) else st['pulse_short']
-    return 'retreat' if retreats < int(st['max_retreats']) else 'out_of_retreats'
+ENDS = ('dropped', 'held', 'grasp_fail', 'search_fail', 'timeout', 'error')
 
 
 class Fallen(Exception):
@@ -143,9 +116,9 @@ class Brain:
         self.side_forced = side
         self.retreat = load_pulses(self.f1, [self.s1['inching']['retreat']])[self.s1['inching']['retreat']]
         self.tof_retreat = load_pulses(self.f1, [self.cfg['tof']['retreat']])[self.cfg['tof']['retreat']]
-        staged = self.cfg['drop'].get('staged')          # Stage 5 v2 (room.json) only
-        self.creep = (load_pulses(self.f1, [staged['pulse_long'], staged['pulse_short']])
-                      if staged else {})
+        leave = self.cfg['drop'].get('leave') or {}     # Stage 5 room only: drop.leave
+        self.ahead = (load_pulses(self.f1, [leave['pulse_ahead']])[leave['pulse_ahead']]
+                      if leave.get('pulse_ahead') else None)
         self.plane = {k: float(v) for k, v in self.cfg['plane_z_m'].items() if k != 'note'}
         self.log_file = Path(log_path).open('a') if log_path else None
         self.lock = threading.Lock()
@@ -162,7 +135,6 @@ class Brain:
         self.tray_turns = 0
         self.tray_moves = 0
         self.tray_scans = 0
-        self.drop_redos = 0                      # v3 staged drop: back out and look again
         self.pose_doubt = False                  # set by a fall, cleared by a YOLO tray look
         self.lost = False                        # the toy came out of the beak and is not found yet
         self.recover_looks = 0                   # RECOVER looks since it came out
@@ -219,13 +191,13 @@ class Brain:
         if self.elapsed() > float(self.cfg['episode']['max_s']):
             raise Timeout()
 
-    def walk_stop(self, state: dict):
-        """approach.walk's stop hook: fall, clock, ToF (in that order)."""
+    def walk_stop(self, state: dict, tof: bool = True):
+        """approach.walk's stop hook: fall, clock, ToF (in that order; tof False: no ToF)."""
         if state['safety'].get('fallen') or len(self.robot.falls) > self.falls_handled:
             return 'fallen'
         if self.elapsed() > float(self.cfg['episode']['max_s']):
             return 'timeout'
-        if self.tof is not None:
+        if tof and self.tof is not None:
             hit = self.tof.stop_reason()
             if hit is not None:
                 return {'tof': hit, 'pose': self.pose.of(state)}
@@ -247,11 +219,13 @@ class Brain:
         self.check()
         return out
 
-    def walk(self, distance: float, bearing: float, vx: float) -> dict:
-        if self.tof is not None:
+    def walk(self, distance: float, bearing: float, vx: float, tof: bool = True) -> dict:
+        """tof False: no ToF stop on this walk (Stage 5 room drop.tof_walk: the walk up to the
+        bowl, whose 7.5 cm lip the ToF takes for an obstacle; falls and the clock still stop it)."""
+        if tof and self.tof is not None:
             self.tof.arm()
         out = approach.walk(self.robot, distance, bearing, {**self.s1['approach'], 'walk_vx_mps': vx},
-                            stop=self.walk_stop)
+                            stop=self.walk_stop if tof else (lambda state: self.walk_stop(state, tof=False)))
         stopped = out.get('stopped')
         if stopped == 'fallen':
             raise Fallen()
@@ -675,11 +649,18 @@ class Brain:
         expected = self.pose.body(state, self.fld.tray_centre)
         doubt = self.pose_doubt
         accept = float(cfg['accept_after_fall_m'] if doubt else cfg['accept_m'])
-        # Stage 5 room demo only: the round tray is ranged by its own rule (tray.measure_tray).
-        round_tray = {'shape': 'round'} if self.s1['arena']['tray'].get('shape') == 'round' else {}
+        # Stage 5 room demo only: the round tray and the bowl are ranged by their own rules
+        # (tray.measure_tray); the bowl's near edge on the floor is its base, not its lip.
+        arena_tray = self.s1['arena']['tray']
+        shaped = {}
+        if arena_tray.get('shape') in ('round', 'bowl'):
+            shaped['shape'] = arena_tray['shape']
+        if arena_tray.get('shape') == 'bowl':
+            shaped['near_half_m'] = float(arena_tray['base_size_m']) / 2
         m = tray_lib.measure_tray(looks, self.cam, {**cfg, 'accept_m': accept}, self.fld.tray_half_m,
-                                  float(self.s1['arena']['tray']['rim_height_m']), expected,
-                                  near_z_m=self.plane['tray'], **round_tray)
+                                  float(arena_tray['rim_height_m']), expected,
+                                  near_z_m=self.plane['tray'], **shaped)
+        m['mono'] = round(time.monotonic(), 3)   # when (the demo judge checks the look on truth)
         if doubt and m['source'] == 'yolo' and m['used'] < int(cfg['min_frames_after_fall']):
             m.update(centre=list(expected), source='odometry', too_few=True)
         m['boxes'] = [[b for b in boxes if b['cls'] == 'tray'] for _, boxes in looks]
@@ -731,21 +712,24 @@ class Brain:
         centre = self.tray['centre']
         self.head(cfg['head'])
         time.sleep(0.5)
-        if cfg.get('staged'):                    # Stage 5 v2 (room.json): closed in on odometry
-            out = self.staged_drop(cfg, centre)
-            out['redos'] = self.drop_redos
-            if out['result'] != 'open':          # v3: the beak stays shut outside the window
-                return self.drop_not_ready(cfg, out)
-        else:                                    # Stage 3: walk to d, stand stand_s, open
-            w = tray_lib.drop_walk(centre, self.drop_d)
-            out = {'plan': w}
-            b = w['bearing']
-            if abs(b) > math.radians(cfg['turn_tol_deg']):
-                out['turn'] = self.turn(b)
-                b = 0.0
-            out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']))
+        # Stage 3: walk to d, stand stand_s, open. Stage 5 room (v4, Ethan 2026-11-12: drop from
+        # outside the bowl again, no walking in): the same walk, without the ToF stop
+        # (drop.tof_walk false: the bowl's lip is 7.5 cm, an obstacle to the ToF), then stand
+        # until still (drop.settle) instead of a fixed stand_s.
+        w = tray_lib.drop_walk(centre, self.drop_d)
+        out = {'plan': w}
+        b = w['bearing']
+        if abs(b) > math.radians(cfg['turn_tol_deg']):
+            out['turn'] = self.turn(b)
+            b = 0.0
+        out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']), tof=bool(cfg.get('tof_walk', True)))
+        if cfg.get('settle'):
+            out['settle'] = self.settle()
+            out['range_m'], aim = self.tray_range()
+            out['aim_deg'] = math.degrees(aim)
+        else:
             time.sleep(float(cfg['stand_s']))
-            self.check()
+        self.check()
         out['open'] = time.monotonic()
         self.log('drop_open', **out)
         self.robot.mouth(1.0)
@@ -754,11 +738,11 @@ class Brain:
         time.sleep(0.3)
         still = self.holding_now()
         self.holding = still
-        if cfg.get('leave'):                     # Stage 5 v2: back off and turn away
+        if cfg.get('leave'):                     # Stage 5 room: back off and turn away
             out['leave'] = self.leave_tray(cfg['leave'])
         self.end('dropped', still_holding=still, drop=out)
 
-    # ── Stage 5 v2 drop: settle, check, creep; then leave the tray ──────
+    # ── Stage 5 room: settle before the opening, then leave the bowl ────
 
     def tray_range(self) -> tuple[float, float]:
         """The tray centre from where the robot is now (odometry since the tray look, which put the
@@ -794,92 +778,14 @@ class Brain:
 
     def away(self, aim: float):
         """(name, pulse) that moves the trunk away from the tray centre whose bearing is aim: the
-        retreat (B10) while the centre is ahead, the long creep (F5) once it is behind. v2 always
-        backed off, which went towards the centre when it was behind (Mac 20261112T035420Z ketchup,
-        centre 122 deg off)."""
+        retreat (B10) while the centre is ahead, leave.pulse_ahead (F5) once it is behind, or
+        (None, None) without one. v2 always backed off, which went towards the centre when it was
+        behind (Mac 20261112T035420Z ketchup, centre 122 deg off)."""
         if abs(aim) <= math.pi / 2:
             return self.retreat.name, self.retreat
-        name = self.cfg['drop']['staged']['pulse_long']
-        return name, self.creep[name]
-
-    def staged_drop(self, cfg: dict, centre) -> dict:
-        """Walk to staged.standoff_m from the measured centre (the toes stay off the rim while the
-        walk coasts), then: settle, read range and bearing from odometry, act (staged_act), until the
-        beak may open or the budget is spent. out['result']: 'open' (in the window, standing still),
-        'out_of_steps' (max_steps acts done) or 'out_of_retreats' (one more retreat was needed);
-        only 'open' opens (s_drop), v3. (v2 opened anyway when out of steps or retreats: Mac
-        20261112T035420Z ketchup 133 deg off the centre, board 20261112T042830Z ketchup 103 deg off,
-        both missed; board runs 20261112T02*, the blind walk + 1 s stand: room.json drop.staged.note.)"""
-        st = cfg['staged']
-        d = self.drop_d
-        w = tray_lib.drop_walk(centre, float(st['standoff_m']))
-        out = {'plan': w, 'target_m': d, 'steps': []}
-        b = w['bearing']
-        # No turning with the toes over the rim here either (a redo that could not back out far).
-        if abs(b) > math.radians(cfg['turn_tol_deg']) and w['range_m'] >= float(st['turn_above_m']):
-            out['turn'] = self.turn(b)
-            b = 0.0
-        out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']))
-        retreats, act = 0, None
-        for k in range(int(st['max_steps']) + 1):
-            settled = self.settle()
-            self.check()
-            r, aim = self.tray_range()
-            step = {'k': k, 'range_m': round(r, 4), 'aim_deg': round(math.degrees(aim), 1), **settled}
-            act = staged_act(r, aim, settled['still'], d, st, retreats)
-            if k == int(st['max_steps']) and act != 'open':
-                act = 'out_of_steps'             # the budget is spent outside the window: no opening
-            step['act'] = act
-            if act == 'retreat':
-                retreats += 1
-                step['pulse'], pulse = self.away(aim)
-                approach.send_pulse(self.robot, pulse)
-            elif act == 'turn':
-                step['turn'] = self.turn(aim)
-            elif act in self.creep:
-                approach.send_pulse(self.robot, self.creep[act])
-            out['steps'].append(step)
-            self.log('drop_step', **step)
-            if act in ('open', 'out_of_steps', 'out_of_retreats'):
-                break
-        out['result'] = act
-        out['retreats'] = retreats
-        return out
-
-    def drop_not_ready(self, cfg: dict, out: dict) -> str:
-        """The staged drop ended short of the window (out['result'] out_of_steps / out_of_retreats):
-        the beak stays shut. Back out to staged.redo_back_m facing the tray and look at it again
-        (TRAY_LOOK re-anchors the odometry on the tray, then DROP from the start; also when the
-        back-out stopped short, the look and the drop's own checks start from where it is), at most
-        staged.max_redos times; after that give up: back out the same way, let the toy go out there
-        and end drop_fail (the toy was not put in the tray, and the log says so; it is let go so the
-        next target does not start with a toy in its beak). A fall on the way out goes to FALLEN
-        (the toy still held: CARRY, TRAY_LOOK, DROP), the redo already counted."""
-        st = cfg['staged']
-        redo = self.drop_redos < int(st['max_redos'])
-        if redo:
-            self.drop_redos += 1
-        out.update(redo=redo, redos=self.drop_redos, back={})
-        self.log('drop_not_ready', result=out['result'], redo=redo, redos=self.drop_redos,
-                 retreats=out['retreats'], steps=len(out['steps']))
-        self.back_out(float(st['redo_back_m']), out['back'], 'redo' if redo else 'give_up')
-        if redo:
-            if not self.holding_now():
-                self.holding, self.lost, self.recover_looks = False, True, 0
-                return 'RECOVER'
-            self.tray_turns = 0                  # square up to the tray again in the new look
-            return 'TRAY_LOOK'
-        out['open'] = time.monotonic()
-        self.log('drop_give_up', **out)
-        self.robot.mouth(1.0)
-        time.sleep(float(cfg['open_s']))
-        self.robot.mouth(0.0)
-        time.sleep(0.3)
-        still = self.holding_now()
-        self.holding = still
-        if cfg.get('leave'):
-            out['leave'] = self.leave_tray(cfg['leave'])
-        self.end('drop_fail', not_ready=out['result'], still_holding=still, drop=out)
+        if self.ahead is None:
+            return None, None
+        return self.ahead.name, self.ahead
 
     def back_out(self, clear_m: float, rec: dict, phase: str) -> dict:
         """Move the trunk away from the tray centre until it is clear_m from it (odometry), filling
@@ -889,18 +795,19 @@ class Brain:
           r >= clear_m                                               -> clear
           max_no_gain pulses each gained < min_gain_m                -> no_gain (stuck, e.g. spinning on the rim)
           max_pulses sent                                            -> out_of_pulses
-          centre > aim_back_deg off ahead, r >= staged.turn_above_m,
+          centre > aim_back_deg off ahead, r >= leave.turn_above_m,
           fewer than max_turns turns                                 -> turn to face it
           else                                                       -> one pulse away from it (away())
 
-        rec['clear'] is True only for clear. So the robot backs straight out over the rim and turns
-        only with its toes off it (as the staged drop). Why (v2 leave_tray): board 20261112T041442Z
+        rec['clear'] is True only for clear. So the robot backs straight out and turns only with its
+        trunk at least leave.turn_above_m from the centre (v4: from outside the bowl it starts there;
+        v3 walked into the tray, and turning on the rim spun it). Why (v2 leave_tray): board 20261112T041442Z
         ketchup backed off with the centre 73 deg to the side, a foot caught the rim (left foot on the
         floor, the other on the tray), the robot spun about 180 deg over 4 pulses and ended 13 cm from
         the centre; Mac 20261112T035420Z ketchup backed off with the centre behind, went into the tray
         and fell."""
         cfg = self.cfg['drop']['leave']
-        turn_above = float(self.cfg['drop']['staged']['turn_above_m'])
+        turn_above = float(cfg.get('turn_above_m', 0.0))
         aim_back = math.radians(float(cfg['aim_back_deg']))
         rec.update(phase=phase, clear_m=clear_m, clear=False, result=None, pulses=0, turns=0, steps=[])
         no_gain, before = 0, None
@@ -926,18 +833,20 @@ class Brain:
                 act = 'turn'
             else:
                 act, pulse = self.away(aim)
+                if pulse is None:
+                    act = 'centre_behind'            # no pulse_ahead configured: stop here
             step['act'] = act
             before = None
             if act == 'turn':
                 rec['turns'] += 1
                 step['turn'] = self.turn(aim)
-            elif act not in ('clear', 'no_gain', 'out_of_pulses'):
+            elif act not in ('clear', 'no_gain', 'out_of_pulses', 'centre_behind'):
                 rec['pulses'] += 1
                 before = r
                 approach.send_pulse(self.robot, pulse)
             rec['steps'].append(step)
             self.log('back_step', phase=phase, **step)
-            if act in ('clear', 'no_gain', 'out_of_pulses'):
+            if act in ('clear', 'no_gain', 'out_of_pulses', 'centre_behind'):
                 rec['clear'], rec['result'] = act == 'clear', act
                 return rec
 

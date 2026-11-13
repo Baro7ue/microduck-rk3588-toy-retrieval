@@ -74,7 +74,8 @@ def choose_side(robot_xy, obstacles, fld: Field, cfg: dict) -> dict:
 
 
 def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: float,
-                 rim_z_m: float, expected, near_z_m: float = 0.0, shape: str = 'square') -> dict:
+                 rim_z_m: float, expected, near_z_m: float = 0.0, shape: str = 'square',
+                 near_half_m: float | None = None) -> dict:
     """The tray centre (forward, left) in the level trunk frame from standing looks at H1.
 
     looks: [(state, boxes)] per frame, boxes [{'cls', 'conf', 'xyxy'}] in the upright image.
@@ -90,7 +91,16 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
     shape 'round' (Stage 5 room demo, a round tray of radius tray_half_m, rim top at rim_z_m): a
     side of the box is where the camera's view plane grazes the rim's top, so the centre is
     tray_half_m from that plane's line at z = rim_z_m (cloud check 2026-10-31: the square rule
-    put the round tray's centre 1.3-3.1 cm off sideways)."""
+    put the round tray's centre 1.3-3.1 cm off sideways).
+
+    shape 'bowl' (Stage 5 room demo v4, scene/arena.py bowl_profile: a cone from radius near_half_m
+    on the floor out to the lip, radius tray_half_m at rim_z_m): the sides as 'round' (the lip is the
+    widest). The box's bottom edge is the lowest point of the bowl in the picture: the base's near edge
+    on the floor, or the near lip, whichever the camera sees lower. Taken as the base's, the bottom
+    row gives a centre near[0] + near_half_m; as the lip's, lip[0] + tray_half_m; the true one gives
+    the farther centre (if it is the base, the lip lies beyond where that row's ray crosses the lip's
+    height, and the other way round), so the larger of the two is used. From the room's staging
+    point at H1 the two are about 1 deg apart in the picture."""
     edge = float(cfg['cut_margin_px'])
     accept = float(cfg['accept_m'])
     w, mid = cam.width, cam.width / 2
@@ -118,12 +128,16 @@ def measure_tray(looks: list, cam: ranging.CameraModel, cfg: dict, tray_half_m: 
             near = ground(state, (x0 + x1) / 2, y1, near_z_m)
             if near is None:
                 continue
-            fwd = near[0] + tray_half_m
+            fwd = near[0] + (tray_half_m if near_half_m is None else near_half_m)
+            if shape == 'bowl':
+                lip = ground(state, (x0 + x1) / 2, y1, rim_z_m)
+                if lip is not None:
+                    fwd = max(fwd, lip[0] + tray_half_m)
             sides = []
             for col, sign in ((x0, -1.0), (x1, 1.0)):      # left side of the image = the tray's +y rim
                 if (sign < 0 and col <= edge) or (sign > 0 and col >= w - edge):
                     continue                                 # cut by the image edge
-                if shape == 'round':
+                if shape in ('round', 'bowl'):
                     left = tangent_left(state, col, y0, y1, fwd, sign)
                     if left is not None:
                         sides.append(left)
