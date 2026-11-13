@@ -1,5 +1,11 @@
 # MicroDuck on RK3588: toy retrieval
 
+<p align="center">
+  <a href="README.md"><kbd>&nbsp;<b>English</b>&nbsp;</kbd></a>
+  &nbsp;
+  <a href="README.zh-CN.md"><kbd>&nbsp;简体中文&nbsp;</kbd></a>
+</p>
+
 A small bipedal robot is told which toy to fetch. It searches the floor, walks to the toy, picks it up
 with its beak, carries it to a tray and drops it in. The robot's software runs on an RK3588 board:
 the 50 Hz control loop with its policy networks, the YOLO detector on the NPU and the state machine
@@ -7,10 +13,30 @@ that decides what to do. The body, head camera and distance sensor are simulated
 and connect to the board over Ethernet. There is no physical robot in this project; the board runs
 the same programs it would run on one.
 
-**中文简介：** 在 RK3588 开发板上部署 MicroDuck 双足机器人的整套软件：50 Hz 控制环和 ONNX 策略网络、
-NPU 上的 INT8 YOLO、做决策的状态机。身体、相机和测距传感器在 Mac 上的 MuJoCo 里仿真，通过网线和板子相连。
-机器人按指令找到指定玩具，走过去叼起来，送进托盘。板上 INT8 版本在 60 局正式测试里送到 52 局（86.7%），
-没有拿错，也没有摔倒。
+## Demo
+
+<p align="center">
+  <a href="docs/media/stage5_room_demo_rk3588_int8.mp4">
+    <img src="docs/media/stage5_room_demo_rk3588_int8.gif" width="640"
+         alt="Room demo: the robot fetches a bus, Henry and a ketchup bottle and drops each into a bowl">
+  </a>
+  <br>
+  <sub>Preview at 8x speed. Click it for the full video at real speed (2 min 42 s, 8.8 MB).</sub>
+</p>
+
+Stage 5 room demo: a 4.4 x 4.4 m room with furniture and 12 toys. The robot is told to fetch a bus,
+Henry and a ketchup bottle, one after another without a reset, and drops each into a bowl from
+outside its rim. In this run the RK3588 ran robotd, the brain and YOLO11n INT8 on the NPU; the Mac
+simulated the body, camera and distance sensor.
+
+- This one run (layout seed 5000) delivered 3 of 3 in 155 s, with no falls, no toy knocked out and
+  no contact with the bowl. It is a demo, not a formal result, and one run is not a success rate.
+- On the Mac the same code delivered 3 of 3 for seeds 5000 and 5001; the run for seed 5002 was
+  stopped by a check on the first tray look (centre 1.9 cm off, limit 1.5 cm) before anything was dropped.
+- In the board run the third tray look saw only part of the bowl and fell back to odometry (centre
+  7.3 cm off); the toy still went in.
+- The video is rendered afterwards from the run's logs (an offline replay), not a screen recording.
+- Code: branch [`microduck-stage5-v4`](https://github.com/Baro7ue/microduck-rk3588-toy-retrieval/tree/microduck-stage5-v4).
 
 ## Results
 
@@ -103,7 +129,7 @@ Each stage ended with a table of measured facts, and the next stage read its num
 | 2 | dataset, YOLO fine-tuning, ONNX and RKNN (FP16, INT8), offline accuracy and board timing | `configs/vision/stage2_facts.json` |
 | 3 | the whole task end to end on the Mac and on the board; frozen at tag `stage3-freeze` | `configs/control/stage3_facts.json` |
 | 4 | the formal 60-episode runs and comparisons; tag `stage4-results` | `results/stage4/` |
-| 5 | a room demo with 12 toys and three deliveries in a row (branch `stage5-demo`, not a formal result) | |
+| 5 | a room demo with 12 toys and three deliveries in a row into a bowl (branch `microduck-stage5-v4`, not a formal result; see [Demo](#demo)) | |
 
 ## Repository layout
 
@@ -117,7 +143,7 @@ Each stage ended with a table of measured facts, and the next stage read its num
 | `sim/` | toy meshes and MuJoCo scenes |
 | `tests/` | unit tests |
 | `cpp/board_bench/` | C++17 board detector benchmark (skeleton) |
-| `docs/` | plans, step guides (in Chinese), analyses and research notes |
+| `docs/` | plans, step guides, analyses and research notes (Chinese originals in `docs/zh/`); `media/` holds the demo video |
 | `third_party/` | upstream `microduck` and `microduck_rl` as git submodules |
 | `runs/`, `data/`, `evidence/`, `offline/`, `references/` | local only; git keeps a README or a `MANIFEST.tsv` with sizes and SHA-256 |
 

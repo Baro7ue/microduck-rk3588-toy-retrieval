@@ -1,42 +1,42 @@
-# MicroDuck 下一阶段行动指南
+# MicroDuck: action guide for the next stage
 
-从 Mac 持续行走，到相机验收与 RK3588 部署准备
+From sustained walking on the Mac to camera acceptance and preparing the RK3588 deployment
 
-2026 年 10 月 4 日 · 按 Claude 原计划的阶段顺序推进 · 每一步解释用途、操作与证据
+4 October 2026 · follows the stage order of Claude's original plan · each step explains its purpose, the operation and the evidence
 
-**现在先做什么：**补齐阶段 2 的“开启相机后，仿真保持实时”验证。随后检查阶段 0/1 的板端准备，再进入阶段 3 的板上 CPU 策略推理。航向 PI 按你的决定，留到上板前接入当前运行链路。
+**What to do first now:** complete Stage 2's check that "the simulation stays real-time with the camera on". Then check the board preparation of Stages 0/1, and go on to Stage 3, CPU policy inference on the board. The heading PI, as you decided, is left to be connected to the current runtime chain before going on the board.
 
-## 1. 当前已经做到哪里
+## 1. Where things stand
 
-| 项目 | 已核实的状态 |
+| Item | Verified state |
 | --- | --- |
-| 自训策略 | 本地 walk_17500.onnx 已由原生 robotd 加载并执行；零速站立使用 velstand.onnx。 |
-| 持续行走 | 最近一次实际行走 60.018 秒，未摔倒，结束后恢复站立。前进指令 0.3 m/s。 |
-| 控制环 | 同一测试窗口平均 50.002 Hz，3001 次循环，1 次工作超周期，占 0.0333%。这不是 RK3588 实测。 |
-| 方向偏差 | 用户观察到仍会绕圈；本次 heading_compensation=false。之前回放程序里的外层 PI 没有接入 robotd 指令链路。 |
-| 相机与实时性 | 固定提交里已有相机代码，但本次相机启动、取帧与实时因子尚未实际验收。 |
-| 板端准备 | 目前未见可验收的 G1 证据；系统镜像、烧录工具的存在与完整性、板上系统状态需分别核对。 |
+| Own trained policy | The local walk_17500.onnx is loaded and run by the native robotd; standing at zero speed uses velstand.onnx. |
+| Sustained walking | The latest actual walk lasted 60.018 seconds without a fall and returned to standing at the end. Forward command 0.3 m/s. |
+| Control loop | In the same test window: 50.002 Hz on average, 3001 loops, 1 loop whose work overran the period, 0.0333%. This was not measured on the RK3588. |
+| Heading error | The user still sees circling; heading_compensation=false in this run. The outer PI of the earlier replay program is not connected to robotd's command chain. |
+| Camera and real time | The pinned commit already has camera code, but starting the camera, grabbing frames and the real-time factor have not actually been accepted yet. |
+| Board preparation | No acceptable G1 evidence so far; the existence and integrity of the system image and the flashing tool, and the state of the system on the board, each need checking. |
 
-**证据边界：**已有仿真起步辅助会在首次策略接管后永久解除固定。辅助期间不计入站立/行走成绩；保留这项实现说明。日志里的 7.4 V 和 32°C 是仿真常量，不是开发板供电或温度实测。
+**Limits of the evidence:** the existing start-up assistance in the simulation permanently releases its hold after the policy first takes over. The assisted period does not count towards standing / walking results; this implementation note is kept. The 7.4 V and 32°C in the logs are simulation constants, not measurements of the board's supply or temperature.
 
-## 2. 接下来按这个顺序
+## 2. The order from here
 
-1. 测无相机时的物理实时因子，作为当前环境基线。
-2. 重启身体并打开一台头部相机，重新连接 robotd、验证站立。
-3. 检查实际图像、帧格式与到达速率，再做相机开启后的 60 秒行走。
-4. 整理 G2 证据；上板前接入 PI，单独保留补偿前后的结果。
-5. 核对 G0/G1：串口日志、镜像完整性、系统、SSH、NPU 冒烟测试。
-6. 进入 G3：RK3588 上运行 CPU 策略，通过网线驱动 Mac 的仿真身体。
+1. Measure the physics real-time factor without a camera, as the baseline of the current environment.
+2. Restart the body with one head camera on, reconnect robotd and verify standing.
+3. Check the actual image, frame format and arrival rate, then walk for 60 seconds with the camera on.
+4. Put the G2 evidence in order; connect the PI before going on the board, keeping the results before and after compensation separately.
+5. Check G0/G1: serial log, image integrity, system, SSH, NPU smoke test.
+6. Enter G3: the CPU policy runs on the RK3588 and drives the simulated body on the Mac over the network cable.
 
-当前不需要增加 PPO 训练。后续 YOLO 使用你已有的 Colab 付费资源；在数据集准备好后再开始微调。
+No more PPO training is needed for now. YOLO will later use the paid Colab resources you already have; fine-tuning starts once the dataset is ready.
 
 <!-- page -->
 
-## 3. 第一步：测无相机实时因子
+## 3. Step 1: the real-time factor without a camera
 
-**这一步在干什么：**读取身体返回的 sim_time，比较物理世界前进的时间与 Mac 真实经过的时间。robotd 显示 50 Hz，并不能单独证明物理世界也在实时运行。
+**What this step does:** reads the sim_time the body returns and compares how far the physics world's time advanced with the real time that passed on the Mac. robotd showing 50 Hz does not prove by itself that the physics world also runs in real time.
 
-保持当前身体窗口和 robotd 终端运行，让鸭子停在零速度站立状态。在一个空闲终端执行：
+Keep the current body window and the robotd terminal running, with the duck standing at zero velocity. In a free terminal run:
 
 ```bash
 zsh \
@@ -44,49 +44,49 @@ zsh \
   --label baseline_no_camera
 ```
 
-**会发生什么：**脚本只发送 hello/read 查询，不发送速度、启用、关闭或关节控制命令。默认采样 3 个窗口，每个约 10 秒，总计约 30 秒；结果自动存入 task/evidence/G2/ 下的新目录。
+**What will happen:** the script sends only hello/read queries, no velocity, enable, disable or joint control commands. By default it samples 3 windows of about 10 seconds each, about 30 seconds in all; the result is saved automatically in a new folder under task/evidence/G2/.
 
-**怎么理解输出：**实时因子 RTF = 仿真时间增量 / 真实时间增量。1.0 表示仿真推进 10 秒约需真实 10 秒；0.8 表示真实 10 秒内仿真只推进约 8 秒。保留每个窗口的原始结果。
+**How to read the output:** real-time factor RTF = simulated time elapsed / real time elapsed. 1.0 means 10 simulated seconds take about 10 real seconds; 0.8 means the simulation advances only about 8 seconds in 10 real seconds. Keep the raw result of every window.
 
-**带回证据：**终端完整输出、证据目录、summary.json。先发这一步结果，再执行下一步。
+**Evidence to bring back:** the full terminal output, the evidence folder, summary.json. Send this step's result before doing the next step.
 
-## 4. 第二步：打开头部相机
+## 4. Step 2: turn on the head camera
 
-**这一步在干什么：**结束旧的本地实验，启动一只鸭子的身体和一台头部相机。相机与身体走不同的 TCP 通道，后续视觉不会把图片塞进控制协议。
+**What this step does:** ends the old local experiment and starts one duck's body with one head camera. Camera and body use different TCP channels, so later vision will not push pictures into the control protocol.
 
-确认第一步结果已经保存后，在空闲终端执行：
+After confirming that step 1's result is saved, run in a free terminal:
 
 ```bash
 zsh \
   "/Users/ethan/Documents/RK3588 Microduck/work/restart_runtime_body_camera.zsh"
 ```
 
-**会发生什么：**脚本先核对进程身份，只停止本项目在 7801 上的旧身体和对应的 robotd；保留已有日志。随后打开新的 MuJoCo 窗口：身体监听 127.0.0.1:7801，相机监听 127.0.0.1:7901。
+**What will happen:** the script first checks process identity and stops only this project's old body on 7801 and its robotd; existing logs are kept. It then opens a new MuJoCo window: the body listens on 127.0.0.1:7801, the camera on 127.0.0.1:7901.
 
-**成功标志：**终端出现 camera on 127.0.0.1:7901，身体保持 HOME 等待控制程序。此时只是身体和相机就绪，尚未验证策略站立。保持该窗口与终端运行。
+**Sign of success:** the terminal shows camera on 127.0.0.1:7901 and the body stays at HOME waiting for the control program. At this point only the body and the camera are ready; standing under the policy is not yet verified. Keep that window and terminal running.
 
-**带回证据：**新窗口截图、终端完整输出、runtime_body_camera_ 时间戳日志路径。若端口被占用或进程身份不符，保留错误，不重复启动。
+**Evidence to bring back:** a screenshot of the new window, the full terminal output, the path of the log stamped runtime_body_camera_. If the port is taken or the process identity does not match, keep the error and do not start again.
 
 <!-- page -->
 
-## 5. 第三步：让 robotd 连接新身体
+## 5. Step 3: connect robotd to the new body
 
-**这一步在干什么：**加载同一份自训 ONNX 和站立模型，让原生控制程序重新连到身体。它延续之前已通过的 CPU 推理配置。
+**What this step does:** loads the same own trained ONNX and the stand model, and connects the native control program to the body again. It continues the CPU inference configuration that already passed.
 
-在另一个空闲终端执行，保持相机身体窗口运行：
+Run in another free terminal, keeping the camera body window running:
 
 ```bash
 zsh \
   "/Users/ethan/Documents/RK3588 Microduck/work/run_runtime_robotd.zsh"
 ```
 
-**成功标志：**日志出现 simulated body、policy loaded、control loop running。此步尚未启用运动控制。保持该终端运行。
+**Sign of success:** the log shows simulated body, policy loaded, control loop running. Motion control is not yet enabled at this step. Keep that terminal running.
 
-## 6. 第四步：重新验收零速度站立
+## 6. Step 4: accept standing at zero velocity again
 
-**这一步在干什么：**启用策略，等待起步辅助解除，再观察真正由策略维持的站立 10 秒。先验证站立，避免直接将相机负载与行走问题混在一起。
+**What this step does:** enables the policy, waits for the start-up assistance to be released, then watches 10 seconds of standing that the policy really maintains. Verifying standing first avoids mixing camera load with walking problems.
 
-在第三个空闲终端执行：
+Run in a third free terminal:
 
 ```bash
 zsh \
@@ -94,13 +94,13 @@ zsh \
   --keep-enabled
 ```
 
-**成功标志：**结果为 completed_no_fall，并明确说试验通过、保持站立。身体日志中应出现 startup assistance ended。成功后保持零速度站立，便于下一步取帧；失败/报错/中断会请求关闭策略并保存证据。
+**Sign of success:** the result is completed_no_fall, stating that the trial passed and the robot is kept standing. The body log should show startup assistance ended. After success the robot stays standing at zero velocity, ready for grabbing frames in the next step; a failure / error / interruption requests the policy off and saves the evidence.
 
-## 7. 第五步：取相机图像并测站立负载
+## 7. Step 5: grab camera images and measure the load while standing
 
-**这一步在干什么：**读取相机 TCP 原始帧，保存转正后的首帧和末帧，同时重复测量物理实时因子。
+**What this step does:** reads raw frames from the camera's TCP channel, saves the first and last frames turned upright, and measures the physics real-time factor again.
 
-确认站立通过后，在空闲终端执行：
+After standing has passed, run in a free terminal:
 
 ```bash
 zsh \
@@ -108,17 +108,17 @@ zsh \
   --camera --label camera_stand
 ```
 
-**检查结果：**打开证据目录中的 camera_first_rotated.png 和 camera_last_rotated.png。默认场景主要是地板；本轮只验收相机桥接，不把“看到地板”当作 PERSON/BALL 检测成果。确认图像能正常解码、方向正确，终端报告帧数、到达速率与 3 个 RTF 窗口。
+**Check the result:** open camera_first_rotated.png and camera_last_rotated.png in the evidence folder. The default scene is mostly floor; this round accepts only the camera bridge and does not count "seeing the floor" as a PERSON/BALL detection result. Confirm that the images decode and are the right way up, and that the terminal reports the frame count, the arrival rate and 3 RTF windows.
 
-原始帧为 640×360 UYVY；旋转 90° 顺时针后，保存图像尺寸为 360×640。现在没有 YOLO 推理，也没有浏览器视频串流。
+The raw frame is 640×360 UYVY; turned 90° clockwise, the saved image is 360×640. There is no YOLO inference now, and no video stream to a browser.
 
 <!-- page -->
 
-## 8. 第六步：开相机后的 60 秒行走
+## 8. Step 6: a 60-second walk with the camera on
 
-**这一步在干什么：**检验相机渲染、图像传输和原生行走控制能否同时稳定运行。行走指令与之前相同，继续保留无 PI 的结果。
+**What this step does:** checks whether camera rendering, image transfer and native walking control can run steadily together. The walking command is the same as before, and the result without PI is still kept.
 
-先在终端 C 启动行走测试：
+First start the walking test in terminal C:
 
 ```bash
 zsh \
@@ -126,7 +126,7 @@ zsh \
   --duration 60
 ```
 
-当输出进入 walk 阶段后，在另一个终端 D 启动只读相机/实时性采样。它约需 30 秒，应在这次 60 秒行走结束前完成：
+When the output enters the walk phase, start the read-only camera / real-time sampling in another terminal D. It takes about 30 seconds and should finish before this 60-second walk ends:
 
 ```bash
 zsh \
@@ -134,78 +134,78 @@ zsh \
   --camera --label camera_walk
 ```
 
-**不要把两个命令串行放在同一终端：**否则第二个测试会在行走结束后才开始。终端 C 负责速度指令与行走记录；终端 D 只读取传感与时间数据。
+**Do not put the two commands one after the other in one terminal:** the second test would then only start after the walk has ended. Terminal C handles the velocity command and the walking record; terminal D only reads sensor and time data.
 
-**带回证据：**两边完整输出、两份 summary.json、相机 PNG、身体日志，以及 60 秒行走的录屏。确认没有摔倒、最后恢复 stand；记录实际 RTF、控制环平均频率、ticks 和 missed 增量。
+**Evidence to bring back:** the full output of both sides, both summary.json files, the camera PNGs, the body log and a screen recording of the 60-second walk. Confirm that there was no fall and that it returned to stand at the end; record the actual RTF, the control loop's mean frequency, and the increase in ticks and missed.
 
-## 9. 怎么判断这轮是否完成
+## 9. How to judge whether this round is done
 
-| 检查项 | 判定与限制 |
+| Check | Verdict and limits |
 | --- | --- |
-| 物理实时性 | 按原计划保持至少实时运行，理想 RTF 约为 1.0。身体以 20 ms 批次推进，有限采样可能在 1.0 附近波动；保留原始增量，不将标准悄悄改为 0.95。持续低于 1.0 时先排障。 |
-| 行走稳定性 | 策略接管后连续行走 60 秒不倒，停止后恢复站立。当前绕圈现象保留，不算直线保持已完成。 |
-| 控制环 | 报告平均 Hz 及新增 missed/新增 ticks。missed 只统计循环工作超周期，不包括全部调度跳过；它不能单独代表所有截止期丢失。 |
-| 相机 | 图像可解码并正常转正；报告到达帧率。协议没有源时间戳和帧号，本轮不能宣称已测出端到端帧龄或唯一渲染帧率。 |
+| Physics real time | As in the original plan, at least real-time, ideally an RTF of about 1.0. The body advances in 20 ms batches, so limited sampling may fluctuate around 1.0; keep the raw increments and do not quietly change the standard to 0.95. If it stays below 1.0, troubleshoot first. |
+| Walking stability | 60 seconds of continuous walking without a fall after the policy takes over, returning to standing after the stop. The current circling stays on record; holding a straight line does not count as done. |
+| Control loop | Report the mean Hz and new missed / new ticks. missed counts only loops whose work overran the period, not every skipped schedule; it cannot stand alone for all missed deadlines. |
+| Camera | The images decode and turn upright properly; report the arrival frame rate. The protocol has no source timestamp or frame number, so this round cannot claim to have measured end-to-end frame age or the unique rendered frame rate. |
 
-若实时性不足，先保留失败记录，再按同样流程用 headless 重试：在第二步的相机重启命令后追加 --headless。它关闭第三人称窗口，仍保留头部相机；之后重新执行连接、站立和负载测试。
+If real time falls short, keep the failure record first, then retry headless with the same procedure: add --headless to the camera restart command of step 2. That closes the third-person window and keeps the head camera; then connect, stand and run the load tests again.
 
 <!-- page -->
 
-## 10. 相机验证后：上板前的准备
+## 10. After the camera check: preparing to go on the board
 
-Claude 计划的阶段 1 与阶段 2 原本并行。Mac 这一支完成，不代表板子这一支已经通过。先检查已有证据；已通过的任务不整段重做。
+Stages 1 and 2 of Claude's plan were meant to run in parallel. The Mac branch being done does not mean the board branch has passed. Check the existing evidence first; tasks that already passed are not redone wholesale.
 
-### A. 补齐阶段 0/1 的板端证据
+### A. Complete the board evidence of Stages 0/1
 
-**用途：**确认后续编译、网络通信与 NPU 部署有可靠的系统基础。
+**Purpose:** to confirm that later compiling, network communication and NPU deployment stand on a reliable system.
 
-1. 找到任务卡 #1 的串口启动日志与 uname -a、cat /etc/os-release 输出。没有这份证据时，先按已有《任务卡1_Mac串口启动日志_逐步教程》完成只读串口记录。
-2. 清点系统镜像与烧录工具，核对真实文件路径、大小、校验值和厂商说明；存在文件不代表下载完整。.downloading 残片不能作为可烧录镜像。此份指南没有确认当前 Drive/本地镜像已经完整。
-3. 在串口记录和手册核对完成后，按原计划处理 Linux 6.1 Debian 12 安装、关闭自动休眠、SSH 和直连网。具体烧录步骤以板型对应的厂商手册为准，另发任务卡操作。
-4. 保存内核/系统版本、CPU/内存/存储、网络延迟、板上温度、NPU 驱动与 librknnrt 版本。
-5. 用现成 RKNN 模型完成 NPU 冒烟测试。它属于 G1；自训 PPO 行走策略仍首先部署到 CPU ONNX Runtime。
+1. Find the serial boot log of task card #1 and the output of uname -a and cat /etc/os-release. Without this evidence, first complete the read-only serial record following the existing step guide for task card 1 (Mac serial boot log).
+2. Take stock of the system image and the flashing tool, checking the real file paths, sizes, checksums and the vendor's notes; a file existing does not mean it downloaded completely. A .downloading fragment cannot serve as a flashable image. This guide has not confirmed that the current Drive / local image is complete.
+3. After the serial record and the manual have been checked, handle the Linux 6.1 Debian 12 installation, turning off automatic sleep, SSH and the direct network as in the original plan. The exact flashing steps follow the vendor's manual for the board model and come as a separate task card.
+4. Save the kernel / system version, CPU / memory / storage, network latency, board temperature, and the versions of the NPU driver and librknnrt.
+5. Complete the NPU smoke test with a ready-made RKNN model. It belongs to G1; the own trained PPO walking policy is still deployed first to CPU ONNX Runtime.
 
-**G1 完成证据：**Linux 6.1、直连网 SSH、现成 NPU 模型检测结果与耗时，以及驱动/运行库版本。镜像、烧录与软件版本的调整另行核对，不在本指南里自动执行。
+**Evidence that completes G1:** Linux 6.1, SSH over the direct network, the detection result and timing of a ready-made NPU model, and the driver / runtime library versions. Adjustments to the image, flashing and software versions are checked separately and not carried out automatically in this guide.
 
-### B. 上板前接入航向 PI
+### B. Connect the heading PI before going on the board
 
-**用途：**让累计航向偏差有反馈修正，同时保留 PPO 网络本身的版本。
+**Purpose:** to give the accumulated heading error a feedback correction while keeping the version of the PPO network itself.
 
-原 PI 位于 Mac 回放包装层，在推理前改变转向指令。后续需要将同样的反馈逻辑接入实际发给 robotd 的速度指令链路，并使用其传感反馈验证；TCP 连接不会自动搬运这段逻辑。
+The original PI sits in the Mac replay wrapper and changes the turn command before inference. The same feedback logic later has to be connected to the velocity command chain actually sent to robotd and verified with its sensor feedback; a TCP connection will not carry this logic over by itself.
 
-按你的决定，这项在上板前处理。先保留当前无补偿基线，再以相同前进速度比较补偿前后航向、稳定性与控制环计时。手动转向、停止时要释放航向锁定并清除积分；未来视觉控制的转向与航向保持需明确分配控制权。
+As you decided, this is handled before going on the board. First keep the current baseline without compensation, then compare heading, stability and control loop timing before and after compensation at the same forward speed. Manual turning and stopping must release the heading lock and clear the integral; the turning of future visual control and the heading hold must be given clearly separate control authority.
 
-**不把之前的 PI 参数直接当作板上最终参数。** 当前先完成相机与实时性证据，再开展这张任务卡。
+**The earlier PI parameters are not taken directly as the final parameters on the board.** First complete the camera and real-time evidence, then start this task card.
 
 <!-- page -->
 
-## 11. 下一阶段：G3 大脑上板
+## 11. The next stage: G3, the brain goes on the board
 
-**目标：**RK3588 的 CPU 跑 robotd 和自训 ONNX，通过直连网驱动 Mac 上的 MuJoCo 身体。控制环留在板上；物理世界和图像渲染留在 Mac。
+**Goal:** the RK3588's CPU runs robotd and the own trained ONNX and drives the MuJoCo body on the Mac over the direct network. The control loop stays on the board; the physics world and image rendering stay on the Mac.
 
-| 顺序 | 作用与验收 |
+| Order | Purpose and acceptance |
 | --- | --- |
-| 1. 对齐文件 | 固定上游提交，传输 walk_17500.onnx、velstand.onnx 与配置；比较 SHA-256。模型输入 61 维、输出 14 维，使用已烘入归一化的导出文件。 |
-| 2. 板上编译 | 按板上系统安装编译所需工具，锁定构建 robotd、robotctl、tofd。保留完整输出，先不改依赖或绕开错误。 |
-| 3. 配 CPU 推理库 | 使用 Linux aarch64 的 ONNX Runtime 动态库，并核对 Rust ort 版本和实际加载兼容性；Mac 的 dylib 不能直接拷到板上。 |
-| 4. 打通网线 | 使用专用直连网络，让 Mac 身体监听板子可达的地址；先检查连通性。当前 127.0.0.1 只能在 Mac 本机访问，上板时必须另配。 |
-| 5. 板上启动 | 分别运行 robotd --sim 和 tofd --sim，指向 Mac；先验证零速度站立，再做 60 秒行走。具体命令待 IP、系统和库路径确认后生成。 |
-| 6. 持续计时 | 连续跑 10 分钟，记录控制环、延迟、CPU/内存与真实板温；按 proposal 的漏拍定义核对低于 1% 的指标。保留失败和中断记录。 |
+| 1. Align the files | Pin the upstream commits, transfer walk_17500.onnx, velstand.onnx and the config; compare SHA-256. The model takes 61 inputs and gives 14 outputs; use the exported file with normalisation baked in. |
+| 2. Build on the board | Install the build tools the board's system needs and build robotd, robotctl and tofd with the lock file. Keep the full output; do not change dependencies or work round errors yet. |
+| 3. Set up the CPU inference library | Use the Linux aarch64 ONNX Runtime shared library and check the Rust ort version and that it actually loads; the Mac's dylib cannot be copied to the board. |
+| 4. Bring up the cable | Use a dedicated direct network and have the Mac body listen on an address the board can reach; check connectivity first. The current 127.0.0.1 is reachable only on the Mac itself and must be reconfigured for the board. |
+| 5. Start on the board | Run robotd --sim and tofd --sim, each pointing at the Mac; verify standing at zero velocity first, then walk for 60 seconds. The exact commands are generated once the IP, system and library paths are confirmed. |
+| 6. Sustained timing | Run for 10 minutes and record the control loop, latency, CPU / memory and the real board temperature; check the below-1% target with the proposal's definition of a missed tick. Keep records of failures and interruptions. |
 
-**G3 通过：**板端 CPU 推理驱动鸭子连续行走 60 秒不倒，控制计时达到原计划指标。这一结论必须来自板上记录。
+**G3 passes when:** inference on the board's CPU drives the duck to walk for 60 seconds without falling, with control timing meeting the original plan's targets. This conclusion must come from records taken on the board.
 
-## 12. YOLO 何时开始
+## 12. When YOLO starts
 
-G3 打通后，按阶段 4 先做预训练模型的最窄视觉闭环，再做 NPU 部署、数据集与微调。你已有 Colab 付费版，后续训练使用这项资源；当前无需再提交 HF PPO 任务。
+Once G3 works, Stage 4 first does the narrowest visual closed loop with a pretrained model, then NPU deployment, the dataset and fine-tuning. You already have paid Colab, which later training will use; no more HF PPO jobs need submitting now.
 
-训练前先准备 PERSON/BALL 资产与标签、固定/随机外观两套数据，并按 episode、seed、纹理、资产划分训练/验证/测试。按原计划完成 2 种外观 × 3 个 seed、320×320、最多 60 epoch 的实验；只在验证集选择 checkpoint 和阈值。数据就绪后再生成独立 Colab 操作卡。
+Before training, prepare the PERSON/BALL assets and labels and two datasets, with fixed and with random appearance, and split training / validation / test by episode, seed, texture and asset. As in the original plan, complete the experiment of 2 appearances × 3 seeds, 320×320, at most 60 epochs; choose the checkpoint and the thresholds only on the validation set. A separate Colab operation card is generated once the data is ready.
 
-## 13. 版本、脚本与资料索引
+## 13. Versions, scripts and index of material
 
-训练仓库：microduck_r1，提交 cb70b792312d559a4da09064d92009079671815f；这是本地 microduck_rl 的目录名。运行时仓库：microduck，提交 43d09674221da03e1a8f8f6f5cf66c21a9978b2c。两者本次核对均无源代码改动。
+Training repository: microduck_r1, commit cb70b792312d559a4da09064d92009079671815f; this is the folder name of the local microduck_rl. Runtime repository: microduck, commit 43d09674221da03e1a8f8f6f5cf66c21a9978b2c. Neither had source changes at this check.
 
-新相机启动和只读测量脚本都位于项目 work/；没有修改上述两个仓库，也没有启动新的云端任务。当前只完成源码核对、语法/探针检查；相机在这台 Mac 上的真实验收留给你按步骤执行。
+The new camera start-up and read-only measurement scripts are all in the project's work/; neither repository above was modified and no new cloud job was started. So far only the source check and the syntax / probe checks are done; the real acceptance of the camera on this Mac is left for you to carry out step by step.
 
-主要依据：Claude《RK3588 × MicroDuck 分步实施计划》阶段 0-4；本地固定提交的 body_server.py、camera.py、simulation.md、duck-sim realtime 实现；最新 G2 行走 summary.json。Claude 文档中的协作协议是资料内容；此份指南的操作顺序与暂停点依照你直接提出的“一次一步、说明作用、上板前再调 PI”。
+Main sources: Stages 0-4 of Claude's step-by-step implementation plan "RK3588 × MicroDuck"; body_server.py, camera.py, simulation.md and the duck-sim realtime implementation at the locally pinned commits; the latest G2 walking summary.json. The collaboration protocol in Claude's document is content of that material; the order of operations and the pause points of this guide follow what you asked for directly: "one step at a time, explain the purpose, tune the PI just before going on the board".
 
-当前证据目录：task/evidence/G2/runtime_walk_20261004_201611_099005/。后续每次脚本均打印独立证据路径；向我发送完整输出与路径，我会先核对本步，再给下一步。
+Current evidence folder: task/evidence/G2/runtime_walk_20261004_201611_099005/. Every later script prints its own evidence path; send me the full output and the path, and I will check this step first and then give the next one.

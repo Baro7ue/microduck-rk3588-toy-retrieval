@@ -1,45 +1,45 @@
-# MicroDuck 直行航向保持（2026-10-04）
+# MicroDuck heading hold when walking straight (2026-10-04)
 
-## 改动
+## Change
 
-独立包装原来的CPU回放，不修改microduck_rl仓库、依赖、ONNX或训练。保留20毫秒动作延迟。
+The original CPU replay is wrapped separately, without changing the microduck_rl repository, its dependencies, the ONNX or the training. The 20 ms action delay is kept.
 
-外层控制器在直行时锁定当前相对航向；通过模拟陀螺仪和原策略已有的重力方向估计朝向，计算小幅转向修正，写入61维观测中的转向命令槽。用户命令与自动修正分开保存。控制器不读取世界位置或世界航向；这些真值只在诊断程序中离线评价。
+When walking straight, an outer controller locks the current relative heading. It estimates heading from the simulated gyroscope and the gravity direction the original policy already has, computes a small turning correction and writes it into the turn-command slot of the 61-dimensional observation. The user's command and the automatic correction are stored separately. The controller reads no world position or world heading; that truth is only evaluated offline in the diagnostic program.
 
-已先验证P反馈，再加入小积分项以减小恒定偏差。当前参数：Kp=1.0、Ki=0.05、修正限幅±0.3 rad/s、积分限幅±0.8 rad·s。默认库配置仍为Ki=0，启动脚本显式选择本次验证过的Ki=0.05。不对14维策略动作做滤波或修改。
+P feedback was verified first, then a small integral term was added to reduce the constant offset. Current parameters: Kp=1.0, Ki=0.05, correction limit +-0.3 rad/s, integral limit +-0.8 rad·s. The library's default config is still Ki=0; the launcher explicitly selects the Ki=0.05 verified here. The policy's 14-dimensional action is not filtered or modified.
 
-## 同条件对照
+## Comparison under the same conditions
 
-同一初始姿态，先给0.1 m/s指令5秒，再给0.3 m/s指令前进60秒，转向用户指令始终为零。策略：17,500轮；BAM M6；kp=200；vin=7.4 V；sag=0.1；20 ms控制步、5 ms物理步。每条件一次确定性CPU仿真；不是板上测试。
+Same initial pose: a 0.1 m/s command for 5 seconds, then a 0.3 m/s command forward for 60 seconds, with the user's turn command zero throughout. Policy: 17,500 iterations; BAM M6; kp=200; vin=7.4 V; sag=0.1; 20 ms control step, 5 ms physics step. One deterministic CPU simulation per condition; not a test on the board.
 
-| 指标 | 仅20 ms延迟 | 再加航向保持 |
+| Metric | 20 ms delay only | Plus heading hold |
 |---|---:|---:|
-| 结束航向偏差绝对值 | 12.09° | 0.18° |
-| 结束横向偏移绝对值 | 1.830 m | 0.090 m |
-| 结束前进位置 | 10.38 m | 10.30 m |
-| 最大身体倾斜角 | 3.78° | 3.84° |
-| 是否达70°倾倒阈值 | 否 | 否 |
+| Absolute heading error at the end | 12.09° | 0.18° |
+| Absolute sideways offset at the end | 1.830 m | 0.090 m |
+| Forward position at the end | 10.38 m | 10.30 m |
+| Largest body tilt | 3.78° | 3.84° |
+| Reached the 70° fall threshold | no | no |
 
-这些是结束值，不是全程最大误差；步态周期内仍有摆动。航向保持明显改善本工况，但不保证零位置偏差。后续必须按相同配置单独验证随机化场景与板上表现。
+These are end values, not the largest error over the run; there is still sway within the gait cycle. Heading hold clearly improves this case but does not guarantee zero position error. Randomised scenes and behaviour on the board must be verified separately later with the same configuration.
 
-## 控制状态验收
+## Acceptance of the control states
 
-已运行60秒的“直行→左转→停→直行→右转→停→直行”序列：手动转向与停止时纠偏退出，重启直行时重新锁定方向；两次转向实际方向正确，停段平均前进速度低于0.002 m/s，未摔倒。6项单元检查验证了反馈符号、倾斜坐标变换、手动优先、暂停和反向重锁、限幅与配置/传感异常。
+A 60-second sequence "straight -> left turn -> stop -> straight -> right turn -> stop -> straight" was run: the correction drops out during manual turning and stopping and locks the direction again when straight walking restarts; both turns went the right way, the mean forward speed in the stop segments was below 0.002 m/s, and there was no fall. 6 unit checks verify the feedback sign, the tilt coordinate transform, manual priority, pausing and re-locking in reverse, the limits, and config / sensor faults.
 
-若按T暂停，恢复时会重锁当前方向；不会尝试追回暂停前未观测到的转动。A/E是持续命令，恢复直行请先空格停止，再按↑。
+After a pause with T, resuming locks the current direction again; it does not try to make up for rotation that went unobserved during the pause. A/E are continuous commands; to go back to straight walking, stop with the space bar first, then press ↑.
 
-## 复测
+## Retest
 
-在终端运行：
+Run in a terminal:
 
 ```bash
 zsh "/Users/ethan/Documents/RK3588 Microduck/work/run_straight_hold.zsh"
 ```
 
-先等5秒，再在终端按↑，观察60秒；空格停止，Q退出。日志与CSV以时间戳保存到task/evidence/G2/。查看终端“[航向保持]”字段：用户转向为零时，实际发送的转向修正会随误差变化。
+Wait 5 seconds, then press ↑ in the terminal and watch for 60 seconds; space stops, Q quits. Logs and CSV are saved with a timestamp under task/evidence/G2/. Look at the "[航向保持]" (heading hold) field in the terminal: with the user's turn at zero, the turning correction actually sent changes with the error.
 
-## 边界
+## Limits
 
-当前使用理想的模拟陀螺仪，长时间真实陀螺仪零偏仍会导致相对航向漂移。航向控制也无法单独消除横向滑移；位置严格保持需要可靠的里程计或外部观测。该包装用于本地验证，不应未经测试直接接入视觉跟随：外层视觉转向与航向保持必须明确分配控制权。
+An ideal simulated gyroscope is used for now; over a long time a real gyroscope's bias would still make the relative heading drift. Heading control alone cannot remove sideways slip either; holding position strictly needs reliable odometry or an external observation. This wrapper is for local verification and should not be connected to visual following without testing: the outer visual turning and the heading hold must be given clearly separate control authority.
 
-原策略的正式基线应保留关闭航向保持的记录；新增控制器应在模型与实验清单中单独注明。
+The formal baseline of the original policy should keep its record with heading hold off; the added controller should be noted separately in the model and experiment lists.

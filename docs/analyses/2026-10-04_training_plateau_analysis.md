@@ -1,24 +1,24 @@
-# MicroDuck 训练平台期核对
+# MicroDuck training plateau check
 
-分析范围：W&B run qktrrkg5 的 0–17679 轮。读取公开 SDK 下的已授权账号数据；未启动训练。
+Scope: iterations 0-17679 of W&B run qktrrkg5. Read through the public SDK with an authorised account; no training was started.
 
-两组均为 500 轮平均：2000–2499 对比 17000–17499，降低单点噪声。
+Both groups are 500-iteration averages, 2000-2499 against 17000-17499, to reduce single-point noise.
 
-| 指标 | 2000–2499 | 17000–17499 | 变化 |
+| Metric | 2000-2499 | 17000-17499 | Change |
 |---|---:|---:|---:|
-| 平均回报 | 113.0012 | 124.8662 | +10.50% |
-| 平均 episode 长度（控制步） | 955.8387 | 973.9114 | +1.89% |
-| 平面速度误差日志值 | 0.4265 | 0.4218 | -1.08% |
-| 偏航速度误差日志值 | 1.1185 | 0.9862 | -11.84% |
-| 动作二阶差分绝对值 | 0.3461 | 0.3208 | -7.31% |
-| 摔倒终止计数均值（非摔倒率） | 0.3958 | 0.2358 | -40.43% |
+| Mean return | 113.0012 | 124.8662 | +10.50% |
+| Mean episode length (control steps) | 955.8387 | 973.9114 | +1.89% |
+| Planar velocity error, logged value | 0.4265 | 0.4218 | -1.08% |
+| Yaw rate error, logged value | 1.1185 | 0.9862 | -11.84% |
+| Absolute second difference of the action | 0.3461 | 0.3208 | -7.31% |
+| Mean fall-termination count (not a fall rate) | 0.3958 | 0.2358 | -40.43% |
 
-主要观察：平面速度误差接近平台；偏航跟踪、平滑度、回报和终止计数仍缓慢改善。课程参数到约 2000 轮已到最终阶段，因此此前和此后的总回报不是完全相同难度下的直接比较。
+Main observations: the planar velocity error is close to a plateau; yaw tracking, smoothness, return and the termination count are still improving slowly. The curriculum parameters reached their final stage by about iteration 2000, so the total return before and after that is not a direct comparison at the same difficulty.
 
-指标边界：mean_action_acc 是动作二阶差分，不是准确率；1000 控制步等于 20 秒 episode 上限。速度误差是上游按最大指令时间归一化的累计值，不直接等于逐步平均物理误差。fell_over 是日志平均计数，不是独立评测摔倒率。
+Limits of the metrics: mean_action_acc is the second difference of the action, not an accuracy; 1000 control steps equal the 20-second episode limit. The velocity error is a cumulative value that upstream normalises by the maximum command time, and does not equal the mean physical error per step. fell_over is an averaged count from the log, not a fall rate from an independent evaluation.
 
-数据检查：第一次分页导出出现 17 个完全相同的重复记录与 17 个缺少的轮号；保留原文件，针对缺少轮号重读后另存清理版，得到 17680 个唯一连续轮号，32 列无缺失。
+Data check: the first paged export had 17 exact duplicate records and 17 missing iteration numbers; the original file was kept, the missing iterations were read again and a cleaned version saved separately, giving 17680 unique consecutive iterations and 32 columns with nothing missing.
 
-建议：先对比 model_2000.pt、model_5000.pt、model_17500.pt 的确定性固定指令回放，使用相同种子、相同初始状态和相同指令序列，统计直行/转向跟踪、停止及 60 秒不倒。用验证场景选择 checkpoint，正式测试场景留到配置冻结后。当前没有曲线依据要求继续跑到 50000 轮。
+Suggestion: first compare deterministic fixed-command replays of model_2000.pt, model_5000.pt and model_17500.pt, with the same seed, the same initial state and the same command sequence, and count straight / turn tracking, stopping and 60 seconds without falling. Choose the checkpoint on validation scenes and keep the formal test scenes until the configuration is frozen. Nothing in the curves calls for running on to 50000 iterations.
 
-此次曲线分析不能代替 MuJoCo 回放或 RK3588 板上闭环验收。
+This curve analysis cannot replace MuJoCo replay or closed-loop acceptance on the RK3588 board.

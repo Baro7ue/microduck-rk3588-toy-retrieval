@@ -1,11 +1,23 @@
 # docs/
 
 - `plans/`: project plans and plans sent for review
-- `guides/`: step-by-step operating guides for Stages 0 and 1, written in Chinese. The earlier guides for
+- `guides/`: step-by-step operating guides for Stages 0 and 1. The earlier guides for
   board gates G3 and G4 (2026-10-03 to 10-10) were removed from `main` on 2026-11-01; they are at tag `stage4-results`.
 - `analyses/`: training and drift analyses, notebooks and figures
 - `research/`: background research notes (sources in `references/research_ball_navigation/`)
 - `reorg/`: the 2026-10-11 reorganisation tool, its README and the move log
+- `media/`: the Stage 5 room demo video and its preview GIF, shown in the top-level README
+- `zh/`: the Chinese originals of the documents above (中文原文), under the same paths and file names
+
+## Language
+
+The documents here were written in Chinese and translated to English on 2026-11-12; `zh/` keeps every
+original unchanged. Still in Chinese, as generated or as programs print them:
+
+- the labels inside the figures in `analyses/figures/` and the notebook code that draws them;
+- the messages the tools in `reorg/` print (`reorg.py`, `board_reorg.zsh`, `board_reorg_remote.sh`), the
+  notes in `reorg/move_log.tsv` and the text inside `reorg/board_switch.patch`, which has to match those files;
+- old file and folder names, quoted as they were (also the `local` paths in `research/ball_navigation/robocup_sources.json`).
 
 ## Renamed on 2026-10-11
 

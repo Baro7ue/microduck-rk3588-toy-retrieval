@@ -1,39 +1,39 @@
-# MicroDuck 向左绕圈诊断（2026-10-04）
+# MicroDuck circling to the left: diagnosis (2026-10-04)
 
-用户报告：17,500 轮策略可以直立行走；按 ↑ 增加前进速度后向左绕圈。
+User report: the 17,500-iteration policy walks upright; after pressing ↑ to raise the forward speed it circles to the left.
 
-## 固定条件
+## Fixed conditions
 
-- 仓库提交：cb70b792312d559a4da09064d92009079671815f，保持未修改。
-- 策略：walk_17500.onnx，已核对与 model_17500.pt 的权重和归一化一致。
-- 复用上游 PolicyInference、BAM M6、电机 kp=200、电压7.4V、sag=0.1。
-- 控制步20 ms，物理步5 ms，每控制步4次物理更新。
-- 主对照：先以 vx=0.1 运行5秒，再切换到 [vx,vy,wz]=[0.3,0,0] 运行30秒，模拟按 ↑。
-- 无渲染、无键盘干预、相同初始状态。每项为一次确定性CPU仿真，并非随机化评测或板上结果。
+- Repository commit: cb70b792312d559a4da09064d92009079671815f, left unmodified.
+- Policy: walk_17500.onnx, checked to match model_17500.pt in weights and normalisation.
+- Reuses upstream PolicyInference, BAM M6, motor kp=200, voltage 7.4 V, sag=0.1.
+- Control step 20 ms, physics step 5 ms, 4 physics updates per control step.
+- Main comparison: run at vx=0.1 for 5 seconds, then switch to [vx,vy,wz]=[0.3,0,0] for 30 seconds, imitating a press of ↑.
+- No rendering, no keyboard intervention, the same initial state. Each item is one deterministic CPU simulation, not a randomised evaluation or a board result.
 
-## 实测
+## Measured
 
-| 配置 | 稳态实际前进速度 | 稳态实际转向速度 | 总航向变化 | 是否达到70°倾倒阈值 |
+| Configuration | Steady actual forward speed | Steady actual turn rate | Total heading change | Reached the 70° fall threshold |
 |---|---:|---:|---:|---|
-| 默认，无动作延迟 | 0.1859 m/s | +0.1871 rad/s | +315.63° | 否 |
-| 仅增加 --delay 1 | 0.1801 m/s | -0.0056 rad/s | -10.03° | 否 |
+| Default, no action delay | 0.1859 m/s | +0.1871 rad/s | +315.63° | no |
+| Only --delay 1 added | 0.1801 m/s | -0.0056 rad/s | -10.03° | no |
 
-稳态平均取指令切换后第2秒起（全程第7–35秒）；航向变化包含启动与切换阶段，来自解缠的机身世界航向。正转向为左转。
+The steady averages start 2 seconds after the command switch (seconds 7-35 of the run); the heading change includes the start-up and the switch and comes from the unwrapped world heading of the body. A positive turn is to the left.
 
-## 诊断
+## Diagnosis
 
-训练 BAM 执行器 delay_min_lag=3、delay_max_lag=6，单位是物理步：15–30 ms。默认CPU回放无动作延迟。回放已有 --delay 1 表示一个控制步，即20 ms，处于训练延迟范围内，但它是固定控制步延迟，并不完全等同于训练的逐执行器随机物理步延迟。
+The training BAM actuator has delay_min_lag=3 and delay_max_lag=6, in physics steps: 15-30 ms. The default CPU replay has no action delay. The replay's existing --delay 1 means one control step, 20 ms, which is inside the training delay range, but it is a fixed control-step delay and not quite the same as the training's random per-actuator delay in physics steps.
 
-在上述单变量对照中，增加延迟明显减小绕圈，支持“训练与回放执行器延迟不一致是该工况下的主要影响因素”。策略跟踪的是机身坐标速度与转向速度，没有世界航向锁定；残余偏转会积累，不能称为完全直线跟踪。
+In the single-variable comparison above, adding the delay clearly reduces the circling, which supports "a mismatch in actuator delay between training and replay is the main factor in this case". The policy tracks body-frame velocity and turn rate and has no lock on world heading; residual turning adds up, and it cannot be called tracking a perfectly straight line.
 
-默认scene.xml与训练scene_walk.xml包含不同碰撞模型；分别以vx=0.1和0.3测试时轨迹及指标完全相同，因此场景差异不解释本次默认条件的偏转。
+The default scene.xml and the training scene_walk.xml contain different collision models; tested at vx=0.1 and 0.3, the trajectories and metrics are exactly the same, so the scene difference does not explain the turning under the default condition.
 
-另以 --delay 1 测试转向指令 +0.5/-0.5 rad/s，平均实际转向约 +0.489/-0.564 rad/s，均运行30秒未达70°倾倒阈值。当前验证范围内保留了左右转向能力。
+Turn commands of +0.5/-0.5 rad/s were also tested with --delay 1: the mean actual turn rate is about +0.489/-0.564 rad/s, both runs lasted 30 seconds without reaching the 70° fall threshold. Within what was verified, turning left and right is kept.
 
-## 下一步
+## Next step
 
-使用原回放命令仅添加 --delay 1，仍从vx=0.1启动，再按 ↑ 切到0.3，观察30秒。保留启动日志和每秒 [vel 1s avg] 输出，检查转向指令是否为0、实际转向是否减小。
+Use the original replay command with only --delay 1 added, still start at vx=0.1, then press ↑ to switch to 0.3 and watch for 30 seconds. Keep the start-up log and the per-second [vel 1s avg] output, and check that the turn command is 0 and that the actual turning is smaller.
 
-暂不增加云端训练或加入固定反向转向补偿。回放仍有启动航向偏差，实际前进速度也低于0.3指令；后续checkpoint选择和板上闭环需单独验证。
+For now, add no cloud training and no fixed counter-turn compensation. The replay still has a heading offset at start-up, and the actual forward speed is below the 0.3 command; later checkpoint selection and the closed loop on the board need separate verification.
 
-附：已在Mac CPU上用锁定版本官方 scripts/export.py 成功导出 walk_5000.onnx，完整导出日志保留在本目录。这是模型导出，不是再次训练，尚未对该checkpoint做本次行走比较。
+Note: walk_5000.onnx was exported successfully on the Mac CPU with the official scripts/export.py of the locked version; the full export log is kept in this folder. This is a model export, not another training run, and this checkpoint has not been through this walking comparison.

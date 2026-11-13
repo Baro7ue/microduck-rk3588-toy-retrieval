@@ -13,7 +13,7 @@
   "comparison": [
     {
       "metric": "Train/mean_reward",
-      "label": "平均回报",
+      "label": "Mean return",
       "early_window_mean": 113.0011597610724,
       "late_window_mean": 124.86622097141326,
       "percent_change": 10.499946403583937,
@@ -21,7 +21,7 @@
     },
     {
       "metric": "Train/mean_episode_length",
-      "label": "平均 episode 长度（控制步）",
+      "label": "Mean episode length (control steps)",
       "early_window_mean": 955.8386999999999,
       "late_window_mean": 973.9113600000001,
       "percent_change": 1.89076462378015,
@@ -29,7 +29,7 @@
     },
     {
       "metric": "Metrics/twist/error_vel_xy",
-      "label": "平面速度误差日志值",
+      "label": "Planar velocity error, logged value",
       "early_window_mean": 0.4264555715918541,
       "late_window_mean": 0.4218430585861206,
       "percent_change": -1.081592858200009,
@@ -37,7 +37,7 @@
     },
     {
       "metric": "Metrics/twist/error_vel_yaw",
-      "label": "偏航速度误差日志值",
+      "label": "Yaw rate error, logged value",
       "early_window_mean": 1.1185487139225005,
       "late_window_mean": 0.9861558837890625,
       "percent_change": -11.836125551400078,
@@ -45,7 +45,7 @@
     },
     {
       "metric": "Episode_Metrics/mean_action_acc",
-      "label": "动作二阶差分绝对值",
+      "label": "Absolute second difference of the action",
       "early_window_mean": 0.34610688024759295,
       "late_window_mean": 0.32079000455141066,
       "percent_change": -7.3147565509450345,
@@ -53,7 +53,7 @@
     },
     {
       "metric": "Episode_Termination/fell_over",
-      "label": "摔倒终止计数均值（非摔倒率）",
+      "label": "Mean fall-termination count (not a fall rate)",
       "early_window_mean": 0.39575001189112663,
       "late_window_mean": 0.235750006839633,
       "percent_change": -40.429564180407574,
