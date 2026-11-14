@@ -363,11 +363,16 @@ class Brain:
         here = self.here()
         spots = [s for s in self.seen.of_class(self.target, ('seen', 'target'))
                  if s.frames >= int(self.cfg['search']['spin_hits'])]
+        # Stage 5 room (v5, search.choose 'first'; Ethan 2026-11-14: the first target found is
+        # locked): the room has two of each target, and while the one chosen first is still a live
+        # spot (not dropped after max_misses looks or approaches, not turned out a distractor) it
+        # stays the candidate. Without the key a missed look re-ranks the spots by weight and can
+        # change to the other copy part-way.
+        if self.cfg['search'].get('choose') == 'first' and self.candidate is not None \
+                and self.candidate in self.seen.of_class(self.target, ('seen', 'target')):
+            return self.candidate
         if not spots:
             return None
-        if self.cfg['search'].get('choose') == 'nearest':
-            # Stage 5 room (v5): of several copies of the target, the nearest (a confirmed one first).
-            return max(spots, key=lambda s: (s.status == 'target', -math.dist(s.xy, here[:2])))
         return max(spots, key=lambda s: (s.status == 'target', s.weight,
                                          -math.dist(s.xy, here[:2])))
 
@@ -377,14 +382,9 @@ class Brain:
         time.sleep(0.5)
         self.check()
         wz = float(cfg['spin_wz_radps'])
-        # Stage 5 room (v5, search.choose 'nearest'): the room has two of each target, and a spin
-        # that stops at the first one in view takes whichever the start heading shows first (board
-        # 20261112T124159Z: henry at 1.25 m on the left taken, the one at 1.03 m on the right not
-        # seen). So the spin goes all the way round, then the nearest of the copies seen is chosen.
-        full = cfg.get('choose') == 'nearest'
         _, _, yaw_prev = approach.odom_of(self.robot.snapshot())
         turned = 0.0
-        found = sight = None
+        found = None
         self.eyes.frame('search', fresh=True)
         self.robot.move(0.0, 0.0, wz)
         try:
@@ -398,7 +398,7 @@ class Brain:
                 self.log('spin_frame', seq=sight.seq, mono_frame=sight.mono, pose=self.pose.of(sight.state),
                          turned_deg=round(math.degrees(turned), 1), seen=seen, view=sight.view, ms=sight.ms)
                 found = self.next_candidate()
-                if found is not None and not full:
+                if found is not None:
                     self.shot(sight, 'spin_found')
                     break
         finally:
@@ -406,15 +406,9 @@ class Brain:
         self.spin_left = max(0.0, self.spin_left - math.degrees(turned))
         time.sleep(0.3)
         if found is not None:
-            if full:
-                x, y, _ = self.here()
-                self.log('spin_choice', chosen=found.id, turned_deg=round(math.degrees(turned), 1), copies=[
-                    {'spot': s.id, 'xy': [round(v, 3) for v in s.xy], 'frames': s.frames,
-                     'dist': round(math.dist(s.xy, (x, y)), 3), 'status': s.status}
-                    for s in self.seen.of_class(self.target, ('seen', 'target'))])
-                if sight is not None:
-                    self.shot(sight, 'spin_found')
-                self.spin_left = float(cfg['spin_deg'])      # a later spin is a whole circle again
+            if found is not self.candidate:
+                self.log('target_locked', spot=found.as_dict(), turned_deg=round(math.degrees(turned), 1),
+                         locked=self.cfg['search'].get('choose') == 'first')
             self.candidate = found
             return 'LOOK'
         self.spins += 1

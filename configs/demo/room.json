@@ -352,8 +352,8 @@
     ]
    ],
    "max_spins": 3,
-   "choose": "nearest",
-   "note_choose": "v5 (Ethan 2026-11-14: with two of each target the choice was not consistent): the spin goes all the way round (spin_deg) and the nearest copy seen in >= spin_hits frames is the candidate (brain.s_spin, next_candidate), instead of stopping at the first copy in view. Board 20261112T124159Z (v4.1, seed 5000): henry_2 at 1.25 m, 72 deg to the left, was fetched while henry was 1.03 m away 47 deg to the right; ketchup at 1.42 m ahead was fetched while ketchup_2 was 1.25 m away; board 5001 takes 1 and 3 fetched different copies from different start headings. Costs a full turn per target (about 8 s at 0.8 rad/s). Distances are the spin's rough ranges (search.note), so two copies at nearly the same distance can still swap. Remove this key for the Stage 3 rule (first seen)."
+   "choose": "first",
+   "note_choose": "v5 (Ethan 2026-11-14: with two of each target, the first one found is locked): the spin stops at the first target seen in >= spin_hits frames, as in Stage 3, and that spot stays the candidate for as long as it is live (brain.next_candidate): only a spot dropped after max_misses looks or goto.max_approach_tries approaches, or one that turns out a distractor, lets the brain go to another copy or spin again. Without the key a missed look re-ranks the spots by weight and can change copy part-way. Which copy is found first still depends on the start heading (the spin turns left): board 20261112T124159Z fetched henry_2 at 1.25 m, 72 deg to the left, with henry 1.03 m away 47 deg to the right. A spin all the way round then the nearest copy was tried first in v5 and dropped by Ethan the same day (commit 4d27d85)."
   },
   "episode": {
    "max_s": 240.0

@@ -852,16 +852,17 @@ class RoomDropTests(StubbedMotion):
 
 
 class RoomSpinTests(StubbedMotion):
-    """v5: the room has two of each target; the spin goes all the way round and the nearest copy is
-    chosen (room.json search.choose 'nearest'). Stage 3 stops at the first copy in view."""
-    FAR, NEAR = (0.0, 1.25), (0.75, -0.7)       # 90 deg to the left, 1.25 m; 43 deg to the right, 1.03 m
+    """v5: the room has two of each target; the first one found is locked (room.json search.choose
+    'first'). The spin stops at the first copy in view, as in Stage 3; the room keeps that copy while
+    its spot is live, Stage 3 re-ranks the spots after a missed look."""
+    FIRST, OTHER = (0.0, 1.25), (0.75, -0.7)    # 90 deg to the left, 1.25 m; 43 deg to the right, 1.03 m
 
     def spin(self, configs, step_deg=20.0):
         robot = FakeRobot()
 
         def script(r, seq):
             out = []
-            for toy in (self.FAR, self.NEAR):
+            for toy in (self.FIRST, self.OTHER):
                 ahead = body_of(r, toy)
                 if abs(math.atan2(ahead[1], ahead[0])) < math.radians(22.5):
                     out += toy_at('bus', toy)(r, seq)
@@ -873,48 +874,56 @@ class RoomSpinTests(StubbedMotion):
         b.log = lambda event, **f: b.events.append((event, f))
         return robot, b
 
-    def test_the_room_spins_all_the_way_and_takes_the_nearest_copy(self):
-        robot, b = self.spin(ROOM)
-        self.assertEqual(b.s_spin(), 'LOOK')
-        self.assertLess(math.dist(b.candidate.xy, self.NEAR), 1e-6)
-        turned = sum(math.radians(20.0) for e, _ in b.events if e == 'spin_frame')
-        self.assertGreaterEqual(math.degrees(turned), RS3['search']['spin_deg'])
-        choice = [f for e, f in b.events if e == 'spin_choice'][0]
-        self.assertEqual(choice['chosen'], b.candidate.id)
-        self.assertEqual(sorted(round(c['dist'], 2) for c in choice['copies']), [1.03, 1.25])
-        self.assertEqual(b.spin_left, RS3['search']['spin_deg'])       # a later spin is a whole circle
-        self.assertEqual(b.spins, 0)
-        self.assertEqual(robot.calls[-1], ('move', 0.0, 0.0, 0.0))
+    def test_the_spin_stops_at_the_first_copy_in_view_and_locks_it(self):
+        for configs, locked in ((ROOM, True), (CONFIGS, False)):
+            robot, b = self.spin(configs)
+            self.assertEqual(b.s_spin(), 'LOOK')
+            self.assertLess(math.dist(b.candidate.xy, self.FIRST), 1e-6)     # the one on the left comes first
+            self.assertLess(sum(1 for e, _ in b.events if e == 'spin_frame') * 20.0, 180.0)
+            lock = [f for e, f in b.events if e == 'target_locked']
+            self.assertEqual((len(lock), lock[0]['spot']['id'], lock[0]['locked']), (1, b.candidate.id, locked))
 
-    def test_stage3_stops_at_the_first_copy_in_view(self):
+    def two_copies(self, configs):
+        robot, b = self.spin(configs)
+        first = b.seen.add('bus', self.FIRST, 0.5, 1.25)
+        first.frames = 2
+        other = b.seen.add('bus', self.OTHER, 5.0, 1.03)       # nearer, and seen in more frames
+        other.frames = 10
+        b.candidate = first
+        return b, first, other
+
+    def test_the_room_keeps_the_locked_copy_after_a_missed_look(self):
+        b, first, other = self.two_copies(ROOM)
+        first.misses = 1                                       # one look without it: still live
+        self.assertIs(b.next_candidate(), first)
+        first.status = 'target'
+        self.assertIs(b.next_candidate(), first)
+
+    def test_stage3_re_ranks_and_can_change_copy(self):
         self.assertNotIn('choose', S3['search'])
-        robot, b = self.spin(CONFIGS)
-        self.assertEqual(b.s_spin(), 'LOOK')
-        self.assertLess(math.dist(b.candidate.xy, self.FAR), 1e-6)       # the one on the left comes first
-        self.assertFalse([e for e, _ in b.events if e == 'spin_choice'])
-        self.assertLess(sum(1 for e, _ in b.events if e == 'spin_frame') * 20.0, 180.0)
+        b, first, other = self.two_copies(CONFIGS)
+        self.assertIs(b.next_candidate(), other)               # the heavier spot wins
 
-    def test_a_confirmed_copy_is_kept_over_a_nearer_one(self):
-        robot, b = self.spin(ROOM)
-        far = b.seen.add('bus', self.FAR, 1.0, 1.25)
-        far.frames, far.status = 5, 'target'
-        near = b.seen.add('bus', self.NEAR, 1.0, 1.03)
-        near.frames = 5
-        self.assertIs(b.next_candidate(), far)
-        far.status = 'dropped'
-        self.assertIs(b.next_candidate(), near)
+    def test_a_dropped_or_distractor_lock_lets_the_other_copy_in(self):
+        for status in ('dropped', 'distractor'):
+            b, first, other = self.two_copies(ROOM)
+            first.status = status
+            self.assertIs(b.next_candidate(), other)
+        b, first, other = self.two_copies(ROOM)
+        first.status = other.status = 'dropped'
+        self.assertIsNone(b.next_candidate())
 
-    def test_an_empty_room_spin_still_relocates_then_fails(self):
-        robot = FakeRobot()
-        eyes = FakeEyes(robot, lambda r, s: [], before=lambda r: r.turn_by(math.radians(30)))
-        b = Brain(robot, eyes, None, ROOM, 'bus', start=(0.0, 0.0, 0.0))
-        b.t0 = 0.0
-        results = []
-        with self.assertRaises(brain_lib.Ended) as done:
-            for _ in range(RS3['search']['max_spins']):
-                results.append(b.s_spin())
-        self.assertEqual(done.exception.reason, 'search_fail')
-        self.assertEqual(results, ['RELOCATE'] * (RS3['search']['max_spins'] - 1))
+    def test_a_missed_look_in_the_room_looks_at_the_same_copy_again(self):
+        b, first, other = self.two_copies(ROOM)
+        b.robot.x, b.robot.y = 0.0, 0.3                        # 0.95 m from the first copy, nothing in view
+        b.eyes.script = lambda r, seq: []
+        b.eyes.before = None
+        self.assertEqual(b.s_look(), 'LOOK')
+        self.assertIs(b.candidate, first)
+        self.assertEqual(first.misses, 1)
+        self.assertEqual(b.s_look(), 'LOOK')                   # max_misses looks: dropped, on to the other copy
+        self.assertEqual(first.status, 'dropped')
+        self.assertIs(b.candidate, other)
 
 
 class RoomTrayLookTests(StubbedMotion):
