@@ -698,6 +698,53 @@ class RoomSceneTests(unittest.TestCase):
                          ['tray_base', 'tray_rim_nx', 'tray_rim_ny', 'tray_rim_px', 'tray_rim_py'])
 
 
+@unittest.skipIf(mujoco is None, 'mujoco not available')
+class ReplayTrailTests(unittest.TestCase):
+    """v5: the replay video draws the path the robot has walked (stage5/replay.py), so a sped-up
+    video still shows where it went. Checked on a bare MjvScene: drawing needs no renderer."""
+
+    def test_trail_points_follow_the_walk_and_ignore_standing(self):
+        from microduck_toy.stage5 import replay
+        xy = np.array([[0, 0], [0.01, 0], [0.02, 0], [0.035, 0], [0.035, 0], [0.035, 0.001], [0.035, 0.05]])
+        self.assertEqual(replay.trail_points(xy), [(0, 0.0, 0.0), (3, 0.035, 0.0), (6, 0.035, 0.05)])
+        spin = np.zeros((500, 2))                                  # turning on the spot adds nothing
+        self.assertEqual(len(replay.trail_points(spin)), 1)
+
+    def scene(self, maxgeom=40):
+        model = mujoco.MjModel.from_xml_string(
+            '<mujoco><worldbody><geom type="plane" size="1 1 .1"/></worldbody></mujoco>')
+        data = mujoco.MjData(model)
+        mujoco.mj_forward(model, data)
+        scn = mujoco.MjvScene(model, maxgeom=maxgeom)
+        mujoco.mjv_updateScene(model, data, mujoco.MjvOption(), None, mujoco.MjvCamera(),
+                               mujoco.mjtCatBit.mjCAT_ALL, scn)
+        return scn
+
+    def test_the_trail_is_capsules_on_the_floor_between_the_points(self):
+        from microduck_toy.stage5 import replay
+        scn = self.scene()
+        before = scn.ngeom
+        pts = [(0.0, 0.0), (0.03, 0.0), (0.03, 0.04)]
+        self.assertEqual(replay.add_trail(scn, pts), 2)
+        self.assertEqual(scn.ngeom, before + 2)
+        first, second = scn.geoms[before], scn.geoms[before + 1]
+        self.assertEqual(first.type, mujoco.mjtGeom.mjGEOM_CAPSULE)
+        np.testing.assert_allclose(first.pos, [0.015, 0.0, 0.004], atol=1e-6)
+        np.testing.assert_allclose(second.pos, [0.03, 0.02, 0.004], atol=1e-6)
+        self.assertAlmostEqual(float(first.size[2]), 0.015, places=5)          # half the segment
+        self.assertAlmostEqual(float(second.size[2]), 0.02, places=5)
+        np.testing.assert_allclose(first.rgba, replay.TRAIL_RGBA, atol=1e-6)
+
+    def test_no_points_or_a_full_scene_add_nothing_more(self):
+        from microduck_toy.stage5 import replay
+        scn = self.scene(maxgeom=6)
+        self.assertEqual(replay.add_trail(scn, []), 0)
+        self.assertEqual(replay.add_trail(scn, [(0.0, 0.0)]), 0)
+        room_left = scn.maxgeom - scn.ngeom
+        self.assertEqual(replay.add_trail(scn, [(0.01 * k, 0.0) for k in range(50)]), room_left)
+        self.assertEqual(scn.ngeom, scn.maxgeom)
+
+
 @unittest.skipUnless(ZSH, 'zsh not installed')
 class RoomDemoLauncherTests(unittest.TestCase):
     setUp_base = test_launchers.LauncherTests.setUp

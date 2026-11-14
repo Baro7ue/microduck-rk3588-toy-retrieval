@@ -2,14 +2,17 @@
 viewer, or any other load on the Mac, stalls the physics and robotd then misses ticks, Stage 4).
 
     python -m microduck_toy.stage5.replay runs/<UTC>_s5_room_demo[_board] [--fps 25] [--speed 1]
-        [--from S] [--to S] [--size 1280x720] [--out FILE.mp4]
+        [--from S] [--to S] [--size 1280x720] [--no-trail] [--out FILE.mp4]
 
 Reads the run's truth.qpos.f64 (every truth row's full qpos, written by the arena body in room
 mode), truth.meta.json, trials.jsonl and each episodes/<n>_<target>/brain.jsonl. Draws, per video
 frame: a camera following the robot (main picture), the robot's own head camera (inset, the
 picture the detector saw, without boxes), a top-down map (room, furniture, tray, toys, robot) and
-a caption (target, brain state, time, toys delivered so far). Time is simulation time, so a stall
-of the Mac's physics does not show as a freeze. Output: <run>/demo_video.mp4 (H.264 when OpenCV
+a caption (target, brain state, time, toys delivered so far), and the path the robot has walked so
+far as an orange trail on the floor and on the map (v5; not in the robot's own camera picture).
+With --speed above 1 the caption says so (at 8x a frame is 0.3 s of walking: the steps cannot be
+seen, the trail can). Time is simulation time, so a stall of the Mac's physics does not show as a
+freeze. Output: <run>/demo_video.mp4 (H.264 when OpenCV
 can write it, else MPEG-4).
 """
 from __future__ import annotations
@@ -65,6 +68,39 @@ def brain_states(run: Path) -> list[tuple[float, str, str]]:
     return sorted(out)
 
 
+TRAIL_RGBA = (1.0, 0.45, 0.0, 0.85)      # the robot's colour on the map
+TRAIL_STEP_M = 0.03
+TRAIL_RADIUS_M = 0.006
+
+
+def trail_points(xy: np.ndarray, step_m: float = TRAIL_STEP_M) -> list[tuple[int, float, float]]:
+    """The walked path as (row index, x, y): a new point each time the trunk is step_m from the last
+    one, so standing and spinning add nothing."""
+    out: list[tuple[int, float, float]] = []
+    for i, (x, y) in enumerate(xy):
+        if not out or math.hypot(x - out[-1][1], y - out[-1][2]) >= step_m:
+            out.append((i, float(x), float(y)))
+    return out
+
+
+def add_trail(scene, pts: list, z: float = 0.004) -> int:
+    """Draw the path pts [(x, y), ...] on the floor of an MjvScene as thin capsules (decoration
+    only: nothing in the model or the physics changes). Returns how many segments were added."""
+    rgba = np.array(TRAIL_RGBA, dtype=np.float32)
+    added = 0
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if scene.ngeom >= scene.maxgeom:
+            break
+        geom = scene.geoms[scene.ngeom]
+        mujoco.mjv_initGeom(geom, mujoco.mjtGeom.mjGEOM_CAPSULE, np.zeros(3), np.zeros(3),
+                            np.eye(3).flatten(), rgba)
+        mujoco.mjv_connector(geom, mujoco.mjtGeom.mjGEOM_CAPSULE, TRAIL_RADIUS_M,
+                             np.array([x0, y0, z]), np.array([x1, y1, z]))
+        scene.ngeom += 1
+        added += 1
+    return added
+
+
 def font(size: int):
     for name in ('/System/Library/Fonts/Helvetica.ttc', '/System/Library/Fonts/SFNS.ttf',
                  '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'):
@@ -114,6 +150,12 @@ class Replay:
         self.total = len(done.get('targets', [])) or len(self.trials)
         self.font, self.small = font(round(26 * size[1] / 720)), font(round(18 * size[1] / 720))
         self.names = list(self.ids.toys)
+        # v5: the path walked so far, on the floor of the 3-D view and on the map (not in the
+        # robot's own camera picture, which shows what the robot saw). At 8x a frame is 0.3 s of
+        # walking and the steps cannot be seen; the trail shows where it went at any speed.
+        self.trail = trail_points(self.rows[:, 2:4])
+        self.show_trail = True
+        self.speed = 1.0
 
     def frame(self, i: int, dt: float) -> Image.Image:
         t, mono = self.rows[i, 0], self.rows[i, 1]
@@ -133,6 +175,8 @@ class Replay:
         self.cam.azimuth = self.az + 180.0
         self.cam.lookat[:] = [x, y, 0.12]
         self.main.update_scene(self.data, camera=self.cam)
+        walked = [(px, py) for k, px, py in self.trail if k <= i] + [(x, y)] if self.show_trail else []
+        add_trail(self.main.scene, walked)
         img = Image.fromarray(self.main.render())
         self.eye.update_scene(self.data, camera=self.head)
         eye = Image.fromarray(scene_render.upright(self.eye.render()))
@@ -144,11 +188,11 @@ class Replay:
         draw.rectangle([W - ew - 18, 14, W - 14, 18 + eh + 26], fill=(20, 20, 20))
         img.paste(eye, (W - ew - 16, 16))
         draw.text((W - ew - 14, 18 + eh + 2), "robot's camera", font=self.small, fill=(230, 230, 230))
-        self.minimap(img, draw, x, y, yaw)
+        self.minimap(img, draw, x, y, yaw, walked)
         self.caption(draw, t, mono)
         return img
 
-    def minimap(self, img, draw, rx, ry, yaw):
+    def minimap(self, img, draw, rx, ry, yaw, walked=()):
         H = self.size[1]
         side = int(H * 0.36)
         x0, y0 = 16, H - side - 16
@@ -168,10 +212,13 @@ class Replay:
                 draw.rectangle([*px(bx - hx, by + hy), *px(bx + hx, by - hy)], fill=c)
         tx, ty = (float(v) for v in self.cfg['tray']['centre_m'])
         th = float(self.cfg['tray']['size_m']) / 2
-        if self.cfg['tray'].get('shape') == 'round':
+        if self.cfg['tray'].get('shape') in ('round', 'bowl'):      # the bowl: its lip, from above
             draw.ellipse([*px(tx - th, ty + th), *px(tx + th, ty - th)], fill=(77, 77, 87))
         else:
             draw.rectangle([*px(tx - th, ty + th), *px(tx + th, ty - th)], fill=(77, 77, 87))
+        if len(walked) > 1:
+            draw.line([px(wx, wy) for wx, wy in walked], fill=tuple(int(255 * v) for v in TRAIL_RGBA[:3]),
+                      width=2)
         for name in self.names:
             q = self.ids.toys[name]['qadr']
             x, y = float(self.data.qpos[q]), float(self.data.qpos[q + 1])
@@ -214,7 +261,8 @@ class Replay:
         centre = [float(v) for v in self.cfg['tray']['centre_m']]
         done = [toy_lib.SHORT[n] for n in self.names
                 if room.in_tray(row, toy_lib.SHORT[n], centre, self.cfg['tray'], self.s3)]
-        lines.append(f'sim time {t:6.1f} s    in the tray: {", ".join(done) if done else "-"}')
+        fast = '' if self.speed == 1.0 else f'   {self.speed:g}x speed'
+        lines.append(f'sim time {t:6.1f} s{fast}    in the tray: {", ".join(done) if done else "-"}')
         y = 14
         for i, line in enumerate(lines):
             f = self.font if i == 0 else self.small
@@ -241,12 +289,14 @@ def main(argv=None) -> int:
     ap.add_argument('--from', dest='t_from', type=float, default=None, help='sim time to start at, s')
     ap.add_argument('--to', dest='t_to', type=float, default=None, help='sim time to stop at, s')
     ap.add_argument('--size', default='1280x720')
+    ap.add_argument('--no-trail', action='store_true', help='do not draw the path the robot has walked')
     ap.add_argument('--out', default=None)
     a = ap.parse_args(argv)
     import cv2
     run = Path(a.run)
     size = tuple(int(v) for v in a.size.lower().split('x'))
     rp = Replay(run, size)
+    rp.show_trail, rp.speed = not a.no_trail, a.speed
     t = rp.rows[:, 0]
     t0 = a.t_from if a.t_from is not None else float(t[0])
     t1 = a.t_to if a.t_to is not None else float(t[-1])

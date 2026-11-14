@@ -851,6 +851,72 @@ class RoomDropTests(StubbedMotion):
         self.assertEqual(b.away(math.radians(-122))[0], RS3['drop']['leave']['pulse_ahead'])
 
 
+class RoomSpinTests(StubbedMotion):
+    """v5: the room has two of each target; the spin goes all the way round and the nearest copy is
+    chosen (room.json search.choose 'nearest'). Stage 3 stops at the first copy in view."""
+    FAR, NEAR = (0.0, 1.25), (0.75, -0.7)       # 90 deg to the left, 1.25 m; 43 deg to the right, 1.03 m
+
+    def spin(self, configs, step_deg=20.0):
+        robot = FakeRobot()
+
+        def script(r, seq):
+            out = []
+            for toy in (self.FAR, self.NEAR):
+                ahead = body_of(r, toy)
+                if abs(math.atan2(ahead[1], ahead[0])) < math.radians(22.5):
+                    out += toy_at('bus', toy)(r, seq)
+            return out
+        eyes = FakeEyes(robot, script, before=lambda r: r.turn_by(math.radians(step_deg)))
+        b = Brain(robot, eyes, None, configs, 'bus', start=(0.0, 0.0, 0.0))
+        b.t0 = 0.0
+        b.events = []
+        b.log = lambda event, **f: b.events.append((event, f))
+        return robot, b
+
+    def test_the_room_spins_all_the_way_and_takes_the_nearest_copy(self):
+        robot, b = self.spin(ROOM)
+        self.assertEqual(b.s_spin(), 'LOOK')
+        self.assertLess(math.dist(b.candidate.xy, self.NEAR), 1e-6)
+        turned = sum(math.radians(20.0) for e, _ in b.events if e == 'spin_frame')
+        self.assertGreaterEqual(math.degrees(turned), RS3['search']['spin_deg'])
+        choice = [f for e, f in b.events if e == 'spin_choice'][0]
+        self.assertEqual(choice['chosen'], b.candidate.id)
+        self.assertEqual(sorted(round(c['dist'], 2) for c in choice['copies']), [1.03, 1.25])
+        self.assertEqual(b.spin_left, RS3['search']['spin_deg'])       # a later spin is a whole circle
+        self.assertEqual(b.spins, 0)
+        self.assertEqual(robot.calls[-1], ('move', 0.0, 0.0, 0.0))
+
+    def test_stage3_stops_at_the_first_copy_in_view(self):
+        self.assertNotIn('choose', S3['search'])
+        robot, b = self.spin(CONFIGS)
+        self.assertEqual(b.s_spin(), 'LOOK')
+        self.assertLess(math.dist(b.candidate.xy, self.FAR), 1e-6)       # the one on the left comes first
+        self.assertFalse([e for e, _ in b.events if e == 'spin_choice'])
+        self.assertLess(sum(1 for e, _ in b.events if e == 'spin_frame') * 20.0, 180.0)
+
+    def test_a_confirmed_copy_is_kept_over_a_nearer_one(self):
+        robot, b = self.spin(ROOM)
+        far = b.seen.add('bus', self.FAR, 1.0, 1.25)
+        far.frames, far.status = 5, 'target'
+        near = b.seen.add('bus', self.NEAR, 1.0, 1.03)
+        near.frames = 5
+        self.assertIs(b.next_candidate(), far)
+        far.status = 'dropped'
+        self.assertIs(b.next_candidate(), near)
+
+    def test_an_empty_room_spin_still_relocates_then_fails(self):
+        robot = FakeRobot()
+        eyes = FakeEyes(robot, lambda r, s: [], before=lambda r: r.turn_by(math.radians(30)))
+        b = Brain(robot, eyes, None, ROOM, 'bus', start=(0.0, 0.0, 0.0))
+        b.t0 = 0.0
+        results = []
+        with self.assertRaises(brain_lib.Ended) as done:
+            for _ in range(RS3['search']['max_spins']):
+                results.append(b.s_spin())
+        self.assertEqual(done.exception.reason, 'search_fail')
+        self.assertEqual(results, ['RELOCATE'] * (RS3['search']['max_spins'] - 1))
+
+
 class RoomTrayLookTests(StubbedMotion):
     CX, CY = ROOM['stage1']['arena']['tray']['centre_m']
 
