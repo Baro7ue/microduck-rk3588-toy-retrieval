@@ -171,6 +171,7 @@ class Field:
     tray_half_m: float            # half the tray side
     tray_inflate_m: float         # extra clearance around the tray
     clear_m: float                # clearance around a known toy
+    tray_exit_m: float = 0.0      # > 0 (Stage 5 v2): a start in the tray box steps out first (plan_route)
 
     @classmethod
     def from_config(cls, stage1: dict, stage3: dict) -> 'Field':
@@ -178,7 +179,8 @@ class Field:
         return cls(half_m=float(arena['half_size_m']), keep_in_m=float(route['keep_in_m']),
                    tray_centre=tuple(float(v) for v in arena['tray']['centre_m']),
                    tray_half_m=float(arena['tray']['size_m']) / 2,
-                   tray_inflate_m=float(route['tray_inflate_m']), clear_m=float(route['clear_m']))
+                   tray_inflate_m=float(route['tray_inflate_m']), clear_m=float(route['clear_m']),
+                   tray_exit_m=float(route.get('tray_exit_m', 0.0)))
 
     def inside(self, p, margin: float = 0.0) -> bool:
         lim = self.half_m - self.keep_in_m + margin
@@ -232,6 +234,32 @@ def segment_clear(a, b, circles, boxes, fld: Field) -> bool:
     return not any(seg_hits_box(a, b, box) for box in boxes)
 
 
+def tray_exit(start, fld: Field) -> tuple[float, float] | None:
+    """Where a start inside the tray box (tray half + tray_inflate_m) leaves it: straight away from
+    the tray centre to fld.tray_exit_m outside the box; if that point is outside the keep-in square
+    (the +x side is 0.2 m from the wall), straight out sideways along the axis closest to that
+    direction, kept in the square. None if no way out stays in the field."""
+    cx, cy = fld.tray_centre
+    sx, sy = float(start[0]), float(start[1])
+    h = fld.tray_half_m + fld.tray_inflate_m + fld.tray_exit_m
+    dx, dy = sx - cx, sy - cy
+    if math.hypot(dx, dy) > 1e-6:
+        m = max(abs(dx), abs(dy))
+        p = (cx + dx / m * h, cy + dy / m * h)          # on the square of half h, away from the centre
+        if fld.inside(p):
+            return p
+    lim = fld.half_m - fld.keep_in_m
+    box = fld.tray_box()
+    axes = [(-1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (1.0, 0.0)]
+    axes.sort(key=lambda a: -(a[0] * dx + a[1] * dy))
+    for ux, uy in axes:
+        p = (cx + ux * h, sy) if ux else (sx, cy + uy * h)
+        p = (max(-lim, min(lim, p[0])), max(-lim, min(lim, p[1])))
+        if not in_box(p, box):
+            return p
+    return None
+
+
 def plan_route(start, goal, obstacles, fld: Field, avoid_tray: bool = True,
                ring: int = 8) -> list[tuple[float, float]] | None:
     """Waypoints from start to goal (start excluded, goal included), or None when no route.
@@ -239,13 +267,23 @@ def plan_route(start, goal, obstacles, fld: Field, avoid_tray: bool = True,
     obstacles: field points of known toys (circles of fld.clear_m) or [(x, y), r] pairs. An obstacle
     (or the tray) that already contains the start or the goal is left out: the robot may leave a
     place it is standing in, and may stop next to the toy it is walking to. A start outside the
-    keep-in square (odometry after a fall, cloud 3D) first steps straight back into it.
+    keep-in square (odometry after a fall, cloud 3D) first steps straight back into it. With
+    fld.tray_exit_m > 0 (Stage 5 v2) a start inside the tray box first steps straight out of it
+    (tray_exit) and the rest of the route goes round the tray: left out, the line from a drop spot
+    to the next target crossed the tray (board run 20261112T025144Z, the bus kicked out).
     """
     if not fld.inside(start, 0.02):
         lim = fld.half_m - fld.keep_in_m
         entry = (max(-lim, min(lim, float(start[0]))), max(-lim, min(lim, float(start[1]))))
         rest = plan_route(entry, goal, obstacles, fld, avoid_tray, ring)
         return None if rest is None else [entry] + rest
+    if avoid_tray and fld.tray_exit_m > 0:
+        box = fld.tray_box()
+        if in_box(start, box) and not in_box(goal, box):
+            out = tray_exit(start, fld)
+            if out is not None:
+                rest = plan_route(out, goal, obstacles, fld, avoid_tray, ring)
+                return None if rest is None else [out] + rest
     circles = []
     for o in obstacles:
         (c, r) = (o if isinstance(o[0], (tuple, list)) else (o, fld.clear_m))

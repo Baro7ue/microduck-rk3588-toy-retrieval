@@ -20,6 +20,8 @@ Stages 1 and 2 and returns the next state (plan section 3):
     CARRY      H1 to the chosen side's staging point, square up facing the tray
     TRAY_LOOK  H1 tray box -> where the tray centre is
     DROP       H0 walk until the trunk is d from the centre, open the beak, end
+               (Stage 5 room: drop.settle stands until still instead of stand_s, drop.tof_walk
+               false walks up to the bowl without the ToF stop, drop.leave backs off and turns away)
     FALLEN     (any state) wait for velstand, then carry on from what the mouth says
     RECOVER    the toy came out in a fall: look at the feet, else re-search
 
@@ -41,6 +43,7 @@ from microduck_toy.control.inching import load_pulses
 from microduck_toy.control.pick import ground_pick, mouth_angle
 from microduck_toy.control.robot import Events, Robot, UPRIGHT
 from microduck_toy.paths import repo_root
+from microduck_toy.scene import bowl as bowl_lib
 from microduck_toy.stage3 import shots as shots_lib, tray as tray_lib
 from microduck_toy.stage3.world import (Field, FieldPose, Sightings, approach_point, bearing_to,
                                         plan_route, to_field, wrap)
@@ -65,13 +68,21 @@ class Ended(Exception):
         self.reason, self.detail = reason, detail
 
 
-def load_configs(root: Path | None = None) -> dict:
+def load_configs(root: Path | None = None, override: str | Path | None = None) -> dict:
+    """The four frozen configs. override (Stage 5 room demo, e.g. configs/demo/room.json, relative to
+    the repo): its 'stage1' and 'stage3' sections are deep-merged over those two (stage5/room.py)."""
     root = root or repo_root()
     read = lambda p: json.loads((root / p).read_text())  # noqa: E731
-    return {'stage3': read('configs/control/stage3.json'),
-            'stage1': read('configs/control/stage1.json'),
-            'facts1': read('configs/control/stage1_facts.json'),
-            'stage2': read('configs/vision/stage2.json')}
+    configs = {'stage3': read('configs/control/stage3.json'),
+               'stage1': read('configs/control/stage1.json'),
+               'facts1': read('configs/control/stage1_facts.json'),
+               'stage2': read('configs/vision/stage2.json')}
+    if override:
+        from microduck_toy.stage5 import room
+        doc = room.load(root / override)
+        for name in ('stage1', 'stage3'):
+            configs[name] = room.deep_merge(configs[name], doc.get(name, {}))
+    return configs
 
 
 def points_of(obstacles: list) -> list:
@@ -106,6 +117,9 @@ class Brain:
         self.side_forced = side
         self.retreat = load_pulses(self.f1, [self.s1['inching']['retreat']])[self.s1['inching']['retreat']]
         self.tof_retreat = load_pulses(self.f1, [self.cfg['tof']['retreat']])[self.cfg['tof']['retreat']]
+        leave = self.cfg['drop'].get('leave') or {}     # Stage 5 room only: drop.leave
+        self.ahead = (load_pulses(self.f1, [leave['pulse_ahead']])[leave['pulse_ahead']]
+                      if leave.get('pulse_ahead') else None)
         self.plane = {k: float(v) for k, v in self.cfg['plane_z_m'].items() if k != 'note'}
         self.log_file = Path(log_path).open('a') if log_path else None
         self.lock = threading.Lock()
@@ -178,13 +192,13 @@ class Brain:
         if self.elapsed() > float(self.cfg['episode']['max_s']):
             raise Timeout()
 
-    def walk_stop(self, state: dict):
-        """approach.walk's stop hook: fall, clock, ToF (in that order)."""
+    def walk_stop(self, state: dict, tof: bool = True):
+        """approach.walk's stop hook: fall, clock, ToF (in that order; tof False: no ToF)."""
         if state['safety'].get('fallen') or len(self.robot.falls) > self.falls_handled:
             return 'fallen'
         if self.elapsed() > float(self.cfg['episode']['max_s']):
             return 'timeout'
-        if self.tof is not None:
+        if tof and self.tof is not None:
             hit = self.tof.stop_reason()
             if hit is not None:
                 return {'tof': hit, 'pose': self.pose.of(state)}
@@ -206,11 +220,13 @@ class Brain:
         self.check()
         return out
 
-    def walk(self, distance: float, bearing: float, vx: float) -> dict:
-        if self.tof is not None:
+    def walk(self, distance: float, bearing: float, vx: float, tof: bool = True) -> dict:
+        """tof False: no ToF stop on this walk (Stage 5 room drop.tof_walk: the walk up to the
+        bowl, whose 7.5 cm lip the ToF takes for an obstacle; falls and the clock still stop it)."""
+        if tof and self.tof is not None:
             self.tof.arm()
         out = approach.walk(self.robot, distance, bearing, {**self.s1['approach'], 'walk_vx_mps': vx},
-                            stop=self.walk_stop)
+                            stop=self.walk_stop if tof else (lambda state: self.walk_stop(state, tof=False)))
         stopped = out.get('stopped')
         if stopped == 'fallen':
             raise Fallen()
@@ -287,6 +303,10 @@ class Brain:
                   'side': {k: v for k, v in (self.side or {}).items() if k != 'route'},
                   'tray': self.tray, 'drop_d': self.drop_d,
                   'sightings': [s.as_dict() for s in self.seen.spots]}
+        try:                                # where the brain thinks it ended (Stage 5: the next start)
+            result['pose'] = [round(float(v), 5) for v in self.here()]
+        except Exception:
+            result['pose'] = None
         self.log('end', **{k: result[k] for k in ('end', 'elapsed_s', 'closes', 'holding')},
                  detail=end.detail)
         return result
@@ -343,6 +363,14 @@ class Brain:
         here = self.here()
         spots = [s for s in self.seen.of_class(self.target, ('seen', 'target'))
                  if s.frames >= int(self.cfg['search']['spin_hits'])]
+        # Stage 5 room (v5, search.choose 'first'; Ethan 2026-11-14: the first target found is
+        # locked): the room has two of each target, and while the one chosen first is still a live
+        # spot (not dropped after max_misses looks or approaches, not turned out a distractor) it
+        # stays the candidate. Without the key a missed look re-ranks the spots by weight and can
+        # change to the other copy part-way.
+        if self.cfg['search'].get('choose') == 'first' and self.candidate is not None \
+                and self.candidate in self.seen.of_class(self.target, ('seen', 'target')):
+            return self.candidate
         if not spots:
             return None
         return max(spots, key=lambda s: (s.status == 'target', s.weight,
@@ -378,6 +406,9 @@ class Brain:
         self.spin_left = max(0.0, self.spin_left - math.degrees(turned))
         time.sleep(0.3)
         if found is not None:
+            if found is not self.candidate:
+                self.log('target_locked', spot=found.as_dict(), turned_deg=round(math.degrees(turned), 1),
+                         locked=self.cfg['search'].get('choose') == 'first')
             self.candidate = found
             return 'LOOK'
         self.spins += 1
@@ -622,22 +653,50 @@ class Brain:
         time.sleep(float(cfg['settle_s']))
         self.check()
         self.eyes.frame('approach', fresh=True)
-        looks = []
+        looks, sights = [], []
         for _ in range(int(cfg['frames'])):
             sight = self.eyes.frame('approach')
             looks.append((sight.state, sight.boxes))
+            sights.append(sight)
         state = self.robot.snapshot()
         expected = self.pose.body(state, self.fld.tray_centre)
         doubt = self.pose_doubt
         accept = float(cfg['accept_after_fall_m'] if doubt else cfg['accept_m'])
-        m = tray_lib.measure_tray(looks, self.cam, {**cfg, 'accept_m': accept}, self.fld.tray_half_m,
-                                  float(self.s1['arena']['tray']['rim_height_m']), expected,
-                                  near_z_m=self.plane['tray'])
+        arena_tray = self.s1['arena']['tray']
+        if arena_tray.get('shape') == 'bowl':
+            # Stage 5 room demo v4: the bowl, from both edges of each box (tray.measure_tray's bowl
+            # rule took the bottom edge only and ranged a split bowl 9.8 cm long: Mac
+            # 20261112T113436Z henry). Every frame's candidates, verdicts and the state they were
+            # ranged with go into the log.
+            m = tray_lib.measure_bowl(looks, self.cam, {**cfg, 'accept_m': accept},
+                                      bowl_lib.profile(arena_tray), expected, near_z_m=self.plane['tray'])
+            for rec, s in zip(m['per_frame'], sights):
+                st = s.state or {}
+                rec.update(seq=s.seq, mono=s.mono, received=s.received, state={
+                    't': st.get('t'), 'odom': st.get('odom'), 'imu_quat': (st.get('imu') or {}).get('quat'),
+                    'camera': (st.get('frames') or {}).get('camera')})
+        else:
+            # Stage 5 room demo only: the round tray is ranged by its own rule (tray.measure_tray).
+            round_tray = {'shape': 'round'} if arena_tray.get('shape') == 'round' else {}
+            m = tray_lib.measure_tray(looks, self.cam, {**cfg, 'accept_m': accept}, self.fld.tray_half_m,
+                                      float(arena_tray['rim_height_m']), expected,
+                                      near_z_m=self.plane['tray'], **round_tray)
+        m['mono'] = round(time.monotonic(), 3)   # when (the demo judge checks the look on truth)
         if doubt and m['source'] == 'yolo' and m['used'] < int(cfg['min_frames_after_fall']):
             m.update(centre=list(expected), source='odometry', too_few=True)
         m['boxes'] = [[b for b in boxes if b['cls'] == 'tray'] for _, boxes in looks]
         self.shot(sight, 'tray_' + m['source'])
         m['pose_doubt'] = doubt
+        # The bowl seen only in part (measure_bowl: no frame whose box covers it, hint_bearing): turn
+        # to it and look again, within max_turns (a bowl cut by the picture's side, as henry's was).
+        hint = m.get('hint_bearing')
+        if (hint is not None and m['source'] != 'yolo' and abs(hint) > math.radians(cfg['turn_tol_deg'])
+                and self.tray_turns < int(cfg['max_turns'])):
+            self.tray_turns += 1
+            self.tray = m
+            self.log('tray_look', **m, recarry=False, hint_turn_deg=round(math.degrees(hint), 1))
+            self.turn(hint)
+            return 'TRAY_LOOK'
         # After a fall the tray may be well off to the side (cloud 3D: 88 deg right after two falls,
         # out of the +-22.5 deg picture, and the toy went down on odometry 0.4 m away): look around.
         scans = cfg['scan_after_fall_deg']
@@ -684,14 +743,23 @@ class Brain:
         centre = self.tray['centre']
         self.head(cfg['head'])
         time.sleep(0.5)
+        # Stage 3: walk to d, stand stand_s, open. Stage 5 room (v4, Ethan 2026-11-12: drop from
+        # outside the bowl again, no walking in): the same walk, without the ToF stop
+        # (drop.tof_walk false: the bowl's lip is 7.5 cm, an obstacle to the ToF), then stand
+        # until still (drop.settle) instead of a fixed stand_s.
         w = tray_lib.drop_walk(centre, self.drop_d)
         out = {'plan': w}
         b = w['bearing']
         if abs(b) > math.radians(cfg['turn_tol_deg']):
             out['turn'] = self.turn(b)
             b = 0.0
-        out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']))
-        time.sleep(float(cfg['stand_s']))
+        out['walk'] = self.walk(w['distance'], b, float(cfg['vx_mps']), tof=bool(cfg.get('tof_walk', True)))
+        if cfg.get('settle'):
+            out['settle'] = self.settle()
+            out['range_m'], aim = self.tray_range()
+            out['aim_deg'] = math.degrees(aim)
+        else:
+            time.sleep(float(cfg['stand_s']))
         self.check()
         out['open'] = time.monotonic()
         self.log('drop_open', **out)
@@ -701,7 +769,139 @@ class Brain:
         time.sleep(0.3)
         still = self.holding_now()
         self.holding = still
+        if cfg.get('leave'):                     # Stage 5 room: back off and turn away
+            out['leave'] = self.leave_tray(cfg['leave'])
         self.end('dropped', still_holding=still, drop=out)
+
+    # ── Stage 5 room: settle before the opening, then leave the bowl ────
+
+    def tray_range(self) -> tuple[float, float]:
+        """The tray centre from where the robot is now (odometry since the tray look, which put the
+        measured centre at the field's tray centre): (range m, bearing rad, left > 0)."""
+        f, l = self.pose.body(self.robot.snapshot(), self.fld.tray_centre)
+        return math.hypot(f, l), math.atan2(l, f)
+
+    def settle(self) -> dict:
+        """Wait until the robot stands still on odometry (drop.settle): over the last window_s it moved
+        at most still_mps and turned at most still_degps; at least min_s, at most max_s."""
+        cfg = self.cfg['drop']['settle']
+        win, v_max = float(cfg['window_s']), float(cfg['still_mps'])
+        w_max = math.radians(float(cfg['still_degps']))
+        t0 = time.monotonic()
+        hist: list = []
+        while True:
+            state = self.robot.next_states(1)[0]
+            if state['safety'].get('fallen') or len(self.robot.falls) > self.falls_handled:
+                raise Fallen()
+            t = float(state['t'])
+            hist.append((t, *approach.odom_of(state)))
+            while len(hist) > 2 and hist[1][0] <= t - win:
+                hist.pop(0)
+            waited = time.monotonic() - t0
+            span = hist[-1][0] - hist[0][0]
+            if waited >= float(cfg['min_s']) and span >= 0.8 * win:
+                moved = math.dist(hist[0][1:3], hist[-1][1:3]) / span
+                turned = abs(wrap(hist[-1][3] - hist[0][3])) / span
+                if moved <= v_max and turned <= w_max:
+                    return {'settle_s': round(waited, 3), 'still': True}
+            if waited >= float(cfg['max_s']):
+                return {'settle_s': round(waited, 3), 'still': False}
+
+    def away(self, aim: float):
+        """(name, pulse) that moves the trunk away from the tray centre whose bearing is aim: the
+        retreat (B10) while the centre is ahead, leave.pulse_ahead (F5) once it is behind, or
+        (None, None) without one. v2 always backed off, which went towards the centre when it was
+        behind (Mac 20261112T035420Z ketchup, centre 122 deg off)."""
+        if abs(aim) <= math.pi / 2:
+            return self.retreat.name, self.retreat
+        if self.ahead is None:
+            return None, None
+        return self.ahead.name, self.ahead
+
+    def back_out(self, clear_m: float, rec: dict, phase: str) -> dict:
+        """Move the trunk away from the tray centre until it is clear_m from it (odometry), filling
+        rec as it goes (a fall or the clock leaves in rec what was done; phase is for the log). Each
+        step: settle, read range r and the centre's bearing, then (drop.leave)
+
+          r >= clear_m                                               -> clear
+          max_no_gain pulses each gained < min_gain_m                -> no_gain (stuck, e.g. spinning on the rim)
+          max_pulses sent                                            -> out_of_pulses
+          centre > aim_back_deg off ahead, r >= leave.turn_above_m,
+          fewer than max_turns turns                                 -> turn to face it
+          else                                                       -> one pulse away from it (away())
+
+        rec['clear'] is True only for clear. So the robot backs straight out and turns only with its
+        trunk at least leave.turn_above_m from the centre (v4: from outside the bowl it starts there;
+        v3 walked into the tray, and turning on the rim spun it). Why (v2 leave_tray): board 20261112T041442Z
+        ketchup backed off with the centre 73 deg to the side, a foot caught the rim (left foot on the
+        floor, the other on the tray), the robot spun about 180 deg over 4 pulses and ended 13 cm from
+        the centre; Mac 20261112T035420Z ketchup backed off with the centre behind, went into the tray
+        and fell."""
+        cfg = self.cfg['drop']['leave']
+        turn_above = float(cfg.get('turn_above_m', 0.0))
+        aim_back = math.radians(float(cfg['aim_back_deg']))
+        rec.update(phase=phase, clear_m=clear_m, clear=False, result=None, pulses=0, turns=0, steps=[])
+        no_gain, before = 0, None
+        while True:
+            settled = self.settle()
+            self.check()
+            r, aim = self.tray_range()
+            step = {'k': len(rec['steps']), 'range_m': round(r, 4),
+                    'aim_deg': round(math.degrees(aim), 1), **settled}
+            rec.setdefault('from_m', step['range_m'])
+            rec['range_m'] = step['range_m']
+            if before is not None:
+                step['gain_m'] = round(r - before, 4)
+                if r - before < float(cfg['min_gain_m']):
+                    no_gain += 1
+            if r >= clear_m:
+                act = 'clear'
+            elif no_gain >= int(cfg['max_no_gain']):
+                act = 'no_gain'
+            elif rec['pulses'] >= int(cfg['max_pulses']):
+                act = 'out_of_pulses'
+            elif abs(aim) > aim_back and r >= turn_above and rec['turns'] < int(cfg['max_turns']):
+                act = 'turn'
+            else:
+                act, pulse = self.away(aim)
+                if pulse is None:
+                    act = 'centre_behind'            # no pulse_ahead configured: stop here
+            step['act'] = act
+            before = None
+            if act == 'turn':
+                rec['turns'] += 1
+                step['turn'] = self.turn(aim)
+            elif act not in ('clear', 'no_gain', 'out_of_pulses', 'centre_behind'):
+                rec['pulses'] += 1
+                before = r
+                approach.send_pulse(self.robot, pulse)
+            rec['steps'].append(step)
+            self.log('back_step', phase=phase, **step)
+            if act in ('clear', 'no_gain', 'out_of_pulses', 'centre_behind'):
+                rec['clear'], rec['result'] = act == 'clear', act
+                return rec
+
+    def leave_tray(self, cfg: dict) -> dict:
+        """After the beak opened (drop.leave): back_out to clear_m, then, only if it got there, turn
+        to face face_xy (the field centre), so the next target's search and route start away from the
+        toys in the tray. Not clear (no_gain / out_of_pulses): no turn in or on the tray (v2 turned
+        anyway: board 20261112T041442Z ketchup 13 cm and 20261112T042500Z henry 21 cm from the
+        centre); out['clear'] False and the next run starts there (world.plan_route steps it out of
+        the tray box first). A fall or the clock here does not undo the release: logged, and the
+        next run's brain gets up. out keeps v2's pulses / from_m / range_m / fallen / timeout."""
+        out: dict = {}
+        try:
+            self.back_out(float(cfg['clear_m']), out, 'leave')
+            if out['clear']:
+                b = bearing_to(self.here(), tuple(cfg['face_xy']))
+                if abs(b) > math.radians(float(cfg['turn_tol_deg'])):
+                    out['turn'] = self.turn(b)
+        except Fallen:
+            out.update(fallen=True, clear=False, result='fallen')
+        except Timeout:                          # the episode clock ran out after the toy was let go
+            out.update(timeout=True, clear=False, result='timeout')
+        self.log('drop_leave', **out)
+        return out
 
     # ── FALLEN / RECOVER ────────────────────────────────────────────────
 
@@ -841,6 +1041,12 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument('--out', required=True)
     ap.add_argument('--frames', action='store_true',
                     help="save the robot's-eye pictures to OUT/frames (needs Pillow)")
+    ap.add_argument('--config-override', default=None,
+                    help='Stage 5 room demo: configs/demo/room.json (its stage1/stage3 sections '
+                         'deep-merged over the frozen configs)')
+    ap.add_argument('--side', default=None, choices=('x-', 'x+', 'y+', 'y-'),
+                    help='Stage 5 room demo: carry to this side of the tray (default: the shortest '
+                         'free side, stage3 carry.sides)')
     return ap
 
 
@@ -850,7 +1056,7 @@ def main(argv=None) -> int:
     args = parser().parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    configs = load_configs()
+    configs = load_configs(override=args.config_override)
     start = tuple(float(v) for v in args.start.split(','))
     events = Events(out / 'events.jsonl')
     history = StateHistory()
@@ -876,7 +1082,7 @@ def main(argv=None) -> int:
             tof.start()
         echo({'mono': time.monotonic(), 'event': 'ready'})
         brain = Brain(robot, eyes, tof, configs, args.target, start, log_path=out / 'brain.jsonl',
-                      until=args.until, drop_d=args.drop_d, echo=echo,
+                      until=args.until, drop_d=args.drop_d, side=args.side, echo=echo,
                       frames_dir=out / 'frames' if args.frames else None)
         result = brain.run()
         result['latency'] = eyes.latency()

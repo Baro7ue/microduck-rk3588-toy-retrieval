@@ -120,6 +120,52 @@ class RouteTests(unittest.TestCase):
             self.assertFalse(world.seg_hits_box(p, q, box), (p, q))
             p = q
 
+    def drop_spot_and_far_goal(self):
+        """A drop spot (0.19 m from the centre on x-, in the tray box) and a goal whose straight line
+        from there crosses the bare tray (board run 20261112T025144Z: the bus kicked out)."""
+        cx, cy = FIELD.tray_centre
+        lim = FIELD.half_m - FIELD.keep_in_m
+        start, goal = (cx - 0.19, cy), (cx + 0.05, min(lim, cy + 0.6))
+        self.assertTrue(world.seg_hits_box(start, goal, FIELD.tray_box(-FIELD.tray_inflate_m)))
+        return start, goal
+
+    def test_without_tray_exit_a_start_in_the_tray_box_ignores_the_tray(self):
+        start, goal = self.drop_spot_and_far_goal()       # the old rule, kept for Stage 3 (tray_exit_m 0)
+        self.assertEqual(world.plan_route(start, goal, [], FIELD), [goal])
+
+    def test_with_tray_exit_a_start_in_the_tray_box_steps_out_then_goes_round(self):
+        import dataclasses
+        fld = dataclasses.replace(FIELD, tray_exit_m=0.05)
+        start, goal = self.drop_spot_and_far_goal()
+        route = world.plan_route(start, goal, [], fld)
+        cx, cy = fld.tray_centre
+        box = fld.tray_box()
+        self.assertFalse(world.in_box(route[0], box))
+        self.assertGreater(math.dist(route[0], (cx, cy)), math.dist(start, (cx, cy)))  # straight away
+        self.assertLess(abs(route[0][1] - start[1]), 1e-9)                          # along x- here
+        p = route[0]
+        for q in route[1:]:
+            self.assertFalse(world.seg_hits_box(p, q, box), (p, q))
+            p = q
+        self.assertEqual(route[-1], goal)
+
+    def test_tray_exit_near_the_wall_goes_out_sideways(self):
+        import dataclasses
+        fld = dataclasses.replace(FIELD, tray_exit_m=0.05)
+        cx, cy = fld.tray_centre
+        lim = fld.half_m - fld.keep_in_m
+        start = (min(lim, cx + 0.12), cy + 0.02)          # behind the tray: straight out is past the wall
+        out = world.tray_exit(start, fld)
+        self.assertTrue(fld.inside(out), out)
+        self.assertFalse(world.in_box(out, fld.tray_box()), out)
+
+    def test_room_field_has_tray_exit(self):
+        from microduck_toy.stage3 import brain as brain_lib
+        configs = brain_lib.load_configs(override='configs/demo/room.json')
+        fld = Field.from_config(configs['stage1'], configs['stage3'])
+        self.assertEqual(fld.tray_exit_m, 0.05)
+        self.assertEqual(FIELD.tray_exit_m, 0.0)
+
     def test_start_outside_the_keep_in_square_steps_back_in(self):
         lim = FIELD.half_m - FIELD.keep_in_m
         route = world.plan_route((-0.85, -0.03), (0.2, 0.0), [], FIELD)
