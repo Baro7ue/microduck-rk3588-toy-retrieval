@@ -27,7 +27,7 @@ Licences of all third-party files: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.
 | `models/yolo/yolo11n_toys/` | fine-tuned by Ethan on Google Colab (60 epochs, 2026-10-25) with `scripts/vision/stage2/train_colab.ipynb` on the Stage 2 dataset; exported to ONNX and converted to RKNN FP16 and INT8 with the Stage 2 scripts |
 | numbers in `configs/*/stage*_facts.json` | measured in Ethan's runs on the Mac and the board; some were first tried in a cloud copy of the setup, and only the Mac and board runs count |
 | `results/stage4/` | computed by `scripts/stage4/tables.py` from Ethan's Stage 4 runs on the Mac and the board (2026-10-28 to 10-31) |
-| `docs/media/stage5_room_demo_rk3588_int8.mp4`, `.gif` | Stage 5 room demo, one board run (YOLO INT8 on the NPU, layout seed 5000) of 2026-11-12 on branch `microduck-stage5-v4` (`799c2aa`). GPT rendered the video afterwards from that run's logs (an offline replay at real speed, not a screen recording); Claude re-encoded it with ffmpeg (H.264, CRF 27) and made the GIF preview from it (8x speed, 640 px) |
+| `docs/media/stage5_room_demo_rk3588_int8.mp4`, `.gif` | Stage 5 room demo, one board run (YOLO INT8 on the NPU, layout seed 5000) of 2026-11-14 on branch `microduck-stage5-v5` (`b3ad606`). GPT rendered both videos afterwards from that run's logs (offline replays, not screen recordings): one at real speed and one at 4x speed. Claude re-encoded the real-speed one with ffmpeg (H.264, CRF 28) and made the GIF from the 4x one (8 fps, 560 px). They replace the v4.1 video of 2026-11-12 (`799c2aa`), which is in the history at `cd01669` |
 
 ## Documents
 

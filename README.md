@@ -21,7 +21,7 @@ the same programs it would run on one.
          alt="Room demo: the robot fetches a bus, Henry and a ketchup bottle and drops each into a bowl">
   </a>
   <br>
-  <sub>Preview at 8x speed. Click it for the full video at real speed (2 min 42 s, 8.8 MB).</sub>
+  <sub>Preview at 4x speed; the orange line is the path walked. Click it for the full video at real speed (2 min 52 s, 9.1 MB).</sub>
 </p>
 
 Stage 5 room demo: a 4.4 x 4.4 m room with furniture and 12 toys. The robot is told to fetch a bus,
@@ -29,14 +29,17 @@ Henry and a ketchup bottle, one after another without a reset, and drops each in
 outside its rim. In this run the RK3588 ran robotd, the brain and YOLO11n INT8 on the NPU; the Mac
 simulated the body, camera and distance sensor.
 
-- This one run (layout seed 5000) delivered 3 of 3 in 155 s, with no falls, no toy knocked out and
-  no contact with the bowl. It is a demo, not a formal result, and one run is not a success rate.
-- On the Mac the same code delivered 3 of 3 for seeds 5000 and 5001; the run for seed 5002 was
-  stopped by a check on the first tray look (centre 1.9 cm off, limit 1.5 cm) before anything was dropped.
-- In the board run the third tray look saw only part of the bowl and fell back to odometry (centre
-  7.3 cm off); the toy still went in.
+- This one run (layout seed 5000) delivered 3 of 3 in 165 s, with no falls and no toy knocked out.
+  It is a demo, not a formal result, and one run is not a success rate.
+- The room holds two of each target. The robot locks the first one it finds and keeps to it; which
+  one that is depends on where it happens to be facing, so it is not always the nearer one.
+- Not everything was clean: the robot touched the bowl for 0.06 s while stopping in front of it with
+  the ketchup, and it opened its beak about 19 cm from the bowl's centre each time, nearer than the
+  22 cm it aims for. The toys still went in.
+- On the Mac (YOLO on the CPU) the same code also delivered 3 of 3 for this layout, one run; there
+  one tray look was 4.5 cm off and another fell back to odometry.
 - The video is rendered afterwards from the run's logs (an offline replay), not a screen recording.
-- Code: branch [`microduck-stage5-v4`](https://github.com/Baro7ue/microduck-rk3588-toy-retrieval/tree/microduck-stage5-v4).
+- Code: branch [`microduck-stage5-v5`](https://github.com/Baro7ue/microduck-rk3588-toy-retrieval/tree/microduck-stage5-v5).
 
 ## Results
 
@@ -129,7 +132,7 @@ Each stage ended with a table of measured facts, and the next stage read its num
 | 2 | dataset, YOLO fine-tuning, ONNX and RKNN (FP16, INT8), offline accuracy and board timing | `configs/vision/stage2_facts.json` |
 | 3 | the whole task end to end on the Mac and on the board; frozen at tag `stage3-freeze` | `configs/control/stage3_facts.json` |
 | 4 | the formal 60-episode runs and comparisons; tag `stage4-results` | `results/stage4/` |
-| 5 | a room demo with 12 toys and three deliveries in a row into a bowl (branch `microduck-stage5-v4`, not a formal result; see [Demo](#demo)) | |
+| 5 | a room demo with 12 toys and three deliveries in a row into a bowl (branch `microduck-stage5-v5`, not a formal result; see [Demo](#demo)) | |
 
 ## Repository layout
 

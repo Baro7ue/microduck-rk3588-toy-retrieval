@@ -19,20 +19,23 @@
          alt="房间演示：机器人依次取回校车、Henry 和番茄酱瓶，分别放进碗里">
   </a>
   <br>
-  <sub>预览为 8 倍速。点击可看原速完整视频（2 分 42 秒，8.8 MB）。</sub>
+  <sub>预览为 4 倍速，橙色线是走过的路径。点击可看原速完整视频（2 分 52 秒，9.1 MB）。</sub>
 </p>
 
 阶段 5 房间演示：4.4 x 4.4 m 的房间，有家具和 12 个玩具。机器人按指令依次取回校车（bus）、Henry
 和番茄酱瓶（ketchup），中间不重置，每次都站在碗沿外把玩具放进碗里。这一轮由 RK3588 运行 robotd、
 brain 和 NPU 上的 YOLO11n INT8；Mac 仿真身体、相机和测距传感器。
 
-- 这一轮（布局 seed 5000）在 155 s 内送达 3/3，没有跌倒，没有把玩具撞出，也没有碰到碗。
+- 这一轮（布局 seed 5000）在 165 s 内送达 3/3，没有跌倒，也没有把玩具撞出。
   它是演示，不是正式结果；一轮结果不代表成功率。
-- 同一份代码在 Mac 上，seed 5000 和 5001 都送达 3/3；seed 5002 的那一轮在第一次看碗时被检查拦下
-  （盘心偏 1.9 cm，门限 1.5 cm），当时还没有投放任何玩具。
-- 板端这一轮里，第三次看碗只看到碗的一部分，退回用里程计（盘心偏 7.3 cm），玩具仍然进了碗。
+- 房间里每种目标有两个。机器人锁定最先找到的那个并一直取它；先找到哪个取决于当时的朝向，
+  所以不一定是较近的那个。
+- 并非处处完美：取番茄酱那一局，机器人在碗前停步时碰到了碗 0.06 s；三次开嘴时离碗心都约 19 cm，
+  比设定的 22 cm 近。玩具仍然都进了碗。
+- 同一份代码在 Mac 上（YOLO 跑在 CPU）对这个布局也送达 3/3，共一轮；其中一次看碗偏了 4.5 cm，
+  另一次退回用里程计。
 - 视频是事后根据运行日志渲染的离线回放，不是实时录屏。
-- 代码：分支 [`microduck-stage5-v4`](https://github.com/Baro7ue/microduck-rk3588-toy-retrieval/tree/microduck-stage5-v4)。
+- 代码：分支 [`microduck-stage5-v5`](https://github.com/Baro7ue/microduck-rk3588-toy-retrieval/tree/microduck-stage5-v5)。
 
 ## 结果
 
@@ -119,7 +122,7 @@ flowchart LR
 | 2 | 数据集、YOLO 微调、ONNX 和 RKNN（FP16、INT8）、离线精度和板端耗时 | `configs/vision/stage2_facts.json` |
 | 3 | 整个任务在 Mac 和板端端到端跑通；冻结于标签 `stage3-freeze` | `configs/control/stage3_facts.json` |
 | 4 | 正式的 60 局测试和对比；标签 `stage4-results` | `results/stage4/` |
-| 5 | 房间演示：12 个玩具，连续三次送进碗里（分支 `microduck-stage5-v4`，不是正式结果；见[演示](#演示)） | |
+| 5 | 房间演示：12 个玩具，连续三次送进碗里（分支 `microduck-stage5-v5`，不是正式结果；见[演示](#演示)） | |
 
 ## 仓库结构
 
