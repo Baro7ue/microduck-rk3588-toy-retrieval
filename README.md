@@ -148,7 +148,8 @@ Each stage ended with a table of measured facts, and the next stage read its num
 | `cpp/board_bench/` | C++17 board detector benchmark (skeleton) |
 | `docs/` | plans, step guides, analyses and research notes (Chinese originals in `docs/zh/`); `media/` holds the demo video |
 | `third_party/` | upstream `microduck` and `microduck_rl` as git submodules |
-| `runs/`, `data/`, `evidence/`, `offline/`, `references/` | local only; git keeps a README or a `MANIFEST.tsv` with sizes and SHA-256 |
+| `runs/`, `data/`, `evidence/`, `offline/` | local only; git keeps a README or a `MANIFEST.tsv` with sizes and SHA-256 |
+| `references/` | a note and a file list only: the reading material itself is kept outside the repository |
 
 The ball-following prototype that came first (2026-10-04 to 10-10: `archive/` and the G3/G4 step guides)
 was removed from `main` on 2026-11-01; it is still in the history, at tag `stage4-results`.

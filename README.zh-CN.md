@@ -138,7 +138,8 @@ flowchart LR
 | `cpp/board_bench/` | C++17 板端检测器基准（骨架） |
 | `docs/` | 计划、分步指南、分析和调研笔记（英文；中文原文在 `docs/zh/`）；`media/` 里是演示视频 |
 | `third_party/` | 上游的 `microduck` 和 `microduck_rl`，以 git 子模块引入 |
-| `runs/`、`data/`、`evidence/`、`offline/`、`references/` | 只在本地；git 里只保留 README 或带大小和 SHA-256 的 `MANIFEST.tsv` |
+| `runs/`、`data/`、`evidence/`、`offline/` | 只在本地；git 里只保留 README 或带大小和 SHA-256 的 `MANIFEST.tsv` |
+| `references/` | 只有一个说明和一份文件清单：资料本身放在仓库之外 |
 
 最早的追球原型（2026-10-04 至 10-10：`archive/` 和 G3/G4 分步指南）已于 2026-11-01 从 `main` 移除；
 它仍在历史记录里，位于标签 `stage4-results`。

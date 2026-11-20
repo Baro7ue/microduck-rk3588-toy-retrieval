@@ -4,7 +4,7 @@
 - `guides/`: step-by-step operating guides for Stages 0 and 1. The earlier guides for
   board gates G3 and G4 (2026-10-03 to 10-10) were removed from `main` on 2026-11-01; they are at tag `stage4-results`.
 - `analyses/`: training and drift analyses, notebooks and figures
-- `research/`: background research notes (sources in `references/research_ball_navigation/`)
+- `research/`: background research notes (their large source trees were in `references/research_ball_navigation/`, moved outside the repository on 2026-11-20, see `references/README.md`)
 - `reorg/`: the 2026-10-11 reorganisation tool, its README and the move log
 - `media/`: the Stage 5 room demo video and its preview GIF, shown in the top-level README
 - `zh/`: the Chinese originals of the documents above (中文原文), under the same paths and file names

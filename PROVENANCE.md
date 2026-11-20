@@ -39,5 +39,5 @@ Licences of all third-party files: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.
 | `docs/plans/2026-10-10_ball_search_navigation_plan.md`, `docs/research/` | not recorded in the files |
 | `README.md`, `THIRD_PARTY_NOTICES.md`, this file | Claude, 2026-11-01; README demo section and `README.zh-CN.md` (the Chinese version), Claude, 2026-11-12 |
 | English text of `docs/guides/`, `docs/plans/`, `docs/analyses/*.md`, `docs/research/`, `docs/reorg/README.md`, `docs/reorg/board_steps.md` | translated from the Chinese originals by Claude, 2026-11-12; the originals are kept unchanged in `docs/zh/` |
-| `references/vendor_alientek/` (local only) | 正点原子 (ALIENTEK) board documentation pack |
-| `references/ai_notes/` (local only) | Claude and GPT PDFs and notes (original names kept) |
+| `references/vendor_alientek/` (local only; moved to a notes folder outside the repository on 2026-11-20, see `references/README.md`) | 正点原子 (ALIENTEK) board documentation pack |
+| `references/ai_notes/` (local only; moved with it) | Claude and GPT PDFs and notes (original names kept) |

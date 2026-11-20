@@ -132,7 +132,9 @@ TOP_LEVEL = {
     'pyproject.toml', 'env.sh', 'src', 'scripts', 'configs', 'sim', 'tests', 'docs', 'results',
     'report', 'third_party', 'models', 'data', 'runs', 'evidence', 'offline', 'references', 'archive',
 }
-LOCAL_ONLY = ('evidence', 'offline', 'references', 'models', f'{ARCH}/vision-offline',
+# 'references' is not here any more: its material moved outside the repository on 2026-11-20 and
+# references/MANIFEST.tsv is kept as the record of that move (references/README.md).
+LOCAL_ONLY = ('evidence', 'offline', 'models', f'{ARCH}/vision-offline',
               f'{ARCH}/pdf_build', 'data', 'runs')
 BUSY_PATTERN = 'mjpython|robotd|body_server|tofd'
 

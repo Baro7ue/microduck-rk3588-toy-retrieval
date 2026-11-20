@@ -22,4 +22,4 @@ Read but not copied:
   [jonathanhawkins/microduck-lab](https://github.com/jonathanhawkins/microduck-lab) (Apache-2.0,
   `world/arena.py`); no code was copied.
 - Board vendor documents (ALIENTEK ATK-DLRK3588) are used locally and not included; `references/MANIFEST.tsv`
-  only lists their names.
+  only lists their names. Since 2026-11-20 they are kept outside the repository folder altogether.
